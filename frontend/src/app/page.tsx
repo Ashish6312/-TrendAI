@@ -10,10 +10,20 @@ import {
 import { useLanguage } from "@/context/LanguageContext";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
+import { useSession, signIn } from "next-auth/react";
 
 export default function Home() {
   const { t } = useLanguage();
   const router = useRouter();
+  const { data: session } = useSession();
+
+  const handleStartScan = () => {
+    if (session) {
+      router.push("/dashboard");
+    } else {
+      signIn("google", { callbackUrl: "/dashboard" });
+    }
+  };
 
   return (
     <div className="flex flex-col items-center bg-[#020617] selection:bg-blue-500/30">
@@ -73,10 +83,13 @@ export default function Home() {
           transition={{ delay: 0.5 }}
           className="relative z-10 flex flex-col sm:flex-row gap-6 w-full sm:w-auto px-6"
         >
-          <Link href="/dashboard" className="h-16 inline-flex justify-center items-center px-12 text-xs font-black uppercase tracking-[0.25em] text-white rounded-3xl bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 transition-all duration-500 shadow-[0_20px_40px_-10px_rgba(59,130,246,0.5)] hover:-translate-y-1 active:translate-y-0 active:scale-95 group">
+          <button 
+            onClick={handleStartScan}
+            className="h-16 inline-flex justify-center items-center px-12 text-xs font-black uppercase tracking-[0.25em] text-white rounded-3xl bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 transition-all duration-500 shadow-[0_20px_40px_-10px_rgba(59,130,246,0.5)] hover:-translate-y-1 active:translate-y-0 active:scale-95 group"
+          >
             {t("btn_start_scan")}
             <ArrowRight className="ml-3 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-          </Link>
+          </button>
           <Link href="/pricing" className="h-16 inline-flex justify-center items-center px-12 text-xs font-black uppercase tracking-[0.25em] text-gray-300 rounded-3xl border border-white/10 bg-white/5 backdrop-blur-md hover:bg-white/10 hover:text-white transition-all duration-500 active:scale-95">
             {t("btn_pricing")}
           </Link>
@@ -279,10 +292,13 @@ export default function Home() {
           <div className="absolute top-0 right-0 p-12 opacity-5 rotate-12"><Zap size={240} fill="white" /></div>
           <h3 className="text-4xl md:text-6xl font-black text-white mb-8 tracking-tighter leading-none">{t("banner_title")}</h3>
           <p className="text-gray-400 text-xl md:text-2xl mb-14 max-w-2xl mx-auto font-medium leading-relaxed">{t("banner_desc")}</p>
-          <Link href="/dashboard" className="h-20 inline-flex justify-center items-center px-16 text-xs font-black uppercase tracking-[0.4em] text-white rounded-3xl bg-[#2563eb] hover:bg-[#3b82f6] transition-all duration-500 shadow-[0_20px_50px_-10px_rgba(37,99,235,0.5)] hover:-translate-y-1 active:translate-y-0 active:scale-95 group">
+          <button 
+            onClick={handleStartScan}
+            className="h-20 inline-flex justify-center items-center px-16 text-xs font-black uppercase tracking-[0.4em] text-white rounded-3xl bg-[#2563eb] hover:bg-[#3b82f6] transition-all duration-500 shadow-[0_20px_50px_-10px_rgba(37,99,235,0.5)] hover:-translate-y-1 active:translate-y-0 active:scale-95 group"
+          >
              <Rocket size={24} className="mr-4 group-hover:rotate-12 transition-transform" />
              {t("banner_btn")}
-          </Link>
+          </button>
         </motion.div>
       </section>
 

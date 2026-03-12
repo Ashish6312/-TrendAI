@@ -15,6 +15,7 @@ const translations: Record<string, Record<string, string>> = {
     // Navbar
     nav_dashboard: "Terminal",
     nav_profile: "User Profile",
+    nav_login: "Access Terminal",
     nav_logout: "Terminate Session",
     nav_select_lang: "Select Intelligence Language",
     // Home Page
@@ -104,6 +105,7 @@ const translations: Record<string, Record<string, string>> = {
     // Navbar
     nav_dashboard: "टर्मिनल",
     nav_profile: "उपयोगकर्ता प्रोफाइल",
+    nav_login: "टर्मिनल एक्सेस",
     nav_logout: "सत्र समाप्त करें",
     nav_select_lang: "खुफिया भाषा चुनें",
     // Home Page
@@ -193,6 +195,7 @@ const translations: Record<string, Record<string, string>> = {
     // Navbar
     nav_dashboard: "Terminal",
     nav_profile: "Perfil de Usuario",
+    nav_login: "Acceso al Terminal",
     nav_logout: "Terminar Sesión",
     nav_select_lang: "Seleccionar Idioma de Inteligencia",
     // Home Page
@@ -282,6 +285,7 @@ const translations: Record<string, Record<string, string>> = {
     // Navbar
     nav_dashboard: "Terminal",
     nav_profile: "Profil Utilisateur",
+    nav_login: "Accès au Terminal",
     nav_logout: "Terminer la Session",
     nav_select_lang: "Sélectionner la Langue d'Intelligence",
     // Home Page
@@ -371,6 +375,7 @@ const translations: Record<string, Record<string, string>> = {
     // Navbar
     nav_dashboard: "Terminal",
     nav_profile: "Benutzerprofil",
+    nav_login: "Terminal-Zugriff",
     nav_logout: "Sitzung Beenden",
     nav_select_lang: "Intelligenzsprache Auswählen",
     // Home Page

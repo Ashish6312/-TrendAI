@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession, signOut } from "next-auth/react";
+import { useSession, signOut, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Languages, LogOut, Zap, User } from "lucide-react";
 import { useState } from "react";
@@ -79,6 +79,15 @@ export default function Navbar() {
               </div>
             )}
           </div>
+
+          {!session?.user && (
+            <button 
+              onClick={() => signIn('google')}
+              className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-600/20 active:scale-95"
+            >
+              {t("nav_login")}
+            </button>
+          )}
 
           {session?.user && (
             <div className="flex items-center gap-5 pl-6 border-l border-white/10">
