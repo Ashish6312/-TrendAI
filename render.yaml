@@ -1,0 +1,34 @@
+services:
+  # Backend FastAPI Service
+  - type: web
+    name: trendai-backend
+    env: python
+    region: singapore
+    plan: free
+    buildCommand: cd backend && pip install -r requirements.txt
+    startCommand: cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: trendai-db
+          property: connectionString
+      - key: POLLINATION_API_KEY
+        sync: false # Set this in Render Dashboard
+      - key: FRONTEND_URL
+        value: https://trendai-frontend.onrender.com # Change this after deployment
+
+  # Frontend Next.js Service
+  - type: web
+    name: trendai-frontend
+    env: node
+    region: singapore
+    plan: free
+    buildCommand: cd frontend && npm install && npm run build
+    startCommand: cd frontend && npm run start
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://trendai-backend.onrender.com # Change this to your backend URL
+
+databases:
+  - name: trendai-db
+    plan: free
