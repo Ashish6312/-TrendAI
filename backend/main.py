@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
 import requests
-from ddgs import DDGS
+from duckduckgo_search import DDGS
 
 from sqlalchemy.orm import Session
 from database import engine, get_db
