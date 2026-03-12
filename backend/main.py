@@ -17,15 +17,17 @@ models.Base.metadata.create_all(bind=engine)
 app = FastAPI(title="Business Recommendation API", description="API for AI Business Recommendation Tool")
 
 # Configure CORS
+frontend_url = os.getenv("FRONTEND_URL", "https://trendai-ui.onrender.com").rstrip("/")
 origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    os.getenv("FRONTEND_URL", ""),
+    "https://trendai-ui.onrender.com",
+    frontend_url,
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[o for o in origins if o],
+    allow_origins=list(set([o for o in origins if o])),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
