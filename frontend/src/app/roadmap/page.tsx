@@ -6,7 +6,7 @@ import { useState, useEffect, Suspense } from "react";
 import { 
   ArrowLeft, CheckCircle2, Loader2, Play, 
   ChevronRight, Calendar, Users, Rocket,
-  ShieldCheck, Sparkle, MapPin, Printer, Globe2
+  ShieldCheck, Sparkle, MapPin, Printer, Globe2, Zap
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/context/LanguageContext";
@@ -131,6 +131,13 @@ function RoadmapContent() {
           </motion.div>
           
           <div className="space-y-6">
+            <motion.div 
+               initial={{ opacity: 0, y: 10 }}
+               animate={{ opacity: 1, y: 0 }}
+               className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-[9px] font-black text-blue-400 uppercase tracking-widest mb-4"
+            >
+               <ShieldCheck size={14} /> Strategic Intelligence Protocol
+            </motion.div>
             <h1 className="text-4xl sm:text-7xl md:text-8xl font-black text-white tracking-tighter leading-none max-w-5xl mx-auto italic">
                The <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-teal-600">Growth</span> Directive.
             </h1>
@@ -150,37 +157,68 @@ function RoadmapContent() {
           </div>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-20">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-12 lg:gap-20">
           {/* Progress Sidebar */}
           <div className="hidden lg:block space-y-8 sticky top-36 h-fit">
-            <div className="glass-card p-10 bg-gradient-to-b from-emerald-600/15 via-emerald-600/5 to-transparent border-emerald-500/20 shadow-2xl">
-               <h4 className="text-[11px] font-black text-emerald-500 uppercase tracking-[0.4em] mb-8 border-b border-white/5 pb-5">{t("road_milestones")}</h4>
-               <div className="space-y-7">
+            <motion.div 
+              initial={{ opacity: 0, x: -30 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="glass-card p-10 bg-gradient-to-b from-emerald-600/15 via-emerald-600/5 to-transparent border-emerald-500/20 shadow-2xl"
+            >
+               <h4 className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-8 border-b border-white/5 pb-5">{t("road_milestones")}</h4>
+               <div className="space-y-6">
                  {steps.map((_, i) => (
-                   <div key={i} className="flex items-center gap-5">
+                   <div key={i} className="flex items-center gap-5 group cursor-default">
                      <div className={`w-2.5 h-2.5 rounded-full transition-all duration-700 ${i === 0 ? 'bg-emerald-500 shadow-[0_0_20px_rgba(16,185,129,1)] scale-125' : 'bg-gray-800'}`} />
-                     <span className={`text-[12px] font-black tracking-[0.2em] uppercase transition-colors duration-500 ${i === 0 ? 'text-white' : 'text-gray-700'}`}>{t("road_phase")} 0{i+1}</span>
+                     <span className={`text-[11px] font-black tracking-widest uppercase transition-colors duration-500 ${i === 0 ? 'text-white' : 'text-gray-700 group-hover:text-gray-500'}`}>{t("road_phase")} 0{i+1}</span>
                    </div>
                  ))}
                </div>
-            </div>
+            </motion.div>
             
-            <div className="glass-card p-10 space-y-10 border-white/5 shadow-xl">
+            <motion.div 
+              initial={{ opacity: 0, x: -30 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+              className="glass-card p-10 space-y-10 border-white/5 shadow-xl"
+            >
                <div className="flex items-center gap-5">
-                  <div className="w-12 h-12 bg-gray-900 rounded-2xl border border-white/5 flex items-center justify-center"><Calendar className="text-gray-500" size={24} /></div>
-                  <div className="space-y-1.5">
-                     <div className="text-[10px] font-black text-gray-600 uppercase tracking-[0.3em]">{t("road_timeline")}</div>
-                     <div className="text-sm font-black text-gray-300 italic tracking-tight underline decoration-emerald-500/20">~ 6 Months Cycle</div>
+                  <div className="w-12 h-12 bg-gray-900 rounded-2xl border border-white/5 flex items-center justify-center shadow-inner"><Calendar className="text-gray-500" size={20} /></div>
+                  <div className="space-y-1">
+                     <div className="text-[9px] font-black text-gray-600 uppercase tracking-widest">{t("road_timeline")}</div>
+                     <div className="text-sm font-black text-gray-300 italic tracking-tight">~ 6 Months Cycle</div>
                   </div>
                </div>
                <div className="flex items-center gap-5">
-                  <div className="w-12 h-12 bg-gray-900 rounded-2xl border border-white/5 flex items-center justify-center"><Users className="text-gray-500" size={24} /></div>
-                  <div className="space-y-1.5">
-                     <div className="text-[10px] font-black text-gray-600 uppercase tracking-[0.3em]">{t("road_team")}</div>
-                     <div className="text-sm font-black text-gray-300 italic tracking-tight underline decoration-amber-500/20">Elite Taskforce</div>
+                  <div className="w-12 h-12 bg-gray-900 rounded-2xl border border-white/5 flex items-center justify-center shadow-inner"><Users className="text-gray-500" size={20} /></div>
+                  <div className="space-y-1">
+                     <div className="text-[9px] font-black text-gray-600 uppercase tracking-widest">{t("road_team")}</div>
+                     <div className="text-sm font-black text-gray-300 italic tracking-tight">Elite Taskforce</div>
                   </div>
                </div>
-            </div>
+            </motion.div>
+
+            {/* NEW: Implementation Hacks */}
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.4 }}
+              className="glass-card p-10 bg-gradient-to-br from-blue-600/10 to-transparent border-blue-500/20"
+            >
+               <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-6">Expert Execution</h4>
+               <ul className="space-y-5">
+                 {[
+                   { icon: <Zap size={14} />, text: "Automate core flows first" },
+                   { icon: <Globe2 size={14} />, text: "Regional SEO dominance" },
+                   { icon: <Rocket size={14} />, text: "Zero-latency deployments" }
+                 ].map((tip, i) => (
+                   <li key={i} className="flex items-center gap-4 text-[11px] font-bold text-gray-400 group cursor-default">
+                     <span className="text-blue-500 group-hover:scale-125 transition-transform">{tip.icon}</span>
+                     {tip.text}
+                   </li>
+                 ))}
+               </ul>
+            </motion.div>
           </div>
 
           {/* Steps Content */}
@@ -191,40 +229,40 @@ function RoadmapContent() {
               {steps.map((step, index) => (
                 <motion.div 
                   key={index} 
-                  initial={{ opacity: 0, x: 40 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true, margin: "-15%" }}
+                  initial={{ opacity: 0, y: 40 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: "-10%" }}
                   transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
                   className="relative pl-0 md:pl-32 group"
                 >
                   {/* Number Badge */}
                   <div className="hidden md:flex absolute left-0 top-0 w-28 h-28 items-center justify-center">
-                    <div className="w-20 h-20 bg-gray-950 border-2 border-white/10 rounded-[2.5rem] flex items-center justify-center text-emerald-500 font-black text-3xl z-10 group-hover:border-emerald-500 group-hover:text-white group-hover:bg-emerald-600 transition-all duration-700 shadow-3xl group-hover:shadow-emerald-600/30 group-hover:-translate-y-2">
+                    <div className="w-20 h-20 bg-gray-950 border-2 border-white/10 rounded-[2.5rem] flex items-center justify-center text-emerald-500 font-black text-3xl z-10 group-hover:border-emerald-500 group-hover:text-white group-hover:bg-emerald-600 transition-all duration-700 shadow-2xl group-hover:shadow-emerald-600/30 group-hover:-translate-y-2">
                       {step.step_number}
                     </div>
                   </div>
                   
-                  <div className="glass-card p-14 md:p-16 bg-gradient-to-br from-white/[0.03] to-transparent border-white/5 hover:bg-white/[0.06] transition-all duration-700 hover:border-emerald-500/30 group-hover:shadow-[0_50px_100px_-20px_rgba(16,185,129,0.15)] relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/5 rounded-full blur-[100px] opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
+                  <div className="glass-card p-10 md:p-16 bg-gradient-to-br from-white/[0.03] to-transparent border-white/5 hover:border-emerald-500/30 transition-all duration-700 relative overflow-hidden group shadow-2xl hover:shadow-[0_40px_100px_-20px_rgba(16,185,129,0.1)]">
+                    <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/5 rounded-full blur-[120px] opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
                     
-                    <div className="flex items-center gap-6 mb-10 relative z-10">
-                      <div className="w-2.5 h-10 bg-emerald-600 rounded-full shadow-[0_0_30px_#10b981] animate-pulse" />
-                      <h3 className="text-4xl font-black text-white tracking-tighter group-hover:text-emerald-400 transition-colors leading-[0.9]">
+                    <div className="flex items-center gap-6 mb-8 relative z-10">
+                      <div className="w-2.5 h-10 bg-emerald-600 rounded-full shadow-[0_0_30px_#10b981] group-hover:h-12 transition-all duration-500" />
+                      <h3 className="text-3xl md:text-4xl font-black text-white tracking-tighter group-hover:text-emerald-400 transition-colors leading-none">
                         {step.step_title}
                       </h3>
                     </div>
                     
-                    <div className="space-y-10 relative z-10">
-                       <p className="text-gray-400 leading-relaxed text-2xl font-medium tracking-tight">
+                    <div className="space-y-8 relative z-10">
+                       <p className="text-gray-400 leading-relaxed text-lg md:text-xl font-medium tracking-tight opacity-80 group-hover:opacity-100 transition-opacity">
                          {step.step_description}
                        </p>
                        
-                       <div className="flex flex-wrap gap-6 pt-10 border-t border-white/5">
-                          <div className="flex items-center gap-3 px-6 py-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-black text-emerald-500 uppercase tracking-[0.4em] shadow-inner">
-                             <ShieldCheck size={18} /> {t("road_priority")}
+                       <div className="flex flex-wrap gap-4 pt-10 border-t border-white/5">
+                          <div className="flex items-center gap-3 px-5 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[9px] font-black text-emerald-500 uppercase tracking-widest">
+                             <ShieldCheck size={16} /> {t("road_priority")}
                           </div>
-                          <div className="flex items-center gap-3 px-6 py-3 rounded-2xl bg-amber-500/5 border border-amber-500/15 text-[10px] font-black text-amber-500 uppercase tracking-[0.4em]">
-                             <ChevronRight size={18} /> {t("road_action")}
+                          <div className="flex items-center gap-3 px-5 py-2.5 rounded-xl bg-amber-500/5 border border-amber-500/15 text-[9px] font-black text-amber-500 uppercase tracking-widest hover:bg-amber-500/10 transition-colors cursor-pointer">
+                             <Play size={16} fill="currentColor" /> {t("road_action")}
                           </div>
                        </div>
                     </div>
@@ -233,24 +271,53 @@ function RoadmapContent() {
               ))}
             </AnimatePresence>
 
+            {/* Implementation Strategies Matrix */}
+            <div className="md:ml-32 space-y-12">
+               <div className="flex items-center gap-6">
+                  <div className="h-px bg-white/10 flex-1" />
+                  <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest whitespace-nowrap">Execution Matrix</h4>
+                  <div className="h-px bg-white/10 flex-1" />
+               </div>
+               
+               <motion.div 
+                  initial={{ opacity: 0, y: 40 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  className="grid md:grid-cols-2 gap-8"
+               >
+                  <div className="glass-card p-12 bg-gradient-to-br from-indigo-600/10 to-transparent border-indigo-500/20 group hover:border-indigo-500/40 transition-all duration-700">
+                     <div className="w-14 h-14 bg-indigo-500/20 rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 group-hover:bg-indigo-600 transition-all duration-500"><Rocket className="text-indigo-400 group-hover:text-white" size={28} /></div>
+                     <h4 className="text-2xl font-black text-white mb-4 tracking-tighter">Hyper-Scale Protocol</h4>
+                     <p className="text-gray-500 font-medium leading-relaxed text-sm">Deploy automated customer acquisition funnels using AI-driven sentiment analysis to capture market share 3x faster than traditional competitors.</p>
+                  </div>
+                  <div className="glass-card p-12 bg-gradient-to-br from-emerald-600/10 to-transparent border-emerald-500/20 group hover:border-emerald-500/40 transition-all duration-700">
+                     <div className="w-14 h-14 bg-emerald-500/20 rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 group-hover:bg-emerald-600 transition-all duration-500"><ShieldCheck className="text-emerald-400 group-hover:text-white" size={28} /></div>
+                     <h4 className="text-2xl font-black text-white mb-4 tracking-tighter">Strategic Resilience</h4>
+                     <p className="text-gray-500 font-medium leading-relaxed text-sm">Diversify revenue streams by integrating local market data into your product cycle, ensuring survival even during volatile economic shifts.</p>
+                  </div>
+               </motion.div>
+            </div>
+
             {/* Conclusion */}
             <motion.div 
-              initial={{ opacity: 0, scale: 0.9 }}
+              initial={{ opacity: 0, scale: 0.95 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
-              className="glass-card p-20 md:p-28 bg-gradient-to-br from-emerald-600/15 via-transparent to-amber-600/15 border-emerald-500/30 flex flex-col items-center text-center relative overflow-hidden shadow-3xl"
+              className="glass-card p-16 md:p-24 bg-gradient-to-br from-emerald-600/15 via-transparent to-amber-600/15 border-emerald-500/30 flex flex-col items-center text-center relative overflow-hidden shadow-3xl group mb-24"
             >
               <div className="absolute inset-0 bg-grid-white/[0.01] pointer-events-none" />
-              <div className="w-32 h-32 bg-emerald-500/20 rounded-[3rem] flex items-center justify-center mb-12 shadow-[0_0_80px_-10px_rgba(16,185,129,0.5)] border-2 border-emerald-500/30 animate-pulse">
-                <CheckCircle2 className="w-16 h-16 text-emerald-400" />
+              <div className="absolute -top-24 -left-24 w-96 h-96 bg-emerald-600/10 rounded-full blur-[100px] group-hover:opacity-100 transition-opacity" />
+              
+              <div className="w-28 h-28 bg-emerald-500/20 rounded-[2.5rem] flex items-center justify-center mb-10 shadow-[0_0_80px_-10px_rgba(16,185,129,0.5)] border-2 border-emerald-500/30 animate-pulse relative z-10">
+                <CheckCircle2 className="w-12 h-12 text-emerald-400" />
               </div>
-              <h3 className="text-6xl font-black text-white mb-8 tracking-tighter uppercase italic">{t("road_readiness")}</h3>
-              <p className="text-gray-400 max-w-2xl mx-auto text-2xl font-bold leading-relaxed tracking-tight selection:bg-emerald-600/30 mb-16">
-                Market readiness protocol complete. Regional analysis confirms high-probability success cycle for this venture.
+              <h3 className="text-4xl md:text-6xl font-black text-white mb-8 tracking-tighter uppercase italic relative z-10">{t("road_readiness")}</h3>
+              <p className="text-gray-400 max-w-2xl mx-auto text-xl md:text-2xl font-bold leading-relaxed tracking-tight relative z-10 mb-16 px-4">
+                Market readiness protocol complete. Regional analysis confirms <span className="text-emerald-500">high-probability success cycle</span> for this venture.
               </p>
               <button 
                 onClick={() => window.print()} 
-                className="h-20 px-16 bg-white text-black font-black rounded-[2rem] text-[12px] uppercase tracking-[0.5em] hover:bg-emerald-500 hover:text-white transition-all duration-700 shadow-2xl flex items-center gap-6 hover:-translate-y-3 active:scale-95"
+                className="h-20 px-12 sm:px-16 bg-white text-black font-black rounded-[2rem] text-[11px] uppercase tracking-widest hover:bg-emerald-500 hover:text-white transition-all duration-700 shadow-2xl flex items-center gap-6 hover:-translate-y-3 active:scale-95 relative z-10"
               >
                 <Printer size={24} />
                 {t("road_print")}

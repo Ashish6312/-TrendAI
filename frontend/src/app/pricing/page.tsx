@@ -63,7 +63,7 @@ export default function Pricing() {
               
               <div className="text-7xl font-black text-white mb-14 tracking-tighter">$0<span className="text-xl text-gray-700 font-black uppercase tracking-widest ml-3">/cycle</span></div>
               
-              <ul className="space-y-7 mb-16 text-gray-400 text-xs font-bold uppercase tracking-[0.25em]">
+              <ul className="space-y-7 mb-16 text-gray-400 text-xs font-bold uppercase tracking-widest">
                 {[
                   { text: `5 ${t("price_searches")}`, icon: <Check size={16} /> },
                   { text: t("price_google"), icon: <Check size={16} /> },
@@ -80,7 +80,7 @@ export default function Pricing() {
                 ))}
               </ul>
             </div>
-            <Link href="/dashboard" className="w-full py-6 px-4 text-center text-[11px] font-black uppercase tracking-[0.4em] text-gray-400 border border-white/10 rounded-[2rem] hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/30 transition-all duration-500 shadow-inner">
+            <Link href="/dashboard" className="w-full py-6 px-4 text-center text-[11px] font-black uppercase tracking-widest text-gray-400 border border-white/10 rounded-[2rem] hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/30 transition-all duration-500 shadow-inner">
               {t("price_free")}
             </Link>
           </motion.div>
@@ -93,7 +93,7 @@ export default function Pricing() {
             whileHover={{ y: -15, scale: 1.02 }}
             className="glass-card p-14 flex flex-col justify-between border-emerald-500/20 bg-gradient-to-br from-emerald-600/10 via-transparent to-amber-600/5 relative overflow-hidden group shadow-[0_40px_120px_-20px_rgba(16,185,129,0.3)]"
           >
-            <div className="absolute top-0 right-0 bg-emerald-600 text-white text-[10px] font-black px-8 py-3 rounded-bl-[2.5rem] tracking-[0.4em] uppercase shadow-2xl z-20">
+            <div className="absolute top-0 right-0 bg-emerald-600 text-white text-[10px] font-black px-8 py-3 rounded-bl-[2.5rem] tracking-widest uppercase shadow-2xl z-20">
               {t("price_popular")}
             </div>
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-1.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />

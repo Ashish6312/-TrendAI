@@ -87,12 +87,12 @@ export default function Home() {
           >
             <button 
               onClick={handleStartScan}
-              className="h-20 px-16 rounded-[2.5rem] growth-gradient hover:scale-105 transition-all duration-700 shadow-[0_30px_60px_-15px_rgba(16,185,129,0.5)] hover:-translate-y-2 group active:scale-95 text-white text-[12px] font-black uppercase tracking-[0.4em]"
+              className="h-20 px-16 rounded-[2.5rem] growth-gradient hover:scale-105 transition-all duration-700 shadow-[0_30px_60px_-15px_rgba(16,185,129,0.5)] hover:-translate-y-2 group active:scale-95 text-white text-[12px] font-black uppercase tracking-widest"
             >
               INVESTIGATE MARKET
               <ArrowRight className="inline-block ml-4 group-hover:translate-x-2 transition-transform" size={20} />
             </button>
-            <Link href="/pricing" className="h-20 px-16 rounded-[2.5rem] bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 text-[12px] font-black uppercase tracking-[0.4em] transition-all duration-700 backdrop-blur-xl">
+            <Link href="/pricing" className="h-20 px-16 rounded-[2.5rem] bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 text-[12px] font-black uppercase tracking-widest transition-all duration-700 backdrop-blur-xl">
               ACCESS TIERS
             </Link>
           </motion.div>

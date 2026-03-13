@@ -394,30 +394,30 @@ export default function Dashboard() {
                       
                       {(rec.funding_required || rec.survival_rate || rec.estimated_profit) && (
                         <div className="space-y-4 mb-10 bg-black/40 p-6 rounded-[2rem] border border-white/5 relative z-10 group-hover:border-blue-500/20 transition-all shadow-inner">
-                          <div className="flex items-center justify-between gap-4">
-                             <div className="text-[10px] font-black text-gray-600 uppercase tracking-widest flex items-center gap-2 min-w-fit">
+                          <div className="flex justify-between items-center gap-4">
+                             <div className="flex items-center gap-2 shrink-0">
                                <PiggyBank size={16} className="text-blue-500" />
-                               {t("dash_capital")}
+                               <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">{t("dash_capital")}</span>
                              </div>
-                             <span className="text-white font-black tracking-tight text-xs text-right truncate">
+                             <span className="text-white font-black tracking-tight text-[11px] sm:text-xs text-right leading-none">
                                {rec.funding_required}
                              </span>
                           </div>
-                          <div className="flex items-center justify-between gap-4">
-                             <div className="text-[10px] font-black text-gray-600 uppercase tracking-widest flex items-center gap-2 min-w-fit">
+                          <div className="flex justify-between items-center gap-4">
+                             <div className="flex items-center gap-2 shrink-0">
                                <Activity size={16} className="text-indigo-500" />
-                               {t("dash_prob")}
+                               <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">{t("dash_prob")}</span>
                              </div>
-                             <span className="text-white font-black tracking-tight text-xs text-right truncate">
+                             <span className="text-white font-black tracking-tight text-[11px] sm:text-xs text-right leading-none">
                                {rec.survival_rate}
                              </span>
                           </div>
-                          <div className="flex items-center justify-between gap-4 pt-3 border-t border-white/5">
-                             <div className="text-[10px] font-black text-gray-600 uppercase tracking-widest flex items-center gap-2 min-w-fit">
+                          <div className="flex justify-between items-center gap-4 pt-3 border-t border-white/5">
+                             <div className="flex items-center gap-2 shrink-0">
                                <DollarSign size={16} className="text-green-500" />
-                               {t("dash_revenue")}
+                               <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">{t("dash_revenue")}</span>
                              </div>
-                             <span className="text-green-400 font-black tracking-tight text-base drop-shadow-[0_0_15px_rgba(34,197,94,0.4)] text-right truncate">
+                             <span className="text-green-400 font-black tracking-tight text-sm sm:text-base drop-shadow-[0_0_15px_rgba(34,197,94,0.4)] text-right leading-none">
                                {rec.estimated_profit}
                              </span>
                           </div>
