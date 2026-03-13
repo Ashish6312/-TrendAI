@@ -25,7 +25,7 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-6 h-20 flex items-center">
         {/* LEFT: LOGO */}
         <div className="flex-1 flex justify-start">
-          <div className="flex items-center gap-3 group cursor-pointer" onClick={() => router.push('/dashboard')}>
+          <div className="flex items-center gap-3 group cursor-pointer" onClick={() => router.push('/')}>
             <div className="w-11 h-11 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-[0_0_30px_-5px_rgba(59,130,246,0.4)] group-hover:scale-105 transition-all duration-300">
               <Zap className="text-white" size={22} fill="currentColor" />
             </div>

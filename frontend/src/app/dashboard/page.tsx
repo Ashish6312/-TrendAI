@@ -21,12 +21,29 @@ export default function Dashboard() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [history, setHistory] = useState<any[]>([]);
+
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/");
     }
-  }, [status, router]);
+    if (session?.user?.email) {
+      fetchHistory();
+    }
+  }, [status, router, session]);
+
+  const fetchHistory = async () => {
+    if (!session?.user?.email) return;
+    try {
+      const response = await fetch(`${apiUrl}/api/history/${session.user.email}`);
+      const data = await response.json();
+      setHistory(data);
+    } catch (e) {
+      console.error("Failed to fetch history", e);
+    }
+  };
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(async () => {
@@ -65,7 +82,6 @@ export default function Dashboard() {
     setLoading(true);
     setResult(null);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
       const response = await fetch(`${apiUrl}/api/recommendations`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -77,11 +93,24 @@ export default function Dashboard() {
       });
       const data = await response.json();
       setResult(data);
+      fetchHistory(); // Refresh history after new scan
     } catch (error) {
       console.error("Failed to fetch recommendations", error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadFromHistory = (item: any) => {
+    setArea(item.area);
+    setResult({
+      area: item.area,
+      analysis: item.analysis,
+      recommendations: item.recommendations,
+      id: item.id
+    });
+    // Scroll to top if needed
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   if (status === "loading") {
@@ -168,6 +197,42 @@ export default function Dashboard() {
                 {loading ? t("dash_analyzing") : t("dash_analyze")}
               </button>
             </form>
+          </div>
+
+          {/* New History Section */}
+          <div className="glass-card p-8 border-white/5 bg-gradient-to-br from-white/[0.02] to-transparent">
+            <div className="flex items-center gap-3 mb-6">
+               <div className="p-2 bg-indigo-500/10 rounded-lg">
+                  <Activity className="text-indigo-500" size={18} />
+               </div>
+               <h3 className="text-sm font-black text-white uppercase tracking-widest leading-none">Recent Scans</h3>
+            </div>
+            
+            <div className="space-y-3 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
+               {history.length > 0 ? (
+                  history.map((item, idx) => (
+                     <button
+                        key={idx}
+                        onClick={() => loadFromHistory(item)}
+                        className={`w-full text-left p-4 rounded-xl border border-white/5 hover:border-blue-500/30 hover:bg-blue-500/5 transition-all group ${result?.id === item.id ? 'border-blue-500/40 bg-blue-500/10' : ''}`}
+                     >
+                        <div className="flex items-center gap-3">
+                           <MapPin size={12} className="text-gray-600 group-hover:text-blue-500" />
+                           <span className="text-[11px] font-bold text-gray-400 group-hover:text-white truncate uppercase tracking-tighter">
+                              {item.area.split(',')[0]}
+                           </span>
+                        </div>
+                        <div className="mt-1 pl-6 text-[9px] text-gray-600 font-black uppercase tracking-widest">
+                           {new Date(item.created_at).toLocaleDateString()}
+                        </div>
+                     </button>
+                  ))
+               ) : (
+                  <div className="py-8 text-center">
+                     <p className="text-[10px] font-black text-gray-700 uppercase tracking-widest">{status === "authenticated" ? "No scan history found" : "Login to view history"}</p>
+                  </div>
+               )}
+            </div>
           </div>
           
           <div className="glass-card p-8 border-indigo-500/10 relative overflow-hidden group bg-gradient-to-br from-indigo-600/5 via-transparent to-transparent">

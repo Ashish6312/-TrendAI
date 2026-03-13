@@ -181,6 +181,11 @@ def get_recommendations(request: RecommendationRequest, db: Session = Depends(ge
         }
     }
 
+@app.get("/api/history/{email}")
+def get_history(email: str, db: Session = Depends(get_db)):
+    history = db.query(models.SearchHistory).filter(models.SearchHistory.user_email == email).order_by(models.SearchHistory.created_at.desc()).all()
+    return history
+
 class UserSync(BaseModel):
     email: str
     name: str
