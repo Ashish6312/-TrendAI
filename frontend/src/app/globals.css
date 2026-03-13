@@ -87,9 +87,26 @@ body {
     mix-blend-mode: soft-light;
   }
 
+  .gold-gradient {
+    @apply bg-gradient-to-r from-[#fbbf24] via-[#f59e0b] to-[#d97706];
+  }
+
   .gradient-text {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-500;
   }
+
+  .gold-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-[#fbbf24] via-[#f59e0b] to-[#d97706];
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse-slow {
+  0%, 100% { opacity: 0.1; transform: scale(1); }
+  50% { opacity: 0.3; transform: scale(1.1); }
 }
 
 /* Custom Scrollbar */

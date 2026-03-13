@@ -320,51 +320,54 @@ export default function Dashboard() {
                   {result.recommendations.map((rec: any, index: number) => (
                     <motion.div 
                       key={index} 
-                      whileHover={{ y: -10 }}
+                      whileHover={{ y: -15, scale: 1.02 }}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
                       onClick={() => router.push(`/roadmap?area=${encodeURIComponent(result.area)}&title=${encodeURIComponent(rec.title)}&desc=${encodeURIComponent(rec.description)}&lang=${language}`)}
-                      className="glass-card p-9 cursor-pointer border-white/5 hover:border-blue-500/40 hover:bg-white/[0.04] transition-all duration-500 group relative flex flex-col h-full bg-gradient-to-b from-white/[0.02] to-transparent card-hover shadow-xl overflow-hidden"
+                      className="glass-card p-10 cursor-pointer border-white/5 hover:border-blue-500/30 hover:bg-white/[0.05] transition-all duration-700 group relative flex flex-col h-full shadow-2xl overflow-hidden"
                     >
-                      <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/0 via-transparent to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
+                      <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-transparent via-blue-500/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                       
-                      <div className="flex justify-between items-start mb-8 relative z-10">
-                        <div className="w-14 h-14 bg-blue-500/10 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-500 shadow-2xl group-hover:bg-blue-600/20 border border-blue-500/10">
+                      <div className="flex justify-between items-start mb-10 relative z-10">
+                        <div className="w-16 h-16 bg-blue-500/10 rounded-[2rem] flex items-center justify-center group-hover:bg-blue-600 transition-all duration-500 shadow-xl border border-blue-500/10">
                           <span className="text-blue-500 font-black text-2xl group-hover:text-white transition-colors">{index + 1}</span>
                         </div>
                         <div className="flex flex-col items-end gap-1.5">
-                           <div className="flex items-center gap-2 bg-green-500/10 text-green-400 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-green-500/20 shadow-[0_0_20px_rgba(34,197,94,0.15)]">
-                             <TrendingUp size={14} /> {rec.profitability_score}% {t("dash_match_score")}
+                           <div className="flex items-center gap-2 bg-amber-500/10 text-amber-500 px-5 py-2.5 rounded-2xl text-[10px] font-extrabold uppercase tracking-[0.2em] border border-amber-500/20 shadow-lg">
+                             <TrendingUp size={14} className="animate-bounce" /> {rec.profitability_score}% MATCH
                            </div>
                         </div>
                       </div>
                       
-                      <h4 className="text-2xl font-black text-white mb-5 leading-tight group-hover:text-blue-400 transition-colors tracking-tight relative z-10">
+                      <h4 className="text-3xl font-black text-white mb-6 leading-none group-hover:text-blue-400 transition-colors tracking-tighter relative z-10">
                         {rec.title}
                       </h4>
-                      <p className="text-gray-500 text-[15px] leading-relaxed mb-10 flex-grow font-medium relative z-10">
+                      <p className="text-gray-500 text-[16px] leading-relaxed mb-12 flex-grow font-medium relative z-10 line-clamp-4">
                         {rec.description}
                       </p>
                       
                       {(rec.funding_required || rec.survival_rate || rec.estimated_profit) && (
-                        <div className="space-y-4 mb-10 bg-black/40 p-6 rounded-[2rem] border border-white/5 relative z-10 group-hover:border-blue-500/10 transition-colors shadow-inner">
+                        <div className="space-y-5 mb-12 bg-black/40 p-8 rounded-[3rem] border border-white/5 relative z-10 group-hover:border-blue-500/20 transition-all shadow-inner">
                           <div className="flex items-center justify-between text-xs">
-                             <span className="text-gray-600 font-black uppercase tracking-[0.2em] flex items-center gap-3"><PiggyBank size={16} className="text-blue-500" /> {t("dash_capital")}</span>
-                             <span className="text-gray-200 font-black tracking-tight">{rec.funding_required}</span>
+                             <span className="text-gray-600 font-black uppercase tracking-[0.3em] flex items-center gap-3"><PiggyBank size={18} className="text-blue-500" /> {t("dash_capital")}</span>
+                             <span className="text-white font-black tracking-tight">{rec.funding_required}</span>
                           </div>
                           <div className="flex items-center justify-between text-xs">
-                             <span className="text-gray-600 font-black uppercase tracking-[0.2em] flex items-center gap-3"><Activity size={16} className="text-indigo-500" /> {t("dash_prob")}</span>
-                             <span className="text-gray-200 font-black tracking-tight">{rec.survival_rate}</span>
+                             <span className="text-gray-600 font-black uppercase tracking-[0.3em] flex items-center gap-3"><Activity size={18} className="text-indigo-500" /> {t("dash_prob")}</span>
+                             <span className="text-white font-black tracking-tight">{rec.survival_rate}</span>
                           </div>
-                          <div className="flex items-center justify-between text-xs pt-1">
-                             <span className="text-gray-600 font-black uppercase tracking-[0.2em] flex items-center gap-3"><DollarSign size={16} className="text-green-500" /> {t("dash_revenue")}</span>
-                             <span className="text-green-500 font-black tracking-tight text-sm shadow-[0_0_15px_rgba(34,197,94,0.2)]">{rec.estimated_profit}</span>
+                          <div className="flex items-center justify-between text-xs pt-2 border-t border-white/5">
+                             <span className="text-gray-600 font-black uppercase tracking-[0.3em] flex items-center gap-3"><DollarSign size={18} className="text-green-500" /> {t("dash_revenue")}</span>
+                             <span className="text-green-400 font-black tracking-tight text-lg drop-shadow-[0_0_15px_rgba(34,197,94,0.4)]">{rec.estimated_profit}</span>
                           </div>
                         </div>
                       )}
 
-                      <div className="pt-8 border-t border-white/5 flex justify-between items-center group/btn mt-auto relative z-10">
-                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] group-hover:text-white transition-colors">{t("dash_view_plan")}</span>
-                        <div className="w-10 h-10 rounded-2xl bg-white/5 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white text-blue-500 transition-all duration-500 shadow-xl group-hover:shadow-blue-600/40">
-                          <ArrowRight size={18} />
+                      <div className="pt-8 border-t border-white/5 flex justify-between items-center mt-auto relative z-10 hover:translate-x-1 transition-transform cursor-pointer">
+                        <span className="text-[11px] font-black text-gray-500 uppercase tracking-[0.5em] group-hover:text-white transition-colors">{t("dash_view_plan")}</span>
+                        <div className="w-12 h-12 rounded-[1.5rem] bg-white/5 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white text-blue-500 transition-all duration-500 shadow-2xl">
+                          <ArrowRight size={22} />
                         </div>
                       </div>
                     </motion.div>
