@@ -223,64 +223,72 @@ export default function Home() {
          <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-white/5 to-transparent" />
       </section>
 
-      {/* 5. LIVE PREVIEW / INTEL SECTION */}
-      <section className="w-full max-w-7xl px-6 py-40 mx-auto">
-        <div className="flex flex-col lg:flex-row items-center gap-24">
-          <div className="w-full lg:w-1/2 space-y-10">
-            <div className="inline-block px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-[10px] font-black text-blue-400 tracking-[0.3em] uppercase">Advanced Reconnaissance</div>
-            <h2 className="text-5xl md:text-7xl font-black text-white tracking-tighter leading-[0.9]">Deep Regional <span className="text-blue-500">Signal Mining.</span></h2>
-            <p className="text-gray-500 text-xl font-medium leading-relaxed">We don't just guess. Our neural engine extracts unvocalized market friction by analyzing millions of localized community discussions.</p>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-               <div className="flex gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center shrink-0"><BarChart3 size={20} className="text-blue-500" /></div>
-                  <div className="space-y-1">
-                     <div className="text-sm font-black text-white uppercase tracking-tight italic">reddit_Scraper_v4</div>
-                     <p className="text-xs text-gray-500 font-medium tracking-tight">Extracting local pain points from hyper-niche subreddits.</p>
-                  </div>
-               </div>
-               <div className="flex gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center shrink-0"><Globe2 size={20} className="text-indigo-500" /></div>
-                  <div className="space-y-1">
-                     <div className="text-sm font-black text-white uppercase tracking-tight italic">google_Trend_API</div>
-                     <p className="text-xs text-gray-500 font-medium tracking-tight">Monitoring real-time search volume across geographical zones.</p>
-                  </div>
-               </div>
-            </div>
-          </div>
+      {/* 5.5 INTELLIGENCE VISUALIZATION */}
+      <section className="w-full max-w-7xl px-6 py-20 mx-auto">
+        <div className="text-center mb-20 space-y-4">
+          <div className="text-indigo-500 text-[10px] font-black uppercase tracking-[0.5em]">{t("dash_ai_insights")}</div>
+          <h2 className="text-4xl md:text-6xl font-black text-white tracking-tighter capitalize">Neural Reconnaissance Engine</h2>
+        </div>
 
-          <div className="w-full lg:w-1/2 relative group">
-            <div className="absolute -inset-4 bg-blue-500/10 rounded-[3rem] blur-3xl group-hover:bg-blue-600/10 transition-all duration-1000" />
-            <div className="glass-card p-1 bg-white/5 border-white/20 relative shadow-2xl rotate-2 group-hover:rotate-0 transition-transform duration-700">
-               <div className="bg-[#020617] rounded-[1.4rem] p-8 space-y-8 overflow-hidden">
-                  <div className="flex items-center justify-between border-b border-white/5 pb-6">
-                     <div className="flex items-center gap-3">
-                        <div className="w-3 h-3 rounded-full bg-red-500/50" />
-                        <div className="w-3 h-3 rounded-full bg-yellow-500/50" />
-                        <div className="w-3 h-3 rounded-full bg-green-500/50" />
-                     </div>
-                     <div className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Market_Report_0x84f.json</div>
-                     <div className="w-4 h-4 rounded bg-white/5" />
-                  </div>
-                  <div className="space-y-6">
-                     <div className="h-4 bg-white/5 rounded w-3/4 animate-pulse" />
-                     <div className="h-4 bg-white/5 rounded w-full animate-pulse delay-75" />
-                     <div className="h-20 bg-blue-600/10 border border-blue-500/20 rounded-2xl flex items-center justify-center">
-                        <LineChart className="text-blue-500" size={32} />
-                     </div>
-                     <div className="grid grid-cols-2 gap-4">
-                        <div className="h-12 bg-white/5 rounded-xl border border-white/5" />
-                        <div className="h-12 bg-white/5 rounded-xl border border-white/5" />
-                     </div>
-                  </div>
-                  <div className="pt-4 flex justify-end">
-                     <div className="px-6 py-2 bg-blue-600 rounded-lg text-[10px] font-black text-white uppercase tracking-widest">DEPLOY PLAN</div>
-                  </div>
-               </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <motion.div 
+            initial={{ opacity: 0, x: -50 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            transition={{ duration: 1 }}
+            className="relative group"
+          >
+            <div className="absolute -inset-2 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-[2.5rem] blur-2xl opacity-20 group-hover:opacity-40 transition-opacity" />
+            <div className="glass-card p-4 bg-white/5 border-white/10 overflow-hidden relative">
+              <motion.div
+                animate={{ scale: [1, 1.05, 1], rotate: [0, 1, 0] }}
+                transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <img 
+                  src="/intel-visualization-1.jpg" 
+                  alt="Neural Scan Visualization" 
+                  className="w-full rounded-2xl shadow-2xl brightness-90 group-hover:brightness-110 transition-all duration-700"
+                />
+              </motion.div>
+              {/* Overlay Pulsing Nodes */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-blue-500/20 rounded-full blur-3xl animate-pulse" />
+              <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-blue-400 rounded-full shadow-[0_0_15px_#60a5fa] animate-ping" />
+              <div className="absolute bottom-1/3 right-1/4 w-2 h-2 bg-indigo-400 rounded-full shadow-[0_0_15px_#818cf8] animate-ping delay-700" />
             </div>
-          </div>
+            <div className="absolute -bottom-6 -right-6 glass-card p-6 bg-blue-600/90 border-blue-400/50 backdrop-blur-2xl shadow-2xl z-20 max-w-[200px]">
+               <div className="text-[10px] font-black text-white/70 uppercase tracking-widest mb-1">Status</div>
+               <div className="text-sm font-black text-white uppercase italic">Active Neural Scan</div>
+            </div>
+          </motion.div>
+
+          <motion.div 
+            initial={{ opacity: 0, x: 50 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            transition={{ duration: 1, delay: 0.2 }}
+            className="relative group lg:mt-24"
+          >
+            <div className="absolute -inset-2 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-[2.5rem] blur-2xl opacity-20 group-hover:opacity-40 transition-opacity" />
+            <div className="glass-card p-4 bg-white/5 border-white/10 overflow-hidden relative">
+              <motion.div
+                animate={{ scale: [1, 1.03, 1], y: [0, -10, 0] }}
+                transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <img 
+                  src="/intel-visualization-2.jpg" 
+                  alt="Network Topology Visualization" 
+                  className="w-full rounded-2xl shadow-2xl brightness-90 group-hover:brightness-110 transition-all duration-700"
+                />
+              </motion.div>
+              <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-transparent to-transparent opacity-40" />
+            </div>
+            <div className="absolute -top-6 -left-6 glass-card p-6 bg-indigo-600/90 border-indigo-400/50 backdrop-blur-2xl shadow-2xl z-20 max-w-[200px]">
+               <div className="text-[10px] font-black text-white/70 uppercase tracking-widest mb-1">Metric</div>
+               <div className="text-sm font-black text-white uppercase italic">1.2M Vector Nodes</div>
+            </div>
+          </motion.div>
         </div>
       </section>
+
+      {/* 6. BOTTOM CTA BANNER */}
 
       {/* 6. BOTTOM CTA BANNER */}
       <section className="w-full max-w-7xl px-6 pb-40 mx-auto">        {/* Bottom Banner */}
