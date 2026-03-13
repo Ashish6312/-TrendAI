@@ -88,151 +88,175 @@ function RoadmapContent() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-16">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-10 mb-20">
-        <motion.button 
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          onClick={() => router.back()} 
-          className="group flex items-center gap-4 px-6 py-3.5 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/20 text-gray-400 hover:text-white transition-all w-fit shadow-lg"
-        >
-          <ArrowLeft size={20} className="group-hover:-translate-x-1.5 transition-transform" />
-          <span className="text-xs font-black uppercase tracking-[0.2em]">{t("road_return")}</span>
-        </motion.button>
-        
-        <div className="flex items-center gap-3 px-6 py-3 bg-blue-500/10 rounded-2xl border border-blue-500/20 text-[10px] font-black text-blue-400 uppercase tracking-[0.3em] shadow-[0_0_20px_rgba(59,130,246,0.1)]">
-           <Globe2 size={16} /> {language} Operational Protocol
-        </div>
+    <div className="min-h-screen relative overflow-hidden bg-[#020617]">
+      {/* Immersive Background */}
+      <div className="absolute inset-0 z-0">
+        <motion.img 
+          initial={{ scale: 1.1 }}
+          animate={{ scale: 1 }}
+          transition={{ duration: 1.5 }}
+          src="/roadmap_bg.png" 
+          alt="Roadmap Architecture" 
+          className="w-full h-full object-cover opacity-20 blur-[2px] animate-pulse-slow"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#020617]/40 via-[#020617] to-[#020617]" />
       </div>
 
-      <header className="mb-24 space-y-8">
-        <div className="flex items-center gap-6">
-          <div className="h-px bg-gradient-to-r from-transparent via-blue-500/40 to-transparent flex-1" />
-          <Sparkle className="text-blue-500 animate-pulse shadow-[0_0_20px_rgba(59,130,246,0.5)]" size={32} fill="currentColor" />
-          <div className="h-px bg-gradient-to-r from-transparent via-blue-500/40 to-transparent flex-1" />
-        </div>
-        
-        <div className="text-center">
-          <h1 className="text-6xl md:text-7xl font-black text-white mb-8 tracking-tighter leading-[0.9] max-w-4xl mx-auto selection:bg-blue-600">
-            {t("road_directive")}
-          </h1>
-          <div className="flex flex-col items-center gap-6">
-            <h2 className="text-2xl font-black bg-white/5 px-8 py-3 rounded-2xl border border-white/10 text-blue-400 shadow-[0_20px_50px_rgba(0,0,0,0.3)] tracking-tight">{title}</h2>
-            <div className="flex items-center gap-3 text-gray-500 font-bold tracking-widest uppercase text-xs">
-               <MapPin size={18} className="text-blue-500" /> 
-               {area}
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-16">
-        {/* Progress Sidebar */}
-        <div className="hidden lg:block space-y-6 sticky top-36 h-fit">
-          <div className="glass-card p-8 bg-gradient-to-b from-blue-600/15 via-blue-600/5 to-transparent border-blue-500/20 shadow-2xl">
-             <h4 className="text-[11px] font-black text-blue-500 uppercase tracking-[0.3em] mb-6 border-b border-blue-500/10 pb-4">{t("road_milestones")}</h4>
-             <div className="space-y-5">
-               {steps.map((_, i) => (
-                 <div key={i} className="flex items-center gap-4">
-                   <div className={`w-2 h-2 rounded-full transition-all duration-700 ${i === 0 ? 'bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,1)] scale-125' : 'bg-gray-800'}`} />
-                   <span className={`text-[12px] font-black tracking-widest transition-colors duration-500 ${i === 0 ? 'text-white' : 'text-gray-700'}`}>{t("road_phase")} 0{i+1}</span>
-                 </div>
-               ))}
-             </div>
-          </div>
-          
-          <div className="glass-card p-8 space-y-8 border-white/5 shadow-xl">
-             <div className="flex items-center gap-4">
-                <div className="p-2.5 bg-gray-900 rounded-xl border border-white/5"><Calendar className="text-gray-500" size={20} /></div>
-                <div className="space-y-1">
-                   <div className="text-[10px] font-black text-gray-600 uppercase tracking-[0.2em]">{t("road_timeline")}</div>
-                   <div className="text-xs font-black text-gray-300 italic tracking-tight">~ 4-6 Months</div>
-                </div>
-             </div>
-             <div className="flex items-center gap-4">
-                <div className="p-2.5 bg-gray-900 rounded-xl border border-white/5"><Users className="text-gray-500" size={20} /></div>
-                <div className="space-y-1">
-                   <div className="text-[10px] font-black text-gray-600 uppercase tracking-[0.2em]">{t("road_team")}</div>
-                   <div className="text-xs font-black text-gray-300 italic tracking-tight">2-5 Stakeholders</div>
-                </div>
-             </div>
-          </div>
-        </div>
-
-        {/* Steps Content */}
-        <div className="lg:col-span-3 space-y-32 relative">
-          <div className="absolute left-[47px] top-10 bottom-10 w-px bg-gradient-to-b from-blue-500/30 via-white/5 to-blue-500/30 hidden md:block" />
-          
-          <AnimatePresence>
-            {steps.map((step, index) => (
-              <motion.div 
-                key={index} 
-                initial={{ opacity: 0, x: 30 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true, margin: "-10%" }}
-                transition={{ duration: 0.8, delay: index * 0.1, ease: "easeOut" }}
-                className="relative pl-0 md:pl-28 group"
-              >
-                {/* Number Badge */}
-                <div className="hidden md:flex absolute left-0 top-0 w-24 h-24 items-center justify-center">
-                  <div className="w-px h-full bg-blue-500/20 absolute top-12" />
-                  <div className="w-16 h-16 bg-gray-950 border-2 border-white/10 rounded-[2rem] flex items-center justify-center text-blue-500 font-black text-2xl z-10 group-hover:border-blue-500 group-hover:text-white group-hover:bg-blue-600 transition-all duration-700 shadow-[0_20px_50px_rgba(0,0,0,0.5)] group-hover:shadow-blue-600/30 group-hover:-translate-y-1">
-                    {step.step_number}
-                  </div>
-                </div>
-                
-                <div className="glass-card p-12 md:p-14 bg-gradient-to-br from-white/[0.03] to-transparent border-white/5 hover:bg-white/[0.05] transition-all duration-700 hover:border-blue-500/30 group-hover:shadow-[0_40px_100px_-20px_rgba(59,130,246,0.2)] relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full blur-[80px] opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
-                  
-                  <div className="flex items-center gap-5 mb-8 relative z-10">
-                    <div className="w-2 h-8 bg-blue-600 rounded-full shadow-[0_0_20px_#2563eb] animate-pulse" />
-                    <h3 className="text-3xl font-black text-white tracking-tighter group-hover:text-blue-400 transition-colors selection:bg-blue-600">
-                      {step.step_title}
-                    </h3>
-                  </div>
-                  
-                  <div className="space-y-8 relative z-10">
-                     <p className="text-gray-400 leading-relaxed text-xl font-medium selection:bg-blue-500/40">
-                       {step.step_description}
-                     </p>
-                     
-                     <div className="flex flex-wrap gap-5 pt-8 border-t border-white/5">
-                        <div className="flex items-center gap-3 px-5 py-2.5 bg-blue-500/10 rounded-2xl border border-blue-500/20 text-[10px] font-black text-blue-500 uppercase tracking-[0.2em] shadow-inner">
-                           <ShieldCheck size={16} /> {t("road_priority")}
-                        </div>
-                        <div className="flex items-center gap-3 px-5 py-2.5 bg-green-500/5 rounded-2xl border border-green-500/15 text-[10px] font-black text-green-500 uppercase tracking-[0.2em]">
-                           <ChevronRight size={16} /> {t("road_action")}
-                        </div>
-                     </div>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-
-          {/* Conclusion */}
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            className="glass-card p-16 md:p-20 bg-gradient-to-br from-green-600/15 via-transparent to-blue-600/15 border-green-500/30 flex flex-col items-center text-center relative overflow-hidden shadow-2xl"
+      <div className="max-w-6xl mx-auto px-6 py-24 relative z-10">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-10 mb-24">
+          <motion.button 
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            onClick={() => router.back()} 
+            className="group flex items-center gap-4 px-6 py-3.5 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-emerald-500/20 text-gray-400 hover:text-white transition-all w-fit shadow-2xl backdrop-blur-xl"
           >
-            <div className="absolute inset-0 bg-grid-white/[0.02] pointer-events-none" />
-            <div className="w-24 h-24 bg-green-500/20 rounded-[2.5rem] flex items-center justify-center mb-10 shadow-[0_0_60px_-10px_rgba(34,197,94,0.4)] border-2 border-green-500/30 animate-pulse">
-              <CheckCircle2 className="w-12 h-12 text-green-400" />
-            </div>
-            <h3 className="text-5xl font-black text-white mb-6 tracking-tighter uppercase">{t("road_readiness")}</h3>
-            <p className="text-gray-400 max-w-xl mx-auto text-xl font-bold leading-relaxed tracking-tight selection:bg-green-600/40">
-              {t("road_confirmed_desc")}
-            </p>
-            <button 
-              onClick={() => window.print()} 
-              className="mt-14 h-16 px-12 bg-white text-black font-black rounded-2xl text-[11px] uppercase tracking-[0.3em] hover:bg-gray-200 transition-all shadow-[0_20px_50px_rgba(255,255,255,0.2)] flex items-center gap-4 hover:-translate-y-1 active:translate-y-0"
-            >
-              <Printer size={20} />
-              {t("road_print")}
-            </button>
+            <ArrowLeft size={20} className="group-hover:-translate-x-1.5 transition-transform" />
+            <span className="text-[10px] font-black uppercase tracking-[0.3em]">{t("road_return")}</span>
+          </motion.button>
+          
+          <div className="flex items-center gap-3 px-6 py-3 bg-emerald-500/10 rounded-2xl border border-emerald-500/20 text-[10px] font-black text-emerald-400 uppercase tracking-[0.3em] shadow-lg">
+             <Globe2 size={16} /> {language} Strategic Protocol
+          </div>
+        </div>
+
+        <header className="mb-32 space-y-10 text-center">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex items-center gap-8 justify-center"
+          >
+            <div className="h-px bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent flex-1" />
+            <Sparkle className="text-emerald-500 animate-pulse" size={40} fill="currentColor" />
+            <div className="h-px bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent flex-1" />
           </motion.div>
+          
+          <div className="space-y-6">
+            <h1 className="text-6xl md:text-8xl font-black text-white tracking-tighter leading-none max-w-5xl mx-auto italic">
+               The <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-teal-600">Growth</span> Directive.
+            </h1>
+            <div className="flex flex-col items-center gap-8">
+              <motion.h2 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-3xl font-black bg-white/5 px-10 py-4 rounded-[2.5rem] border border-white/10 text-emerald-400 shadow-[0_30px_60px_rgba(0,0,0,0.4)] tracking-tight selection:bg-emerald-600"
+              >
+                {title}
+              </motion.h2>
+              <div className="flex items-center gap-3 text-gray-500 font-bold tracking-[0.4em] uppercase text-[10px]">
+                 <MapPin size={18} className="text-emerald-500" /> 
+                 {area}
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-20">
+          {/* Progress Sidebar */}
+          <div className="hidden lg:block space-y-8 sticky top-36 h-fit">
+            <div className="glass-card p-10 bg-gradient-to-b from-emerald-600/15 via-emerald-600/5 to-transparent border-emerald-500/20 shadow-2xl">
+               <h4 className="text-[11px] font-black text-emerald-500 uppercase tracking-[0.4em] mb-8 border-b border-white/5 pb-5">{t("road_milestones")}</h4>
+               <div className="space-y-7">
+                 {steps.map((_, i) => (
+                   <div key={i} className="flex items-center gap-5">
+                     <div className={`w-2.5 h-2.5 rounded-full transition-all duration-700 ${i === 0 ? 'bg-emerald-500 shadow-[0_0_20px_rgba(16,185,129,1)] scale-125' : 'bg-gray-800'}`} />
+                     <span className={`text-[12px] font-black tracking-[0.2em] uppercase transition-colors duration-500 ${i === 0 ? 'text-white' : 'text-gray-700'}`}>{t("road_phase")} 0{i+1}</span>
+                   </div>
+                 ))}
+               </div>
+            </div>
+            
+            <div className="glass-card p-10 space-y-10 border-white/5 shadow-xl">
+               <div className="flex items-center gap-5">
+                  <div className="w-12 h-12 bg-gray-900 rounded-2xl border border-white/5 flex items-center justify-center"><Calendar className="text-gray-500" size={24} /></div>
+                  <div className="space-y-1.5">
+                     <div className="text-[10px] font-black text-gray-600 uppercase tracking-[0.3em]">{t("road_timeline")}</div>
+                     <div className="text-sm font-black text-gray-300 italic tracking-tight underline decoration-emerald-500/20">~ 6 Months Cycle</div>
+                  </div>
+               </div>
+               <div className="flex items-center gap-5">
+                  <div className="w-12 h-12 bg-gray-900 rounded-2xl border border-white/5 flex items-center justify-center"><Users className="text-gray-500" size={24} /></div>
+                  <div className="space-y-1.5">
+                     <div className="text-[10px] font-black text-gray-600 uppercase tracking-[0.3em]">{t("road_team")}</div>
+                     <div className="text-sm font-black text-gray-300 italic tracking-tight underline decoration-amber-500/20">Elite Taskforce</div>
+                  </div>
+               </div>
+            </div>
+          </div>
+
+          {/* Steps Content */}
+          <div className="lg:col-span-3 space-y-36 relative">
+            <div className="absolute left-[59px] top-12 bottom-12 w-px bg-gradient-to-b from-emerald-500/30 via-white/5 to-emerald-500/30 hidden md:block" />
+            
+            <AnimatePresence>
+              {steps.map((step, index) => (
+                <motion.div 
+                  key={index} 
+                  initial={{ opacity: 0, x: 40 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true, margin: "-15%" }}
+                  transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+                  className="relative pl-0 md:pl-32 group"
+                >
+                  {/* Number Badge */}
+                  <div className="hidden md:flex absolute left-0 top-0 w-28 h-28 items-center justify-center">
+                    <div className="w-20 h-20 bg-gray-950 border-2 border-white/10 rounded-[2.5rem] flex items-center justify-center text-emerald-500 font-black text-3xl z-10 group-hover:border-emerald-500 group-hover:text-white group-hover:bg-emerald-600 transition-all duration-700 shadow-3xl group-hover:shadow-emerald-600/30 group-hover:-translate-y-2">
+                      {step.step_number}
+                    </div>
+                  </div>
+                  
+                  <div className="glass-card p-14 md:p-16 bg-gradient-to-br from-white/[0.03] to-transparent border-white/5 hover:bg-white/[0.06] transition-all duration-700 hover:border-emerald-500/30 group-hover:shadow-[0_50px_100px_-20px_rgba(16,185,129,0.15)] relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/5 rounded-full blur-[100px] opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
+                    
+                    <div className="flex items-center gap-6 mb-10 relative z-10">
+                      <div className="w-2.5 h-10 bg-emerald-600 rounded-full shadow-[0_0_30px_#10b981] animate-pulse" />
+                      <h3 className="text-4xl font-black text-white tracking-tighter group-hover:text-emerald-400 transition-colors leading-[0.9]">
+                        {step.step_title}
+                      </h3>
+                    </div>
+                    
+                    <div className="space-y-10 relative z-10">
+                       <p className="text-gray-400 leading-relaxed text-2xl font-medium tracking-tight">
+                         {step.step_description}
+                       </p>
+                       
+                       <div className="flex flex-wrap gap-6 pt-10 border-t border-white/5">
+                          <div className="flex items-center gap-3 px-6 py-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-black text-emerald-500 uppercase tracking-[0.4em] shadow-inner">
+                             <ShieldCheck size={18} /> {t("road_priority")}
+                          </div>
+                          <div className="flex items-center gap-3 px-6 py-3 rounded-2xl bg-amber-500/5 border border-amber-500/15 text-[10px] font-black text-amber-500 uppercase tracking-[0.4em]">
+                             <ChevronRight size={18} /> {t("road_action")}
+                          </div>
+                       </div>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+
+            {/* Conclusion */}
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              className="glass-card p-20 md:p-28 bg-gradient-to-br from-emerald-600/15 via-transparent to-amber-600/15 border-emerald-500/30 flex flex-col items-center text-center relative overflow-hidden shadow-3xl"
+            >
+              <div className="absolute inset-0 bg-grid-white/[0.01] pointer-events-none" />
+              <div className="w-32 h-32 bg-emerald-500/20 rounded-[3rem] flex items-center justify-center mb-12 shadow-[0_0_80px_-10px_rgba(16,185,129,0.5)] border-2 border-emerald-500/30 animate-pulse">
+                <CheckCircle2 className="w-16 h-16 text-emerald-400" />
+              </div>
+              <h3 className="text-6xl font-black text-white mb-8 tracking-tighter uppercase italic">{t("road_readiness")}</h3>
+              <p className="text-gray-400 max-w-2xl mx-auto text-2xl font-bold leading-relaxed tracking-tight selection:bg-emerald-600/30 mb-16">
+                Market readiness protocol complete. Regional analysis confirms high-probability success cycle for this venture.
+              </p>
+              <button 
+                onClick={() => window.print()} 
+                className="h-20 px-16 bg-white text-black font-black rounded-[2rem] text-[12px] uppercase tracking-[0.5em] hover:bg-emerald-500 hover:text-white transition-all duration-700 shadow-2xl flex items-center gap-6 hover:-translate-y-3 active:scale-95"
+              >
+                <Printer size={24} />
+                {t("road_print")}
+              </button>
+            </motion.div>
+          </div>
         </div>
       </div>
     </div>
