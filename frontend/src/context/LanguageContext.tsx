@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
 
 type LanguageContextType = {
   language: string;
@@ -464,13 +464,15 @@ const translations: Record<string, Record<string, string>> = {
 };
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguage] = useState(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("app_lang");
-      if (saved && translations[saved]) return saved;
+  const [language, setLanguage] = useState("English");
+
+  // Load language from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem("app_lang");
+    if (saved && translations[saved]) {
+      setLanguage(saved);
     }
-    return "English";
-  });
+  }, []);
 
   // Save language to localStorage on change
   const handleSetLanguage = (lang: string) => {

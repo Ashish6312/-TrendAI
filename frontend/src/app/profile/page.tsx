@@ -6,7 +6,6 @@ import { useState, useEffect } from "react";
 import { User, Mail, Phone, FileText, Loader2, Save, CheckCircle2, ArrowLeft } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
 import { motion } from "framer-motion";
-import Image from "next/image";
 
 export default function ProfilePage() {
   const { data: session, status } = useSession();
@@ -113,13 +112,10 @@ export default function ProfilePage() {
         <div className="flex flex-col md:flex-row items-center gap-12 mb-16 relative z-10">
           <div className="relative group">
             <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-3xl blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
-            <Image 
+            <img 
               src={formData.image_url || `https://ui-avatars.com/api/?name=${formData.name}`} 
               className="relative w-36 h-36 rounded-[2.5rem] border-2 border-white/20 shadow-2xl group-hover:border-blue-500/50 transition-all duration-500 object-cover"
               alt="Profile"
-              width={144}
-              height={144}
-              unoptimized
             />
             <div className="absolute -bottom-2 -right-2 bg-blue-600 rounded-2xl p-2.5 shadow-2xl border border-white/20">
               <User size={18} className="text-white" />

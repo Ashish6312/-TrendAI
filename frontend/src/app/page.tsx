@@ -1,135 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { 
   ArrowRight, Search, MapPin, Zap, Rocket, 
-  BarChart3, ShieldCheck, Cpu, 
+  BarChart3, Globe2, ShieldCheck, Cpu, 
   Network, LineChart, Globe, Layers, 
-  Github, Twitter, Linkedin,
-  Target
+  ArrowUpRight, Github, Twitter, Linkedin
 } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useSession, signIn } from "next-auth/react";
 
-// --- Dynamic Visual Components ---
-const NeuralSphere = () => (
-  <div className="relative w-full h-[500px] flex items-center justify-center overflow-hidden">
-    <motion.div 
-      animate={{ rotateY: [0, 360], rotateX: [0, 360] }}
-      transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
-      className="w-64 h-64 relative preserve-3d"
-    >
-      {/* Background Glow */}
-      <div className="absolute inset-0 bg-blue-500/20 rounded-full blur-[80px]" />
-      
-      {/* Wireframe using simple SVG paths to simulate an icosahedron */}
-      <svg viewBox="0 0 100 100" className="w-full h-full text-blue-500/40">
-        <motion.g animate={{ rotate: 360 }} transition={{ duration: 40, repeat: Infinity, ease: "linear" }}>
-          {[...Array(6)].map((_, i) => (
-            <ellipse key={i} cx="50" cy="50" rx="45" ry="15" fill="none" stroke="currentColor" strokeWidth="0.5" transform={`rotate(${i * 60} 50 50)`} />
-          ))}
-          <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="0.5" />
-        </motion.g>
-        
-        {/* Internal structure nodes */}
-        {[...Array(8)].map((_, i) => (
-          <motion.circle 
-            key={i}
-            cx={50 + Math.cos(i * Math.PI / 4) * 35}
-            cy={50 + Math.sin(i * Math.PI / 4) * 35}
-            r="1.5"
-            fill="#60a5fa"
-            animate={{ opacity: [0.2, 1, 0.2], scale: [1, 1.5, 1] }}
-            transition={{ duration: 2 + i % 3, repeat: Infinity }}
-            className="shadow-[0_0_10px_#60a5fa]"
-          />
-        ))}
-      </svg>
-
-      {/* Central Intelligence Core */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-gradient-to-tr from-blue-600/30 to-indigo-600/30 rounded-full blur-2xl animate-pulse" />
-    </motion.div>
-    
-    <div className="absolute bottom-10 left-1/2 -translate-x-1/2 text-center pointer-events-none">
-      <h4 className="text-white text-3xl font-black tracking-tighter mb-2 italic">Neural_Protocol_Alpha</h4>
-      <div className="h-1 w-24 bg-blue-500 mx-auto rounded-full" />
-    </div>
-  </div>
-);
-
-const NetworkTopology = () => (
-  <div className="relative w-full h-[500px] flex items-center justify-center p-12 overflow-hidden">
-    <svg viewBox="0 0 400 300" className="w-full h-full overflow-visible">
-      {/* Background connections */}
-      <motion.path 
-        d="M 50 150 Q 200 50 350 150 T 50 150"
-        fill="none" 
-        stroke="rgba(99, 102, 241, 0.1)" 
-        strokeWidth="1"
-        strokeDasharray="5,5"
-        animate={{ strokeDashoffset: [0, 50] }}
-        transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-      />
-
-      {[...Array(8)].map((_, i) => {
-        const angle = (i / 8) * Math.PI * 2;
-        const x = 200 + Math.cos(angle) * 120;
-        const y = 150 + Math.sin(angle) * 80;
-        const colors = ["#ef4444", "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899"];
-        const color = colors[i % colors.length];
-
-        return (
-          <g key={i}>
-            {/* Central connections */}
-            <motion.line 
-              x1="200" y1="150" x2={x} y2={y} 
-              stroke={color} strokeWidth="0.5" strokeOpacity="0.2"
-              initial={{ pathLength: 0 }}
-              animate={{ pathLength: [0, 1, 0] }}
-              transition={{ duration: 3, repeat: Infinity, delay: i * 0.4 }}
-            />
-            
-            {/* Nodes */}
-            <motion.circle 
-              cx={x} cy={y} r="8" fill="#020617" stroke={color} strokeWidth="2"
-              animate={{ scale: [1, 1.2, 1] }}
-              transition={{ duration: 4, repeat: Infinity, delay: i * 0.5 }}
-            />
-            
-            {/* Orbital mini-nodes */}
-            <motion.circle 
-              r="2" fill={color}
-              animate={{ 
-                cx: [x + 15 * Math.cos(0), x + 15 * Math.cos(Math.PI), x + 15 * Math.cos(Math.PI*2)],
-                cy: [y + 15 * Math.sin(0), y + 15 * Math.sin(Math.PI), y + 15 * Math.sin(Math.PI*2)],
-              }}
-              transition={{ duration: 5, repeat: Infinity, ease: "linear" }}
-            />
-          </g>
-        );
-      })}
-
-      {/* Central Master Node */}
-      <motion.rect 
-        x="185" y="135" width="30" height="30" rx="8" 
-        fill="#3b82f6" 
-        animate={{ rotate: [0, 360], scale: [1, 1.1, 1] }}
-        transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-      />
-      <text x="200" y="155" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold">AI</text>
-    </svg>
-  </div>
-);
-
 export default function Home() {
   const { t } = useLanguage();
   const router = useRouter();
   const { data: session } = useSession();
 
-const handleStartScan = () => {
+  const handleStartScan = () => {
     if (session) {
       router.push("/dashboard");
     } else {
@@ -159,7 +47,7 @@ const handleStartScan = () => {
           <div className="flex -space-x-2">
             {[1,2,3].map(i => (
               <div key={i} className="w-6 h-6 rounded-full border-2 border-[#020617] bg-gray-800 flex items-center justify-center overflow-hidden">
-                <Image src={`https://i.pravatar.cc/100?img=${i+10}`} alt="User" width={24} height={24} unoptimized />
+                <img src={`https://i.pravatar.cc/100?img=${i+10}`} alt="User" />
               </div>
             ))}
           </div>
@@ -335,129 +223,61 @@ const handleStartScan = () => {
          <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-white/5 to-transparent" />
       </section>
 
-      {/* 5.5 INTELLIGENCE VISUALIZATION - HIGHER FIDELITY */}
-      <section className="w-full relative py-32 overflow-hidden bg-[#020617]">
-        {/* Section Background Neural Mesh */}
-        <div className="absolute inset-0 z-0">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-blue-600/5 rounded-full blur-[150px]" />
-          <div className="absolute inset-0 bg-grid-white/[0.015] [mask-image:radial-gradient(ellipse_at_center,black,transparent)]" />
-        </div>
-
-        <div className="max-w-7xl mx-auto px-6 relative z-10">
-          <motion.div 
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            className="text-center mb-24 space-y-6"
-          >
-            <div className="inline-flex items-center gap-3 px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20">
-               <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-               <span className="text-[10px] font-black text-blue-400 uppercase tracking-[0.4em]">{t("dash_ai_insights")}</span>
+      {/* 5. LIVE PREVIEW / INTEL SECTION */}
+      <section className="w-full max-w-7xl px-6 py-40 mx-auto">
+        <div className="flex flex-col lg:flex-row items-center gap-24">
+          <div className="w-full lg:w-1/2 space-y-10">
+            <div className="inline-block px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-[10px] font-black text-blue-400 tracking-[0.3em] uppercase">Advanced Reconnaissance</div>
+            <h2 className="text-5xl md:text-7xl font-black text-white tracking-tighter leading-[0.9]">Deep Regional <span className="text-blue-500">Signal Mining.</span></h2>
+            <p className="text-gray-500 text-xl font-medium leading-relaxed">We don't just guess. Our neural engine extracts unvocalized market friction by analyzing millions of localized community discussions.</p>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+               <div className="flex gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center shrink-0"><BarChart3 size={20} className="text-blue-500" /></div>
+                  <div className="space-y-1">
+                     <div className="text-sm font-black text-white uppercase tracking-tight italic">reddit_Scraper_v4</div>
+                     <p className="text-xs text-gray-500 font-medium tracking-tight">Extracting local pain points from hyper-niche subreddits.</p>
+                  </div>
+               </div>
+               <div className="flex gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center shrink-0"><Globe2 size={20} className="text-indigo-500" /></div>
+                  <div className="space-y-1">
+                     <div className="text-sm font-black text-white uppercase tracking-tight italic">google_Trend_API</div>
+                     <p className="text-xs text-gray-500 font-medium tracking-tight">Monitoring real-time search volume across geographical zones.</p>
+                  </div>
+               </div>
             </div>
-            <h2 className="text-5xl md:text-8xl font-black text-white tracking-tighter leading-none">
-              Neural <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-600">Reconnaissance</span>
-            </h2>
-          </motion.div>
+          </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
-            {/* Visual 1: Intelligence Scan */}
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9, rotateY: -10 }}
-              whileInView={{ opacity: 1, scale: 1, rotateY: 0 }}
-              transition={{ duration: 1.2, ease: "easeOut" }}
-              className="relative group perspective-1000"
-            >
-              <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-[3rem] blur-xl opacity-20 group-hover:opacity-50 transition-all duration-700" />
-              
-              <div className="relative glass-card p-2 bg-white/5 border-white/20 backdrop-blur-3xl overflow-hidden rounded-[2.8rem] shadow-2xl">
-                {/* Scanline Effect */}
-                <motion.div 
-                  animate={{ top: ["-10%", "110%"] }}
-                  transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-                  className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-blue-400 to-transparent z-20 opacity-50 shadow-[0_0_15px_rgba(59,130,246,0.5)]"
-                />
-                
-                <motion.div
-                  animate={{ 
-                    scale: [1, 1.02, 1],
-                  }}
-                  transition={{ duration: 8, repeat: Infinity }}
-                >
-                  <NeuralSphere />
-                </motion.div>
-
-                {/* Floating HUD Elements */}
-                <div className="absolute top-8 left-8 flex flex-col gap-2">
-                   <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-black/60 border border-white/10 text-[8px] font-black text-blue-400 backdrop-blur-md uppercase tracking-widest">
-                      <Search size={10} /> Scoping_Perimeter: 98.4%
-                   </div>
-                   <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-black/60 border border-white/10 text-[8px] font-black text-indigo-400 backdrop-blur-md uppercase tracking-widest">
-                      <Target size={10} /> Neural_Lock: ACTIVE
-                   </div>
-                </div>
-              </div>
-
-              {/* Orbital Element */}
-              <motion.div 
-                animate={{ rotate: 360 }}
-                transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                className="absolute -top-10 -right-10 w-40 h-40 border border-blue-500/20 rounded-full border-dashed z-0"
-              />
-            </motion.div>
-
-            {/* Visual 2: Data Topology */}
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9, rotateY: 10 }}
-              whileInView={{ opacity: 1, scale: 1, rotateY: 0 }}
-              transition={{ duration: 1.2, ease: "easeOut", delay: 0.2 }}
-              className="relative group lg:mt-32 perspective-1000"
-            >
-              <div className="absolute -inset-1 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-[3rem] blur-xl opacity-20 group-hover:opacity-50 transition-all duration-700" />
-              
-              <div className="relative glass-card p-2 bg-white/5 border-white/20 backdrop-blur-3xl overflow-hidden rounded-[2.8rem] shadow-2xl">
-                <motion.div
-                  animate={{ 
-                    y: [0, -10, 0],
-                    rotateZ: [0, 1, 0]
-                  }}
-                  transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-                >
-                  <NetworkTopology />
-                </motion.div>
-
-                {/* Data Stream Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-indigo-600/5 to-transparent pointer-events-none" />
-              </div>
-
-              {/* Tech Stats Card Overlay */}
-              <motion.div 
-                initial={{ x: 50, opacity: 0 }}
-                whileInView={{ x: 0, opacity: 1 }}
-                className="absolute -bottom-10 -left-10 glass-card p-8 bg-[#020617]/90 border-indigo-500/30 backdrop-blur-xl z-20 border-l-[4px] border-l-indigo-600"
-              >
-                 <div className="flex items-center gap-4 mb-4">
-                    <div className="w-10 h-10 rounded-xl bg-indigo-600/20 flex items-center justify-center text-indigo-400">
-                       <BarChart3 size={20} />
-                    </div>
-                    <div>
-                       <div className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Processing Data</div>
-                       <div className="text-sm font-black text-white italic">1.2B Intelligence Nodes</div>
-                    </div>
-                 </div>
-                 <div className="space-y-2">
-                    <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                       <motion.div 
-                        animate={{ width: ["0%", "85%", "40%", "95%"] }}
-                        transition={{ duration: 5, repeat: Infinity }}
-                        className="h-full bg-indigo-500" 
-                       />
-                    </div>
-                    <div className="flex justify-between text-[8px] font-black text-gray-600 uppercase tracking-tighter">
-                       <span>Synthesis</span>
-                       <span>95% Optimal</span>
-                    </div>
-                 </div>
-              </motion.div>
-            </motion.div>
+          <div className="w-full lg:w-1/2 relative group">
+            <div className="absolute -inset-4 bg-blue-500/10 rounded-[3rem] blur-3xl group-hover:bg-blue-600/10 transition-all duration-1000" />
+            <div className="glass-card p-1 bg-white/5 border-white/20 relative shadow-2xl rotate-2 group-hover:rotate-0 transition-transform duration-700">
+               <div className="bg-[#020617] rounded-[1.4rem] p-8 space-y-8 overflow-hidden">
+                  <div className="flex items-center justify-between border-b border-white/5 pb-6">
+                     <div className="flex items-center gap-3">
+                        <div className="w-3 h-3 rounded-full bg-red-500/50" />
+                        <div className="w-3 h-3 rounded-full bg-yellow-500/50" />
+                        <div className="w-3 h-3 rounded-full bg-green-500/50" />
+                     </div>
+                     <div className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Market_Report_0x84f.json</div>
+                     <div className="w-4 h-4 rounded bg-white/5" />
+                  </div>
+                  <div className="space-y-6">
+                     <div className="h-4 bg-white/5 rounded w-3/4 animate-pulse" />
+                     <div className="h-4 bg-white/5 rounded w-full animate-pulse delay-75" />
+                     <div className="h-20 bg-blue-600/10 border border-blue-500/20 rounded-2xl flex items-center justify-center">
+                        <LineChart className="text-blue-500" size={32} />
+                     </div>
+                     <div className="grid grid-cols-2 gap-4">
+                        <div className="h-12 bg-white/5 rounded-xl border border-white/5" />
+                        <div className="h-12 bg-white/5 rounded-xl border border-white/5" />
+                     </div>
+                  </div>
+                  <div className="pt-4 flex justify-end">
+                     <div className="px-6 py-2 bg-blue-600 rounded-lg text-[10px] font-black text-white uppercase tracking-widest">DEPLOY PLAN</div>
+                  </div>
+               </div>
+            </div>
           </div>
         </div>
       </section>
