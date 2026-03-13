@@ -20,6 +20,7 @@ export default function Dashboard() {
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
   const [result, setResult] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
 
@@ -80,7 +81,18 @@ export default function Dashboard() {
     if (!area) return;
     
     setLoading(true);
+    setLoadingProgress(0);
     setResult(null);
+
+    // Realistic Loading Progress Simulation
+    const progressInterval = setInterval(() => {
+      setLoadingProgress(prev => {
+        if (prev >= 95) return prev; // Hold at 95% until done
+        const increment = Math.random() * (prev < 50 ? 8 : prev < 80 ? 3 : 1);
+        return Math.min(prev + increment, 95);
+      });
+    }, 800);
+
     try {
       const response = await fetch(`${apiUrl}/api/recommendations`, {
         method: "POST",
@@ -92,11 +104,16 @@ export default function Dashboard() {
         }),
       });
       const data = await response.json();
-      setResult(data);
-      fetchHistory(); // Refresh history after new scan
+      setLoadingProgress(100);
+      setTimeout(() => {
+        setResult(data);
+        clearInterval(progressInterval);
+        setLoading(false);
+      }, 500); // Small delay to show 100%
+      fetchHistory();
     } catch (error) {
       console.error("Failed to fetch recommendations", error);
-    } finally {
+      clearInterval(progressInterval);
       setLoading(false);
     }
   };
@@ -266,16 +283,44 @@ export default function Dashboard() {
                 exit={{ opacity: 0, scale: 1.05 }}
                 className="glass-card p-24 flex flex-col items-center justify-center min-h-[550px] text-center bg-gradient-to-b from-blue-600/10 to-transparent border-blue-500/20 shadow-[0_40px_100px_-20px_rgba(59,130,246,0.2)]"
               >
-                <div className="relative mb-10">
-                  <div className="w-32 h-32 border-2 border-dashed border-blue-500/30 rounded-full animate-[spin_15s_linear_infinite]" />
+                <div className="relative mb-12">
+                  <div className="w-48 h-48 border-2 border-dashed border-blue-500/20 rounded-full animate-[spin_20s_linear_infinite]" />
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-20 h-20 border-b-2 border-blue-500 rounded-full animate-spin" />
+                    <svg className="w-40 h-40 transform -rotate-90">
+                      <circle cx="80" cy="80" r="70" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-white/5" />
+                      <motion.circle
+                        cx="80" cy="80" r="70" stroke="currentColor" strokeWidth="4" fill="transparent"
+                        strokeDasharray={440}
+                        animate={{ strokeDashoffset: 440 - (440 * loadingProgress) / 100 }}
+                        className="text-emerald-500 drop-shadow-[0_0_10px_#10b981]"
+                      />
+                    </svg>
                   </div>
-                  <div className="absolute -inset-4 bg-blue-500/5 blur-2xl rounded-full animate-pulse" />
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <motion.span 
+                      key={Math.floor(loadingProgress)}
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="text-5xl font-black text-white tracking-tighter"
+                    >
+                      {Math.floor(loadingProgress)}%
+                    </motion.span>
+                    <span className="text-[10px] font-black text-emerald-500/50 uppercase tracking-[0.3em] mt-1">{t("dash_analyzing")}</span>
+                  </div>
                 </div>
-                <h2 className="text-3xl font-black text-white mb-3 tracking-tighter uppercase">{t("dash_analyzing")}</h2>
-                <p className="text-gray-500 max-w-sm mx-auto font-bold tracking-widest text-[10px] uppercase opacity-70">Cross-Referencing Territorial Coordinates...</p>
-                <div className="flex gap-6 mt-12">
+
+                <div className="w-full max-w-md space-y-4">
+                  <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+                    <motion.div 
+                      className="h-full growth-gradient"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${loadingProgress}%` }}
+                    />
+                  </div>
+                  <p className="text-gray-500 font-bold tracking-[0.4em] text-[10px] uppercase opacity-70">Synthesizing Regional Intelligence...</p>
+                </div>
+
+                <div className="flex gap-6 mt-16">
                   <div className="flex items-center gap-3 px-6 py-2.5 bg-blue-500/10 rounded-2xl text-[10px] font-black text-blue-400 animate-pulse border border-blue-500/20 tracking-widest uppercase">
                     <Search size={14} /> NEURAL SCAN
                   </div>
