@@ -54,8 +54,8 @@ export default function Home() {
                 </div>
               ))}
             </div>
-            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-blue-400 pl-2">
-              TRUSTED BY 5,000+ GLOBAL FOUNDERS
+            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-emerald-400 pl-2">
+              UNCOVER PROFITABLE TERRITORIES
             </span>
           </motion.div>
           
@@ -66,8 +66,8 @@ export default function Home() {
               transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
               className="text-6xl md:text-9xl font-black tracking-tighter text-white leading-[0.85]"
             >
-              Master Your <br />
-              <span className="gold-text italic">Territory.</span>
+              Architect Your <br />
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 via-teal-500 to-blue-600 italic">Success.</span>
             </motion.h1>
             <motion.p 
               initial={{ opacity: 0, y: 20 }}
@@ -87,13 +87,13 @@ export default function Home() {
           >
             <button 
               onClick={handleStartScan}
-              className="h-20 px-16 rounded-[2.5rem] bg-blue-600 hover:bg-blue-500 text-white text-[12px] font-black uppercase tracking-[0.4em] transition-all duration-700 shadow-[0_30px_60px_-15px_rgba(37,99,235,0.6)] hover:-translate-y-2 hover:scale-105 group active:scale-95"
+              className="h-20 px-16 rounded-[2.5rem] growth-gradient hover:scale-105 transition-all duration-700 shadow-[0_30px_60px_-15px_rgba(16,185,129,0.5)] hover:-translate-y-2 group active:scale-95 text-white text-[12px] font-black uppercase tracking-[0.4em]"
             >
-              {t("btn_start_scan")}
+              INVESTIGATE MARKET
               <ArrowRight className="inline-block ml-4 group-hover:translate-x-2 transition-transform" size={20} />
             </button>
             <Link href="/pricing" className="h-20 px-16 rounded-[2.5rem] bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 text-[12px] font-black uppercase tracking-[0.4em] transition-all duration-700 backdrop-blur-xl">
-              {t("btn_pricing")}
+              ACCESS TIERS
             </Link>
           </motion.div>
         </div>
@@ -126,25 +126,25 @@ export default function Home() {
             transition={{ duration: 1 }}
             className="space-y-10"
            >
-              <div className="inline-flex items-center gap-3 px-5 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 text-[10px] font-black text-blue-500 tracking-[0.5em] uppercase">
+              <div className="inline-flex items-center gap-3 px-5 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-black text-emerald-500 tracking-[0.5em] uppercase">
                  <Globe2 size={16} /> DATA SYNCHRONIZATION
               </div>
               <h2 className="text-5xl md:text-8xl font-black text-white tracking-tighter leading-none">
-                Smarter <span className="text-blue-500 underline decoration-blue-500/20 underline-offset-8 italic">Intelligence.</span> <br /> 
+                Smarter <span className="text-emerald-500 underline decoration-emerald-500/20 underline-offset-8 italic">Intelligence.</span> <br /> 
                 <span className="text-gray-700">Faster Launch.</span>
               </h2>
               <p className="text-gray-500 text-xl md:text-2xl font-medium leading-relaxed">Most entrepreneurs guess. We provide the blueprint. TrendAI monitors live sentiment from social hubs and search trends to reveal what's actually missing in your city.</p>
               
               <div className="grid grid-cols-2 gap-8 pt-8">
                  <div className="p-8 rounded-[3rem] bg-white/[0.02] border border-white/5 space-y-4">
-                    <div className="w-12 h-12 rounded-2xl bg-blue-600/10 flex items-center justify-center text-blue-500"><Network size={24} /></div>
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-600/10 flex items-center justify-center text-emerald-500"><Network size={24} /></div>
                     <h4 className="text-lg font-black text-white">Global Nodes</h4>
                     <p className="text-xs text-gray-600 font-bold uppercase tracking-wider">Multilingual processing across 50+ regions.</p>
                  </div>
                  <div className="p-8 rounded-[3rem] bg-white/[0.02] border border-white/5 space-y-4">
-                    <div className="w-12 h-12 rounded-2xl bg-indigo-600/10 flex items-center justify-center text-indigo-500"><Layers size={24} /></div>
-                    <h4 className="text-lg font-black text-white">Deep Context</h4>
-                    <p className="text-xs text-gray-600 font-bold uppercase tracking-wider">Sentiment-aware analysis for risk mitigation.</p>
+                    <div className="w-12 h-12 rounded-2xl bg-amber-600/10 flex items-center justify-center text-amber-500"><Layers size={24} /></div>
+                    <h4 className="text-lg font-black text-white">ROI Context</h4>
+                    <p className="text-xs text-gray-600 font-bold uppercase tracking-wider">Sentiment-aware profit prediction and risk hedging.</p>
                  </div>
               </div>
            </motion.div>
@@ -155,22 +155,22 @@ export default function Home() {
             transition={{ duration: 1.2 }}
             className="relative"
            >
-              <div className="absolute -inset-10 bg-blue-600/20 rounded-full blur-[120px] animate-pulse" />
+              <div className="absolute -inset-10 bg-emerald-600/20 rounded-full blur-[120px] animate-pulse" />
               <img 
                 src="/analysis.png" 
                 alt="Market Visualization" 
                 className="relative rounded-[4rem] border border-white/10 shadow-3xl transform -rotate-3 hover:rotate-0 transition-transform duration-700"
               />
               {/* Overlay Stat Card */}
-              <div className="absolute -bottom-10 -left-10 glass-card p-10 space-y-3 border-blue-500/30">
-                 <div className="text-[10px] font-black text-blue-500 tracking-[0.5em] uppercase">Scanned Area: NY_CTY</div>
+              <div className="absolute -bottom-10 -left-10 glass-card p-10 space-y-3 border-emerald-500/30">
+                 <div className="text-[10px] font-black text-emerald-500 tracking-[0.5em] uppercase">Scanned Area: NY_CTY</div>
                  <div className="text-4xl font-black text-white tracking-tighter">High Profit Signal</div>
                  <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
                     <motion.div 
                       initial={{ width: 0 }}
                       whileInView={{ width: '85%' }}
                       transition={{ duration: 2, delay: 0.5 }}
-                      className="h-full bg-blue-600"
+                      className="h-full bg-emerald-600"
                     />
                  </div>
               </div>
@@ -229,20 +229,20 @@ export default function Home() {
         <motion.div 
           initial={{ opacity: 0, y: 50 }}
           whileInView={{ opacity: 1, y: 0 }}
-          className="relative glass-card p-20 md:p-32 bg-gradient-to-br from-blue-600/10 via-transparent to-indigo-600/10 border-white/10 text-center space-y-12 overflow-hidden"
+          className="relative glass-card p-20 md:p-32 bg-gradient-to-br from-emerald-600/10 via-transparent to-amber-600/10 border-white/10 text-center space-y-12 overflow-hidden"
         >
           {/* Background Decorative Rings */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] border border-white/5 rounded-full pointer-events-none" />
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] border border-white/5 rounded-full pointer-events-none" />
 
           <h2 className="text-5xl md:text-9xl font-black text-white tracking-tighter leading-none relative z-10">
-            Secure Your <br /> <span className="text-blue-500">Market Edge.</span>
+            Secure Your <br /> <span className="text-emerald-500">Market Edge.</span>
           </h2>
           <p className="text-gray-500 text-2xl font-medium max-w-3xl mx-auto relative z-10 leading-relaxed">Join the next generation of data-driven founders. Start your free market scan today and see what the world is hiding from you.</p>
           
           <button 
             onClick={handleStartScan}
-            className="relative z-10 h-24 px-20 rounded-[3rem] bg-blue-600 text-white text-[14px] font-black uppercase tracking-[0.5em] shadow-[0_40px_80px_-20px_rgba(37,99,235,0.7)] hover:-translate-y-3 hover:scale-105 transition-all duration-700 active:scale-95 group"
+            className="relative z-10 h-24 px-20 rounded-[3rem] growth-gradient text-white text-[14px] font-black uppercase tracking-[0.5em] shadow-[0_40px_80px_-20px_rgba(16,185,129,0.5)] hover:-translate-y-3 hover:scale-105 transition-all duration-700 active:scale-95 group"
           >
              <Rocket size={24} className="inline-block mr-5 group-hover:rotate-12 transition-transform" />
              INITIATE PROTOCOL
@@ -255,10 +255,10 @@ export default function Home() {
          <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-12 text-center md:text-left">
             <div className="space-y-6">
                <div className="flex items-center gap-3 justify-center md:justify-start">
-                  <div className="w-10 h-10 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
+                  <div className="w-10 h-10 bg-gradient-to-tr from-emerald-600 to-teal-600 rounded-xl flex items-center justify-center">
                     <Zap className="text-white" size={20} fill="currentColor" />
                   </div>
-                  <span className="text-2xl font-black text-white tracking-tighter italic">Trend<span className="text-blue-500">AI</span></span>
+                  <span className="text-2xl font-black text-white tracking-tighter italic">Trend<span className="text-emerald-500">AI</span></span>
                </div>
                <p className="text-gray-600 text-xs font-black uppercase tracking-widest max-w-xs leading-relaxed opacity-50">
                   Global Strategic Business Intelligence. <br /> Powered by Neural Regional Extraction.
@@ -268,13 +268,13 @@ export default function Home() {
             <div className="flex gap-16 text-[10px] font-black text-gray-500 uppercase tracking-[0.3em]">
                <div className="space-y-4">
                   <div className="text-white mb-6 underline underline-offset-8 decoration-white/20">NETWORK</div>
-                  <div className="hover:text-blue-500 cursor-pointer">Live Scanners</div>
-                  <div className="hover:text-blue-500 cursor-pointer">API Access</div>
+                  <div className="hover:text-emerald-500 cursor-pointer">Live Scanners</div>
+                  <div className="hover:text-emerald-500 cursor-pointer">API Access</div>
                </div>
                <div className="space-y-4">
                   <div className="text-white mb-6 underline underline-offset-8 decoration-white/20">LEGAL</div>
-                  <div className="hover:text-blue-500 cursor-pointer">Security</div>
-                  <div className="hover:text-blue-500 cursor-pointer">Terms</div>
+                  <div className="hover:text-emerald-500 cursor-pointer">Security</div>
+                  <div className="hover:text-emerald-500 cursor-pointer">Terms</div>
                </div>
             </div>
          </div>

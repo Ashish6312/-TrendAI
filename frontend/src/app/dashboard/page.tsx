@@ -132,10 +132,10 @@ export default function Dashboard() {
         
         {/* Left Panel: Search & Filters */}
         <div className="w-full lg:w-1/3 xl:w-1/4 space-y-8">
-          <div className="glass-card p-8 bg-gradient-to-br from-blue-600/10 via-transparent to-indigo-600/10">
+          <div className="glass-card p-8 bg-gradient-to-br from-emerald-600/10 via-transparent to-amber-600/10">
             <div className="flex items-center gap-3 mb-6">
-              <div className="p-2 bg-blue-500/10 rounded-lg">
-                <Target className="text-blue-500" size={20} />
+              <div className="p-2 bg-emerald-500/10 rounded-lg">
+                <Target className="text-emerald-500" size={20} />
               </div>
               <h2 className="text-xl font-bold text-white tracking-tight">{t("dash_market_scope")}</h2>
             </div>
@@ -155,7 +155,7 @@ export default function Dashboard() {
                       setShowSuggestions(true);
                     }}
                     onFocus={() => setShowSuggestions(true)}
-                    className="bg-white/[0.03] border border-white/10 text-white text-sm font-bold rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 block w-full pl-11 pr-4 py-4.5 placeholder-gray-700 transition-all font-outfit"
+                    className="bg-white/[0.03] border border-white/10 text-white text-sm font-bold rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/50 block w-full pl-11 pr-4 py-4.5 placeholder-gray-700 transition-all font-outfit"
                     placeholder={t("dash_enter_city")}
                     required
                     autoComplete="off"
@@ -191,7 +191,7 @@ export default function Dashboard() {
               <button
                 type="submit"
                 disabled={loading || !area}
-                className="w-full h-15 premium-gradient text-white font-black uppercase tracking-[0.2em] rounded-2xl text-[11px] px-5 flex justify-center items-center gap-2 transition-all shadow-xl shadow-blue-600/20 hover:shadow-blue-600/40 hover:-translate-y-1 active:translate-y-0 disabled:opacity-30 disabled:cursor-not-allowed disabled:grayscale"
+                className="w-full h-15 growth-gradient text-white font-black uppercase tracking-[0.2em] rounded-2xl text-[11px] px-5 flex justify-center items-center gap-2 transition-all shadow-xl shadow-emerald-600/20 hover:shadow-emerald-600/40 hover:-translate-y-1 active:translate-y-0 disabled:opacity-30 disabled:cursor-not-allowed disabled:grayscale"
               >
                 {loading ? <Loader2 className="animate-spin" size={20} /> : <Sparkles size={20} fill="currentColor" />}
                 {loading ? t("dash_analyzing") : t("dash_analyze")}
@@ -291,17 +291,17 @@ export default function Dashboard() {
                 animate={{ opacity: 1, y: 0 }}
                 className="space-y-12"
               >
-                <div className="glass-card p-12 bg-gradient-to-br from-blue-600/15 via-transparent to-indigo-600/10 border-blue-500/20 relative overflow-hidden shadow-2xl">
-                  <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-500/5 rounded-full blur-[100px] -mr-64 -mt-64 animate-pulse" />
+                <div className="glass-card p-12 bg-gradient-to-br from-emerald-600/15 via-transparent to-amber-600/10 border-emerald-500/20 relative overflow-hidden shadow-2xl">
+                  <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-500/5 rounded-full blur-[100px] -mr-64 -mt-64 animate-pulse" />
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10 relative z-10">
                     <div>
-                      <div className="text-[10px] font-black text-blue-500 uppercase tracking-[0.4em] mb-3">{t("dash_results_header")} {language}</div>
-                      <h2 className="text-5xl font-black text-white tracking-tighter capitalize selection:bg-blue-600">
+                      <div className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.4em] mb-3">{t("dash_results_header")} {language}</div>
+                      <h2 className="text-5xl font-black text-white tracking-tighter capitalize selection:bg-emerald-600">
                         {result.area.split(',')[0]}
                       </h2>
                     </div>
                     <div className="flex items-center gap-3 px-5 py-2.5 bg-white/5 rounded-2xl border border-white/10 text-[10px] font-black text-gray-400 tracking-widest uppercase">
-                      <Globe2 size={16} className="text-blue-500" /> {language} Protocol
+                      <Globe2 size={16} className="text-emerald-500" /> {language} Protocol
                     </div>
                   </div>
                   <p className="text-gray-400 leading-relaxed text-xl font-medium selection:bg-blue-500/40 relative z-10">
@@ -325,13 +325,13 @@ export default function Dashboard() {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.1 }}
                       onClick={() => router.push(`/roadmap?area=${encodeURIComponent(result.area)}&title=${encodeURIComponent(rec.title)}&desc=${encodeURIComponent(rec.description)}&lang=${language}`)}
-                      className="glass-card p-10 cursor-pointer border-white/5 hover:border-blue-500/30 hover:bg-white/[0.05] transition-all duration-700 group relative flex flex-col h-full shadow-2xl overflow-hidden"
+                      className="glass-card p-10 cursor-pointer border-white/5 hover:border-emerald-500/30 hover:bg-white/[0.05] transition-all duration-700 group relative flex flex-col h-full shadow-2xl overflow-hidden"
                     >
-                      <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-transparent via-blue-500/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                       
                       <div className="flex justify-between items-start mb-10 relative z-10">
-                        <div className="w-16 h-16 bg-blue-500/10 rounded-[2rem] flex items-center justify-center group-hover:bg-blue-600 transition-all duration-500 shadow-xl border border-blue-500/10">
-                          <span className="text-blue-500 font-black text-2xl group-hover:text-white transition-colors">{index + 1}</span>
+                        <div className="w-16 h-16 bg-emerald-500/10 rounded-[2rem] flex items-center justify-center group-hover:bg-emerald-600 transition-all duration-500 shadow-xl border border-emerald-500/10">
+                          <span className="text-emerald-500 font-black text-2xl group-hover:text-white transition-colors">{index + 1}</span>
                         </div>
                         <div className="flex flex-col items-end gap-1.5">
                            <div className="flex items-center gap-2 bg-amber-500/10 text-amber-500 px-5 py-2.5 rounded-2xl text-[10px] font-extrabold uppercase tracking-[0.2em] border border-amber-500/20 shadow-lg">
@@ -366,7 +366,7 @@ export default function Dashboard() {
 
                       <div className="pt-8 border-t border-white/5 flex justify-between items-center mt-auto relative z-10 hover:translate-x-1 transition-transform cursor-pointer">
                         <span className="text-[11px] font-black text-gray-500 uppercase tracking-[0.5em] group-hover:text-white transition-colors">{t("dash_view_plan")}</span>
-                        <div className="w-12 h-12 rounded-[1.5rem] bg-white/5 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white text-blue-500 transition-all duration-500 shadow-2xl">
+                        <div className="w-12 h-12 rounded-[1.5rem] bg-white/5 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white text-emerald-500 transition-all duration-500 shadow-2xl">
                           <ArrowRight size={22} />
                         </div>
                       </div>
@@ -378,7 +378,7 @@ export default function Dashboard() {
                   <div className="mt-20 glass-card p-12 bg-black/50 border-white/5 relative overflow-hidden group">
                     <div className="absolute inset-0 bg-grid-white/[0.01] pointer-events-none" />
                     <h3 className="text-2xl font-black text-white mb-10 flex items-center gap-4 relative z-10">
-                      <div className="w-10 h-10 rounded-2xl bg-white/5 flex items-center justify-center text-gray-500 group-hover:text-blue-500 transition-colors border border-white/10">
+                      <div className="w-10 h-10 rounded-2xl bg-white/5 flex items-center justify-center text-gray-500 group-hover:text-emerald-500 transition-colors border border-white/10">
                         <BarChart3 size={20} />
                       </div>
                       {t("dash_neural_input")}
@@ -386,8 +386,8 @@ export default function Dashboard() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-12 relative z-10">
                       {result.logs.web?.length > 0 && (
                         <div className="space-y-6">
-                          <h4 className="text-blue-500 text-[11px] font-black uppercase tracking-[0.3em] flex items-center gap-3">
-                             <div className="w-1.5 h-1.5 bg-blue-500 rounded-full shadow-[0_0_15px_#3b82f6] animate-pulse" /> {t("dash_source_web")}
+                          <h4 className="text-emerald-500 text-[11px] font-black uppercase tracking-[0.3em] flex items-center gap-3">
+                             <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full shadow-[0_0_15px_#10b981] animate-pulse" /> {t("dash_source_web")}
                           </h4>
                           <div className="space-y-4">
                             {result.logs.web.map((log: string, idx: number) => (
