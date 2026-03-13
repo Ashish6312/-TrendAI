@@ -14,12 +14,122 @@ import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useSession, signIn } from "next-auth/react";
 
+// --- Dynamic Visual Components ---
+const NeuralSphere = () => (
+  <div className="relative w-full h-[500px] flex items-center justify-center overflow-hidden">
+    <motion.div 
+      animate={{ rotateY: [0, 360], rotateX: [0, 360] }}
+      transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+      className="w-64 h-64 relative preserve-3d"
+    >
+      {/* Background Glow */}
+      <div className="absolute inset-0 bg-blue-500/20 rounded-full blur-[80px]" />
+      
+      {/* Wireframe using simple SVG paths to simulate an icosahedron */}
+      <svg viewBox="0 0 100 100" className="w-full h-full text-blue-500/40">
+        <motion.g animate={{ rotate: 360 }} transition={{ duration: 40, repeat: Infinity, ease: "linear" }}>
+          {[...Array(6)].map((_, i) => (
+            <ellipse key={i} cx="50" cy="50" rx="45" ry="15" fill="none" stroke="currentColor" strokeWidth="0.5" transform={`rotate(${i * 60} 50 50)`} />
+          ))}
+          <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="0.5" />
+        </motion.g>
+        
+        {/* Internal structure nodes */}
+        {[...Array(8)].map((_, i) => (
+          <motion.circle 
+            key={i}
+            cx={50 + Math.cos(i * Math.PI / 4) * 35}
+            cy={50 + Math.sin(i * Math.PI / 4) * 35}
+            r="1.5"
+            fill="#60a5fa"
+            animate={{ opacity: [0.2, 1, 0.2], scale: [1, 1.5, 1] }}
+            transition={{ duration: 2 + i % 3, repeat: Infinity }}
+            className="shadow-[0_0_10px_#60a5fa]"
+          />
+        ))}
+      </svg>
+
+      {/* Central Intelligence Core */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-gradient-to-tr from-blue-600/30 to-indigo-600/30 rounded-full blur-2xl animate-pulse" />
+    </motion.div>
+    
+    <div className="absolute bottom-10 left-1/2 -translate-x-1/2 text-center pointer-events-none">
+      <h4 className="text-white text-3xl font-black tracking-tighter mb-2 italic">Neural_Protocol_Alpha</h4>
+      <div className="h-1 w-24 bg-blue-500 mx-auto rounded-full" />
+    </div>
+  </div>
+);
+
+const NetworkTopology = () => (
+  <div className="relative w-full h-[500px] flex items-center justify-center p-12 overflow-hidden">
+    <svg viewBox="0 0 400 300" className="w-full h-full overflow-visible">
+      {/* Background connections */}
+      <motion.path 
+        d="M 50 150 Q 200 50 350 150 T 50 150"
+        fill="none" 
+        stroke="rgba(99, 102, 241, 0.1)" 
+        strokeWidth="1"
+        strokeDasharray="5,5"
+        animate={{ strokeDashoffset: [0, 50] }}
+        transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+      />
+
+      {[...Array(8)].map((_, i) => {
+        const angle = (i / 8) * Math.PI * 2;
+        const x = 200 + Math.cos(angle) * 120;
+        const y = 150 + Math.sin(angle) * 80;
+        const colors = ["#ef4444", "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899"];
+        const color = colors[i % colors.length];
+
+        return (
+          <g key={i}>
+            {/* Central connections */}
+            <motion.line 
+              x1="200" y1="150" x2={x} y2={y} 
+              stroke={color} strokeWidth="0.5" strokeOpacity="0.2"
+              initial={{ pathLength: 0 }}
+              animate={{ pathLength: [0, 1, 0] }}
+              transition={{ duration: 3, repeat: Infinity, delay: i * 0.4 }}
+            />
+            
+            {/* Nodes */}
+            <motion.circle 
+              cx={x} cy={y} r="8" fill="#020617" stroke={color} strokeWidth="2"
+              animate={{ scale: [1, 1.2, 1] }}
+              transition={{ duration: 4, repeat: Infinity, delay: i * 0.5 }}
+            />
+            
+            {/* Orbital mini-nodes */}
+            <motion.circle 
+              r="2" fill={color}
+              animate={{ 
+                cx: [x + 15 * Math.cos(0), x + 15 * Math.cos(Math.PI), x + 15 * Math.cos(Math.PI*2)],
+                cy: [y + 15 * Math.sin(0), y + 15 * Math.sin(Math.PI), y + 15 * Math.sin(Math.PI*2)],
+              }}
+              transition={{ duration: 5, repeat: Infinity, ease: "linear" }}
+            />
+          </g>
+        );
+      })}
+
+      {/* Central Master Node */}
+      <motion.rect 
+        x="185" y="135" width="30" height="30" rx="8" 
+        fill="#3b82f6" 
+        animate={{ rotate: [0, 360], scale: [1, 1.1, 1] }}
+        transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+      />
+      <text x="200" y="155" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold">AI</text>
+    </svg>
+  </div>
+);
+
 export default function Home() {
   const { t } = useLanguage();
   const router = useRouter();
   const { data: session } = useSession();
 
-  const handleStartScan = () => {
+const handleStartScan = () => {
     if (session) {
       router.push("/dashboard");
     } else {
@@ -269,17 +379,10 @@ export default function Home() {
                 <motion.div
                   animate={{ 
                     scale: [1, 1.02, 1],
-                    filter: ["brightness(1)", "brightness(1.1)", "brightness(1)"]
                   }}
                   transition={{ duration: 8, repeat: Infinity }}
                 >
-                  <Image 
-                    src="/intel-visualization-1.jpg" 
-                    alt="Neural Scan Visualization" 
-                    width={800}
-                    height={500}
-                    className="w-full h-auto rounded-[2.4rem] brightness-75 group-hover:brightness-100 transition-all duration-1000 transform-gpu"
-                  />
+                  <NeuralSphere />
                 </motion.div>
 
                 {/* Floating HUD Elements */}
@@ -318,13 +421,7 @@ export default function Home() {
                   }}
                   transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
                 >
-                  <Image 
-                    src="/intel-visualization-2.jpg" 
-                    alt="Network Topology Visualization" 
-                    width={800}
-                    height={500}
-                    className="w-full h-auto rounded-2xl shadow-2xl brightness-90 group-hover:brightness-110 transition-all duration-700"
-                  />
+                  <NetworkTopology />
                 </motion.div>
 
                 {/* Data Stream Overlay */}
