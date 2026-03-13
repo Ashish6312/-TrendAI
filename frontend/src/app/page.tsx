@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { 
   ArrowRight, Search, MapPin, Zap, Rocket, 
-  BarChart3, Globe2, ShieldCheck, Cpu, 
+  BarChart3, ShieldCheck, Cpu, 
   Network, LineChart, Globe, Layers, 
-  ArrowUpRight, Github, Twitter, Linkedin
+  Github, Twitter, Linkedin,
+  Target
 } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
 import { motion } from "framer-motion";
@@ -47,7 +49,7 @@ export default function Home() {
           <div className="flex -space-x-2">
             {[1,2,3].map(i => (
               <div key={i} className="w-6 h-6 rounded-full border-2 border-[#020617] bg-gray-800 flex items-center justify-center overflow-hidden">
-                <img src={`https://i.pravatar.cc/100?img=${i+10}`} alt="User" />
+                <Image src={`https://i.pravatar.cc/100?img=${i+10}`} alt="User" width={24} height={24} unoptimized />
               </div>
             ))}
           </div>
@@ -271,10 +273,12 @@ export default function Home() {
                   }}
                   transition={{ duration: 8, repeat: Infinity }}
                 >
-                  <img 
+                  <Image 
                     src="/intel-visualization-1.jpg" 
-                    alt="Neural Scan" 
-                    className="w-full rounded-[2.4rem] brightness-75 group-hover:brightness-100 transition-all duration-1000 transform-gpu"
+                    alt="Neural Scan Visualization" 
+                    width={800}
+                    height={500}
+                    className="w-full h-auto rounded-[2.4rem] brightness-75 group-hover:brightness-100 transition-all duration-1000 transform-gpu"
                   />
                 </motion.div>
 
@@ -314,10 +318,12 @@ export default function Home() {
                   }}
                   transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
                 >
-                  <img 
+                  <Image 
                     src="/intel-visualization-2.jpg" 
-                    alt="Network Topology" 
-                    className="w-full rounded-[2.4rem] brightness-75 group-hover:brightness-100 transition-all duration-1000"
+                    alt="Network Topology Visualization" 
+                    width={800}
+                    height={500}
+                    className="w-full h-auto rounded-2xl shadow-2xl brightness-90 group-hover:brightness-110 transition-all duration-700"
                   />
                 </motion.div>
 
@@ -358,8 +364,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-
-      {/* 6. BOTTOM CTA BANNER */}
 
       {/* 6. BOTTOM CTA BANNER */}
       <section className="w-full max-w-7xl px-6 pb-40 mx-auto">        {/* Bottom Banner */}

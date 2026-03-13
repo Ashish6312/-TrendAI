@@ -4,12 +4,18 @@ import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, Suspense } from "react";
 import { 
-  ArrowLeft, CheckCircle2, Loader2, Play, 
+  ArrowLeft, CheckCircle2, Loader2, 
   ChevronRight, Calendar, Users, Rocket,
   ShieldCheck, Sparkle, MapPin, Printer, Globe2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/context/LanguageContext";
+
+interface RoadmapStep {
+  step_number: number;
+  step_title: string;
+  step_description: string;
+}
 
 function RoadmapContent() {
   const { status } = useSession();
@@ -22,7 +28,7 @@ function RoadmapContent() {
   const desc = searchParams.get('desc');
   const language = searchParams.get('lang') || "English";
   
-  const [steps, setSteps] = useState<any[]>([]);
+  const [steps, setSteps] = useState<RoadmapStep[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

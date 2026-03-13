@@ -2,9 +2,10 @@
 
 import { useSession, signOut, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Languages, LogOut, Zap, User } from "lucide-react";
+import { Languages, LogOut, Zap } from "lucide-react";
 import { useState } from "react";
 import { useLanguage } from "@/context/LanguageContext";
+import Image from "next/image";
 
 const languages = [
   { code: "English", name: "English" },
@@ -100,10 +101,13 @@ export default function Navbar() {
               </div>
               <div className="relative group cursor-pointer" onClick={() => router.push('/profile')}>
                 <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-2xl blur opacity-25 group-hover:opacity-60 transition duration-1000 group-hover:duration-200" />
-                <img 
+                <Image 
                   src={session.user.image || `https://ui-avatars.com/api/?name=${session.user.name}`} 
                   className="relative w-10 h-10 rounded-2xl border-2 border-white/10 shadow-2xl transition-all object-cover hover:scale-105"
                   alt="Profile"
+                  width={40}
+                  height={40}
+                  unoptimized
                 />
               </div>
               <button 

@@ -10,6 +10,32 @@ import {
 } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
 import { motion, AnimatePresence } from "framer-motion";
+import { useCallback } from "react";
+
+interface Suggestion {
+  display_name: string;
+}
+
+interface Recommendation {
+  title: string;
+  description: string;
+  match_score?: string;
+  revenue?: string;
+  capital?: string;
+  survival?: string;
+  profitability_score?: number;
+  [key: string]: string | number | boolean | undefined | null;
+}
+
+interface IntelligenceResult {
+  area: string;
+  analysis: string;
+  recommendations: Recommendation[];
+  logs: {
+    web: string[];
+    reddit: string[];
+  };
+}
 
 export default function Dashboard() {
   const { data: session, status } = useSession();
@@ -17,10 +43,10 @@ export default function Dashboard() {
   const { language, t } = useLanguage();
   
   const [area, setArea] = useState("");
-  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<IntelligenceResult | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -46,20 +72,13 @@ export default function Dashboard() {
     return () => clearTimeout(delayDebounceFn);
   }, [area, showSuggestions]);
 
-  const handleSelectSuggestion = (suggestion: any) => {
+  const handleSelectSuggestion = (suggestion: Suggestion) => {
     setArea(suggestion.display_name);
     setShowSuggestions(false);
   };
 
-  useEffect(() => {
-    if (result && area && !loading) {
-      const e = { preventDefault: () => {} } as React.FormEvent;
-      handleAnalyze(e);
-    }
-  }, [language]);
-
-  const handleAnalyze = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAnalyze = useCallback(async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!area) return;
     
     setLoading(true);
@@ -82,7 +101,13 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [area, session?.user?.email, language]);
+
+  useEffect(() => {
+    if (result && area && !loading) {
+      handleAnalyze();
+    }
+  }, [language, handleAnalyze, result, area, loading]);
 
   if (status === "loading") {
     return (
@@ -252,7 +277,7 @@ export default function Dashboard() {
                 </div>
 
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-                  {result.recommendations.map((rec: any, index: number) => (
+                  {result.recommendations.map((rec: Recommendation, index: number) => (
                     <motion.div 
                       key={index} 
                       whileHover={{ y: -10 }}
