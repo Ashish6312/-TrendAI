@@ -45,7 +45,7 @@ export default function Home() {
           <motion.div 
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="inline-flex items-center gap-4 px-6 py-2.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-2xl shadow-2xl"
+            className="inline-flex items-center gap-3 px-4 sm:px-6 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-xl shadow-2xl"
           >
             <div className="flex -space-x-2">
               {[1,2,3].map(i => (
@@ -54,7 +54,7 @@ export default function Home() {
                 </div>
               ))}
             </div>
-            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-emerald-400 pl-2">
+            <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-emerald-400 pl-2">
               UNCOVER PROFITABLE TERRITORIES
             </span>
           </motion.div>
@@ -64,9 +64,9 @@ export default function Home() {
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-              className="text-6xl md:text-9xl font-black tracking-tighter text-white leading-[0.85]"
+              className="text-5xl sm:text-7xl md:text-9xl font-black tracking-tighter text-white leading-none md:leading-[0.85]"
             >
-              Architect Your <br />
+              Architect Your <br className="hidden sm:block" />
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 via-teal-500 to-blue-600 italic">Success.</span>
             </motion.h1>
             <motion.p 

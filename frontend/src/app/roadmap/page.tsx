@@ -131,18 +131,18 @@ function RoadmapContent() {
           </motion.div>
           
           <div className="space-y-6">
-            <h1 className="text-6xl md:text-8xl font-black text-white tracking-tighter leading-none max-w-5xl mx-auto italic">
+            <h1 className="text-4xl sm:text-7xl md:text-8xl font-black text-white tracking-tighter leading-none max-w-5xl mx-auto italic">
                The <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-teal-600">Growth</span> Directive.
             </h1>
             <div className="flex flex-col items-center gap-8">
               <motion.h2 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="text-3xl font-black bg-white/5 px-10 py-4 rounded-[2.5rem] border border-white/10 text-emerald-400 shadow-[0_30px_60px_rgba(0,0,0,0.4)] tracking-tight selection:bg-emerald-600"
+                className="text-xl sm:text-3xl font-black bg-white/5 px-6 sm:px-10 py-3 sm:py-4 rounded-[1.5rem] sm:rounded-[2.5rem] border border-white/10 text-emerald-400 shadow-2xl tracking-tight selection:bg-emerald-600"
               >
                 {title}
               </motion.h2>
-              <div className="flex items-center gap-3 text-gray-500 font-bold tracking-[0.4em] uppercase text-[10px]">
+              <div className="flex items-center gap-3 text-gray-500 font-bold tracking-widest uppercase text-[10px]">
                  <MapPin size={18} className="text-emerald-500" /> 
                  {area}
               </div>

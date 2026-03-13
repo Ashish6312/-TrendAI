@@ -38,7 +38,7 @@ export default function Pricing() {
           </p>
         </motion.div>
 
-        <div className="grid md:grid-cols-2 gap-12 max-w-6xl mx-auto text-left relative z-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 max-w-6xl mx-auto text-left relative z-10">
           
           {/* Free Plan */}
           <motion.div 

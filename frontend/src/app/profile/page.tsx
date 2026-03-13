@@ -136,9 +136,9 @@ export default function ProfilePage() {
               <div className="inline-block px-4 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em] mb-4">
                 Growth Access Verified
               </div>
-              <h1 className="text-6xl font-black text-white tracking-tighter mb-4 leading-none">{t("prof_header")}</h1>
-              <p className="text-gray-400 font-bold flex items-center justify-center md:justify-start gap-3 text-sm tracking-tight">
-                <Mail size={18} className="text-emerald-500" />
+              <h1 className="text-4xl sm:text-6xl font-black text-white tracking-tighter mb-4 leading-none">{t("prof_header")}</h1>
+              <p className="text-gray-400 font-bold flex items-center justify-center md:justify-start gap-3 text-sm tracking-tight break-all">
+                <Mail size={18} className="text-emerald-500 shrink-0" />
                 {session?.user?.email}
               </p>
             </div>
@@ -146,7 +146,7 @@ export default function ProfilePage() {
 
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-10 relative z-10">
             <div className="space-y-3">
-              <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] pl-1">{t("prof_name")}</label>
+              <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest pl-1">{t("prof_name")}</label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
                   <User className="text-gray-600 group-focus-within:text-emerald-500 transition-colors" size={18} />
