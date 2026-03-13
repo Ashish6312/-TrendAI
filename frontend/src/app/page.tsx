@@ -223,68 +223,139 @@ export default function Home() {
          <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-white/5 to-transparent" />
       </section>
 
-      {/* 5.5 INTELLIGENCE VISUALIZATION */}
-      <section className="w-full max-w-7xl px-6 py-20 mx-auto">
-        <div className="text-center mb-20 space-y-4">
-          <div className="text-indigo-500 text-[10px] font-black uppercase tracking-[0.5em]">{t("dash_ai_insights")}</div>
-          <h2 className="text-4xl md:text-6xl font-black text-white tracking-tighter capitalize">Neural Reconnaissance Engine</h2>
+      {/* 5.5 INTELLIGENCE VISUALIZATION - HIGHER FIDELITY */}
+      <section className="w-full relative py-32 overflow-hidden bg-[#020617]">
+        {/* Section Background Neural Mesh */}
+        <div className="absolute inset-0 z-0">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-blue-600/5 rounded-full blur-[150px]" />
+          <div className="absolute inset-0 bg-grid-white/[0.015] [mask-image:radial-gradient(ellipse_at_center,black,transparent)]" />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+        <div className="max-w-7xl mx-auto px-6 relative z-10">
           <motion.div 
-            initial={{ opacity: 0, x: -50 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            transition={{ duration: 1 }}
-            className="relative group"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            className="text-center mb-24 space-y-6"
           >
-            <div className="absolute -inset-2 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-[2.5rem] blur-2xl opacity-20 group-hover:opacity-40 transition-opacity" />
-            <div className="glass-card p-4 bg-white/5 border-white/10 overflow-hidden relative">
-              <motion.div
-                animate={{ scale: [1, 1.05, 1], rotate: [0, 1, 0] }}
-                transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-              >
-                <img 
-                  src="/intel-visualization-1.jpg" 
-                  alt="Neural Scan Visualization" 
-                  className="w-full rounded-2xl shadow-2xl brightness-90 group-hover:brightness-110 transition-all duration-700"
-                />
-              </motion.div>
-              {/* Overlay Pulsing Nodes */}
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-blue-500/20 rounded-full blur-3xl animate-pulse" />
-              <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-blue-400 rounded-full shadow-[0_0_15px_#60a5fa] animate-ping" />
-              <div className="absolute bottom-1/3 right-1/4 w-2 h-2 bg-indigo-400 rounded-full shadow-[0_0_15px_#818cf8] animate-ping delay-700" />
+            <div className="inline-flex items-center gap-3 px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20">
+               <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+               <span className="text-[10px] font-black text-blue-400 uppercase tracking-[0.4em]">{t("dash_ai_insights")}</span>
             </div>
-            <div className="absolute -bottom-6 -right-6 glass-card p-6 bg-blue-600/90 border-blue-400/50 backdrop-blur-2xl shadow-2xl z-20 max-w-[200px]">
-               <div className="text-[10px] font-black text-white/70 uppercase tracking-widest mb-1">Status</div>
-               <div className="text-sm font-black text-white uppercase italic">Active Neural Scan</div>
-            </div>
+            <h2 className="text-5xl md:text-8xl font-black text-white tracking-tighter leading-none">
+              Neural <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-600">Reconnaissance</span>
+            </h2>
           </motion.div>
 
-          <motion.div 
-            initial={{ opacity: 0, x: 50 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            transition={{ duration: 1, delay: 0.2 }}
-            className="relative group lg:mt-24"
-          >
-            <div className="absolute -inset-2 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-[2.5rem] blur-2xl opacity-20 group-hover:opacity-40 transition-opacity" />
-            <div className="glass-card p-4 bg-white/5 border-white/10 overflow-hidden relative">
-              <motion.div
-                animate={{ scale: [1, 1.03, 1], y: [0, -10, 0] }}
-                transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-              >
-                <img 
-                  src="/intel-visualization-2.jpg" 
-                  alt="Network Topology Visualization" 
-                  className="w-full rounded-2xl shadow-2xl brightness-90 group-hover:brightness-110 transition-all duration-700"
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+            {/* Visual 1: Intelligence Scan */}
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, rotateY: -10 }}
+              whileInView={{ opacity: 1, scale: 1, rotateY: 0 }}
+              transition={{ duration: 1.2, ease: "easeOut" }}
+              className="relative group perspective-1000"
+            >
+              <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-[3rem] blur-xl opacity-20 group-hover:opacity-50 transition-all duration-700" />
+              
+              <div className="relative glass-card p-2 bg-white/5 border-white/20 backdrop-blur-3xl overflow-hidden rounded-[2.8rem] shadow-2xl">
+                {/* Scanline Effect */}
+                <motion.div 
+                  animate={{ top: ["-10%", "110%"] }}
+                  transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                  className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-blue-400 to-transparent z-20 opacity-50 shadow-[0_0_15px_rgba(59,130,246,0.5)]"
                 />
+                
+                <motion.div
+                  animate={{ 
+                    scale: [1, 1.02, 1],
+                    filter: ["brightness(1)", "brightness(1.1)", "brightness(1)"]
+                  }}
+                  transition={{ duration: 8, repeat: Infinity }}
+                >
+                  <img 
+                    src="/intel-visualization-1.jpg" 
+                    alt="Neural Scan" 
+                    className="w-full rounded-[2.4rem] brightness-75 group-hover:brightness-100 transition-all duration-1000 transform-gpu"
+                  />
+                </motion.div>
+
+                {/* Floating HUD Elements */}
+                <div className="absolute top-8 left-8 flex flex-col gap-2">
+                   <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-black/60 border border-white/10 text-[8px] font-black text-blue-400 backdrop-blur-md uppercase tracking-widest">
+                      <Search size={10} /> Scoping_Perimeter: 98.4%
+                   </div>
+                   <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-black/60 border border-white/10 text-[8px] font-black text-indigo-400 backdrop-blur-md uppercase tracking-widest">
+                      <Target size={10} /> Neural_Lock: ACTIVE
+                   </div>
+                </div>
+              </div>
+
+              {/* Orbital Element */}
+              <motion.div 
+                animate={{ rotate: 360 }}
+                transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                className="absolute -top-10 -right-10 w-40 h-40 border border-blue-500/20 rounded-full border-dashed z-0"
+              />
+            </motion.div>
+
+            {/* Visual 2: Data Topology */}
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, rotateY: 10 }}
+              whileInView={{ opacity: 1, scale: 1, rotateY: 0 }}
+              transition={{ duration: 1.2, ease: "easeOut", delay: 0.2 }}
+              className="relative group lg:mt-32 perspective-1000"
+            >
+              <div className="absolute -inset-1 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-[3rem] blur-xl opacity-20 group-hover:opacity-50 transition-all duration-700" />
+              
+              <div className="relative glass-card p-2 bg-white/5 border-white/20 backdrop-blur-3xl overflow-hidden rounded-[2.8rem] shadow-2xl">
+                <motion.div
+                  animate={{ 
+                    y: [0, -10, 0],
+                    rotateZ: [0, 1, 0]
+                  }}
+                  transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+                >
+                  <img 
+                    src="/intel-visualization-2.jpg" 
+                    alt="Network Topology" 
+                    className="w-full rounded-[2.4rem] brightness-75 group-hover:brightness-100 transition-all duration-1000"
+                  />
+                </motion.div>
+
+                {/* Data Stream Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-indigo-600/5 to-transparent pointer-events-none" />
+              </div>
+
+              {/* Tech Stats Card Overlay */}
+              <motion.div 
+                initial={{ x: 50, opacity: 0 }}
+                whileInView={{ x: 0, opacity: 1 }}
+                className="absolute -bottom-10 -left-10 glass-card p-8 bg-[#020617]/90 border-indigo-500/30 backdrop-blur-xl z-20 border-l-[4px] border-l-indigo-600"
+              >
+                 <div className="flex items-center gap-4 mb-4">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-600/20 flex items-center justify-center text-indigo-400">
+                       <BarChart3 size={20} />
+                    </div>
+                    <div>
+                       <div className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Processing Data</div>
+                       <div className="text-sm font-black text-white italic">1.2B Intelligence Nodes</div>
+                    </div>
+                 </div>
+                 <div className="space-y-2">
+                    <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                       <motion.div 
+                        animate={{ width: ["0%", "85%", "40%", "95%"] }}
+                        transition={{ duration: 5, repeat: Infinity }}
+                        className="h-full bg-indigo-500" 
+                       />
+                    </div>
+                    <div className="flex justify-between text-[8px] font-black text-gray-600 uppercase tracking-tighter">
+                       <span>Synthesis</span>
+                       <span>95% Optimal</span>
+                    </div>
+                 </div>
               </motion.div>
-              <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-transparent to-transparent opacity-40" />
-            </div>
-            <div className="absolute -top-6 -left-6 glass-card p-6 bg-indigo-600/90 border-indigo-400/50 backdrop-blur-2xl shadow-2xl z-20 max-w-[200px]">
-               <div className="text-[10px] font-black text-white/70 uppercase tracking-widest mb-1">Metric</div>
-               <div className="text-sm font-black text-white uppercase italic">1.2M Vector Nodes</div>
-            </div>
-          </motion.div>
+            </motion.div>
+          </div>
         </div>
       </section>
 
