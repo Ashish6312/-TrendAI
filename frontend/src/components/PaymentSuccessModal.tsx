@@ -43,13 +43,66 @@ export default function PaymentSuccessModal({ isOpen, onClose }: PaymentSuccessM
       const confettiTimer = setTimeout(() => setShowConfetti(false), 5000);
 
       const planMapping: Record<string, SubscriptionPlan> = {
-        'Market Explorer': 'free',
-        'Growth Accelerator': 'professional', 
-        'Market Dominator': 'enterprise'
+        'Starter': 'free',
+        'Professional': 'professional', 
+        'Enterprise': 'enterprise'
       };
       const currentPlan = planMapping[planParam] || 'enterprise';
 
+      const planFeaturesMap = {
+        'free': { max_analyses: 5, features: { advancedFeatures: false, prioritySupport: false, exportToPdf: false, apiAccess: false } },
+        'professional': { max_analyses: 50, features: { advancedFeatures: true, prioritySupport: true, exportToPdf: true, apiAccess: true } },
+        'enterprise': { max_analyses: -1, features: { advancedFeatures: true, prioritySupport: true, exportToPdf: true, apiAccess: true, dedicatedManager: true } }
+      };
+
+      const syncPlanWithBackend = async () => {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        const userEmail = session?.user?.email?.toLowerCase().trim();
+        
+        if (!userEmail) return;
+
+        const payload = {
+          user_email: userEmail,
+          plan_name: currentPlan,
+          plan_display_name: planParam,
+          billing_cycle: billingCycle,
+          price: parseFloat(amount),
+          currency: currency,
+          max_analyses: planFeaturesMap[currentPlan].max_analyses,
+          features: planFeaturesMap[currentPlan].features
+        };
+
+        try {
+          await fetch(`${apiUrl}/api/subscriptions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          
+          // Also create a payment record
+          await fetch(`${apiUrl}/api/payments`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              user_email: userEmail,
+              razorpay_payment_id: paymentId,
+              razorpay_order_id: `ord_${Date.now()}`,
+              amount: parseFloat(amount),
+              currency: currency,
+              status: 'success',
+              plan_name: planParam,
+              billing_cycle: billingCycle
+            })
+          });
+        } catch (err) {
+          console.error('Failed to sync plan with backend:', err);
+        }
+      };
+
       setPlan(currentPlan);
+      if (session?.user?.email) {
+        syncPlanWithBackend();
+      }
       
       return () => {
         document.body.style.overflow = 'unset';
@@ -57,7 +110,7 @@ export default function PaymentSuccessModal({ isOpen, onClose }: PaymentSuccessM
         clearTimeout(confettiTimer);
       };
     }
-  }, [isOpen, planParam, setPlan]);
+  }, [isOpen, planParam, setPlan, session?.user?.email, amount, billingCycle, currency, paymentId]);
 
   const handleCheckEmail = () => {
     addNotification({
@@ -77,8 +130,8 @@ export default function PaymentSuccessModal({ isOpen, onClose }: PaymentSuccessM
   const handleDownloadResources = () => {
     addNotification({
       type: 'trending',
-      title: 'Resource hub',
-      message: 'Accessing resource hub... Deployment blueprints and guides are being prepared.',
+      title: 'Resources',
+      message: 'Opening resources... Just a moment.',
       priority: 'low',
       actionUrl: '/resources'
     });
@@ -131,24 +184,24 @@ export default function PaymentSuccessModal({ isOpen, onClose }: PaymentSuccessM
   };
 
   const planFeatures = {
-    'Market Explorer': {
+    'Starter': {
       analyses: 5,
-      features: ['Basic Analytics', 'Email Support', 'Standard Reports'],
+      features: ['Basic Search', 'Email Support', 'Standard Reports'],
       color: '#10b981'
     },
-    'Growth Accelerator': {
+    'Professional': {
       analyses: 50,
-      features: ['Advanced Analytics', 'Priority Support', 'Custom Reports', 'API Access'],
+      features: ['Advanced AI Tools', 'Priority Support', 'Custom Reports', 'API Access'],
       color: '#3b82f6'
     },
-    'Market Dominator': {
+    'Enterprise': {
       analyses: -1,
-      features: ['Unlimited Analytics', '24/7 Premium Support', 'White-label Reports', 'Full API Access', 'Custom Integrations', 'Dedicated Account Manager'],
+      features: ['Unlimited Searches', '24/7 Premium Support', 'Custom Reports', 'Full API Access', 'Custom Integrations', 'Account Manager'],
       color: '#8b5cf6'
     }
   };
 
-  const currentPlanFeatures = planFeatures[planParam as keyof typeof planFeatures] || planFeatures['Market Dominator'];
+  const currentPlanFeatures = planFeatures[planParam as keyof typeof planFeatures] || planFeatures['Enterprise'];
 
   if (!isOpen) return null;
 
@@ -167,7 +220,7 @@ export default function PaymentSuccessModal({ isOpen, onClose }: PaymentSuccessM
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 20 }}
-        className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-slate-900 border border-white/10 rounded-3xl shadow-2xl custom-scrollbar"
+        className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-3xl shadow-2xl custom-scrollbar"
       >
         {/* Close Button */}
         <button 
@@ -220,8 +273,8 @@ export default function PaymentSuccessModal({ isOpen, onClose }: PaymentSuccessM
 
             {/* Title */}
             <div className="space-y-4">
-              <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight">
-                Payment Successful!
+              <h1 className="text-3xl sm:text-5xl font-black text-slate-900 dark:text-white tracking-tighter uppercase italic">
+                Your Plan is Active
               </h1>
               
               <div
@@ -233,40 +286,40 @@ export default function PaymentSuccessModal({ isOpen, onClose }: PaymentSuccessM
               >
                 <Crown size={20} style={{ color: currentPlanFeatures.color }} />
                 <span className="font-bold text-lg" style={{ color: currentPlanFeatures.color }}>
-                  {planParam}
+                  {planParam} Tier
                 </span>
               </div>
             </div>
 
             {/* Details Card */}
-            <div className="bg-slate-800/50 rounded-2xl p-6 border border-slate-700 max-w-2xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 max-w-2xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-6">
               <div className="text-center">
-                <p className="text-xs text-slate-400 mb-1">Payment ID</p>
-                <p className="font-mono text-xs font-semibold text-white truncate">{paymentId}</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Receipt ID</p>
+                <p className="font-mono text-[10px] font-bold text-slate-600 dark:text-white truncate">{paymentId}</p>
               </div>
               <div className="text-center">
-                <p className="text-xs text-slate-400 mb-1">Amount Paid</p>
-                <p className="font-bold text-xl text-emerald-400">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Total Paid</p>
+                <p className="font-black text-xl text-emerald-600 dark:text-emerald-400">
                   {currency === 'INR' ? '₹' : '$'}{parseInt(amount).toLocaleString()}
                 </p>
               </div>
               <div className="text-center">
-                <p className="text-xs text-slate-400 mb-1">Billing Cycle</p>
-                <p className="font-semibold text-white capitalize">{billingCycle}</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Billing Cycle</p>
+                <p className="font-black text-slate-900 dark:text-white uppercase italic text-sm">{billingCycle}</p>
               </div>
             </div>
 
             {/* Features */}
-            <div className="bg-slate-800/30 rounded-2xl p-6 border border-slate-700/50 max-w-2xl mx-auto">
-              <h3 className="text-lg font-bold text-white mb-4">You now have access to:</h3>
+            <div className="bg-slate-50/50 dark:bg-slate-800/30 rounded-2xl p-6 border border-slate-100 dark:border-slate-700/50 max-w-2xl mx-auto">
+              <h3 className="text-[10px] font-black text-slate-900 dark:text-white mb-4 uppercase tracking-[0.2em] italic">Included Features</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {currentPlanFeatures.features.map((feature: string, index: number) => (
-                  <div
+                   <div
                     key={feature}
-                    className="flex items-center gap-2 p-2 rounded-lg bg-white/5 border border-white/10"
+                    className="flex items-center gap-2 p-2.5 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 shadow-sm"
                   >
-                    <CheckCircle size={14} className="text-emerald-500" />
-                    <span className="text-white text-sm font-medium text-left">{feature}</span>
+                    <CheckCircle size={14} className="text-emerald-500 dark:text-emerald-400 shrink-0" />
+                    <span className="text-slate-700 dark:text-white text-[10px] font-black uppercase tracking-tight text-left">{feature}</span>
                   </div>
                 ))}
               </div>
@@ -284,10 +337,10 @@ export default function PaymentSuccessModal({ isOpen, onClose }: PaymentSuccessM
               </button>
               <button
                 onClick={handleManageBilling}
-                className="w-full px-8 py-4 font-bold rounded-xl bg-white/5 text-white hover:bg-white/10 transition-all border border-white/10 flex items-center justify-center gap-2"
+                className="w-full px-8 py-4 font-black uppercase tracking-widest rounded-xl bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-white hover:bg-slate-200 dark:hover:bg-white/10 transition-all border border-slate-200 dark:border-white/10 flex items-center justify-center gap-2 italic"
               >
                 <CreditCard size={18} />
-                Manage Billing
+                Manage Account
               </button>
               <button
                 onClick={handleCheckEmail}

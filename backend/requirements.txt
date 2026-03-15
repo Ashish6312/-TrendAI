@@ -7,3 +7,5 @@ requests
 duckduckgo-search
 psycopg2-binary
 bcrypt
+textblob
+pyjwt

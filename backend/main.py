@@ -710,11 +710,12 @@ def sign_in(user_data: UserSignIn, db: Session = Depends(get_db)):
 
 @app.post("/api/users/sync")
 def sync_user(user: UserSync, db: Session = Depends(get_db)):
-    print(f"Syncing user: {user.email}")
-    db_user = db.query(models.User).filter(models.User.email == user.email).first()
+    email_normalized = user.email.lower().strip()
+    print(f"Syncing user: {email_normalized}")
+    db_user = db.query(models.User).filter(func.lower(models.User.email) == email_normalized).first()
     if not db_user:
         db_user = models.User(
-            email=user.email, 
+            email=email_normalized, 
             name=user.name, 
             image_url=user.image_url,
             auth_provider="google",  # OAuth users
@@ -723,15 +724,17 @@ def sync_user(user: UserSync, db: Session = Depends(get_db)):
         )
         db.add(db_user)
         db.commit()
-        print(f"Created new OAuth user: {user.email}")
+        print(f"Created new OAuth user: {email_normalized}")
     else:
         # Update login info
         db_user.login_count = (db_user.login_count or 0) + 1
         db_user.last_login = func.now()
         if user.image_url and not db_user.image_url:
             db_user.image_url = user.image_url
+        if user.name and not db_user.name:
+            db_user.name = user.name
         db.commit()
-        print(f"Updated existing user: {user.email}, login count: {db_user.login_count}")
+        print(f"Updated existing user: {email_normalized}, login count: {db_user.login_count}")
     return {"status": "ok", "user_id": db_user.id}
 
 @app.post("/api/users/login-session")
@@ -823,19 +826,20 @@ def get_user_stats(db: Session = Depends(get_db)):
 
 @app.get("/api/users/{email}")
 def get_user_profile(email: str, db: Session = Depends(get_db)):
-    db_user = db.query(models.User).filter(models.User.email == email).first()
+    db_user = db.query(models.User).filter(func.lower(models.User.email) == email.lower()).first()
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
     return db_user
 
 @app.put("/api/users/{email}")
 def update_user_profile(email: str, user_update: UserUpdate, db: Session = Depends(get_db)):
-    print(f"Updating profile for user: {email}")
+    email_normalized = email.lower().strip()
+    print(f"Updating profile for user: {email_normalized}")
     print(f"Update data: {user_update.dict()}")
     
-    db_user = db.query(models.User).filter(models.User.email == email).first()
+    db_user = db.query(models.User).filter(func.lower(models.User.email) == email_normalized).first()
     if not db_user:
-        print(f"User not found: {email}")
+        print(f"User not found: {email_normalized}")
         raise HTTPException(status_code=404, detail="User not found")
     
     # Enhanced validation
@@ -947,48 +951,6 @@ def validate_location(request: LocationValidationRequest):
             formatted_location=None,
             confidence_score=0.0
         )
-def get_roadmap(request: RoadmapRequest):
-    prompt = (
-        f"A user wants to start a '{request.title}' in the area: '{request.area}'. "
-        f"Context about this business: {request.description}. "
-        f"Provide a step-by-step actionable roadmap/guide on exactly how to open and successfully run this business here to achieve high profitability. "
-        f"CRITICAL: THE ENTIRE GUIDE MUST BE WRITTEN IN {request.language}. "
-        f"Return strictly a JSON object with a 'steps' key containing a list of objects, each with 'step_number' (int), 'step_title' (string), and 'step_description' (string)."
-    )
-    
-    try:
-        headers = {"Authorization": f"Bearer {POLLINATION_API_KEY}"} if POLLINATION_API_KEY else {}
-        response = requests.post(
-            "https://text.pollinations.ai/openai",
-            json={
-                "messages": [
-                    {"role": "system", "content": "You are a professional business consultant. Always respond perfectly matching the requested JSON schema."},
-                    {"role": "user", "content": prompt}
-                ],
-                "jsonMode": True,
-                "model": "openai",
-                "temperature": 0.2,
-                "seed": 42
-            },
-            headers=headers,
-            timeout=30
-        )
-        response.raise_for_status()
-        data = response.json()
-        
-        content_str = data.get("choices", [{}])[0].get("message", {}).get("content", "{}")
-        import json
-        parsed_content = json.loads(content_str)
-        
-        steps = parsed_content.get("steps", [])
-        return {"steps": steps}
-    except Exception as e:
-        print(f"Error fetching roadmap from Pollination AI: {e}")
-        return {"steps": [
-            {"step_number": 1, "step_title": "Market Research", "step_description": "Conduct thorough competitor analysis in the region."},
-            {"step_number": 2, "step_title": "Secure Funding", "step_description": "Apply for local MSME schemes or secure independent private loans."},
-            {"step_number": 3, "step_title": "Launch Operations", "step_description": "Setup location, establish supply chains, and begin marketing."}
-        ]}
 
 if __name__ == "__main__":
     import uvicorn
@@ -1000,7 +962,7 @@ if __name__ == "__main__":
 def create_notification(notification: NotificationCreate, db: Session = Depends(get_db)):
     """Create a new notification"""
     db_notification = models.Notification(
-        user_email=notification.user_email,
+        user_email=notification.user_email.lower(),
         type=notification.type,
         title=notification.title,
         message=notification.message,
@@ -1017,7 +979,7 @@ def create_notification(notification: NotificationCreate, db: Session = Depends(
 def get_user_notifications(user_email: str, limit: int = 50, db: Session = Depends(get_db)):
     """Get notifications for a user"""
     notifications = db.query(models.Notification).filter(
-        models.Notification.user_email == user_email
+        func.lower(models.Notification.user_email) == user_email.lower()
     ).order_by(models.Notification.created_at.desc()).limit(limit).all()
     return notifications
 
@@ -1042,7 +1004,7 @@ def update_notification(notification_id: int, update: NotificationUpdate, db: Se
 def mark_all_notifications_read(user_email: str, db: Session = Depends(get_db)):
     """Mark all notifications as read for a user"""
     db.query(models.Notification).filter(
-        models.Notification.user_email == user_email,
+        func.lower(models.Notification.user_email) == user_email.lower(),
         models.Notification.read == False
     ).update({"read": True})
     db.commit()
@@ -1070,12 +1032,13 @@ class BatchNotificationRequest(BaseModel):
 def create_batch_notifications(request: BatchNotificationRequest, db: Session = Depends(get_db)):
     """Create multiple notifications in a single request to reduce API calls"""
     created_notifications = []
+    email_normalized = request.user_email.lower()
     
     for notification_data in request.notifications:
         # Check for duplicates based on type, title, and recent timestamp (within last 5 minutes)
         five_minutes_ago = models.func.now() - models.text("INTERVAL '5 minutes'")
         existing = db.query(models.Notification).filter(
-            models.Notification.user_email == request.user_email,
+            func.lower(models.Notification.user_email) == email_normalized,
             models.Notification.type == notification_data.get('type'),
             models.Notification.title == notification_data.get('title'),
             models.Notification.created_at > five_minutes_ago
@@ -1085,7 +1048,7 @@ def create_batch_notifications(request: BatchNotificationRequest, db: Session = 
             continue  # Skip duplicate
         
         db_notification = models.Notification(
-            user_email=request.user_email,
+            user_email=email_normalized,
             type=notification_data.get('type', 'system'),
             title=notification_data.get('title', 'Notification'),
             message=notification_data.get('message', ''),
@@ -1111,7 +1074,7 @@ def create_batch_notifications(request: BatchNotificationRequest, db: Session = 
 def get_unread_count(user_email: str, db: Session = Depends(get_db)):
     """Get unread notification count for a user"""
     count = db.query(models.Notification).filter(
-        models.Notification.user_email == user_email,
+        func.lower(models.Notification.user_email) == user_email.lower(),
         models.Notification.read == False
     ).count()
     return {"unread_count": count}
@@ -1165,10 +1128,10 @@ def get_roadmap(request: RoadmapRequest):
 # Subscription Management Endpoints
 @app.post("/api/subscriptions")
 def create_subscription(subscription: SubscriptionCreate, db: Session = Depends(get_db)):
-    """Create a new subscription for a user"""
+    email_normalized = subscription.user_email.lower().strip()
     # Check if user already has an active subscription
     existing = db.query(models.UserSubscription).filter(
-        models.UserSubscription.user_email == subscription.user_email,
+        func.lower(models.UserSubscription.user_email) == email_normalized,
         models.UserSubscription.status == "active"
     ).first()
     
@@ -1189,7 +1152,7 @@ def create_subscription(subscription: SubscriptionCreate, db: Session = Depends(
     
     # Create new subscription
     db_subscription = models.UserSubscription(
-        user_email=subscription.user_email,
+        user_email=email_normalized,
         plan_name=subscription.plan_name,
         plan_display_name=subscription.plan_display_name,
         billing_cycle=subscription.billing_cycle,
@@ -1207,9 +1170,9 @@ def create_subscription(subscription: SubscriptionCreate, db: Session = Depends(
 
 @app.get("/api/subscriptions/{user_email}")
 def get_user_subscription(user_email: str, db: Session = Depends(get_db)):
-    """Get current subscription for a user"""
+    email_normalized = user_email.lower().strip()
     subscription = db.query(models.UserSubscription).filter(
-        models.UserSubscription.user_email == user_email,
+        func.lower(models.UserSubscription.user_email) == email_normalized,
         models.UserSubscription.status == "active"
     ).first()
     
@@ -1276,8 +1239,9 @@ def cancel_subscription(subscription_id: int, db: Session = Depends(get_db)):
 @app.post("/api/payments")
 def create_payment_record(payment: PaymentCreate, db: Session = Depends(get_db)):
     """Create a payment record"""
+    email_normalized = payment.user_email.lower().strip()
     db_payment = models.PaymentHistory(
-        user_email=payment.user_email,
+        user_email=email_normalized,
         subscription_id=payment.subscription_id,
         razorpay_payment_id=payment.razorpay_payment_id,
         razorpay_order_id=payment.razorpay_order_id,
@@ -1298,7 +1262,7 @@ def create_payment_record(payment: PaymentCreate, db: Session = Depends(get_db))
 def get_payment_history(user_email: str, limit: int = 50, db: Session = Depends(get_db)):
     """Get payment history for a user"""
     payments = db.query(models.PaymentHistory).filter(
-        models.PaymentHistory.user_email == user_email
+        func.lower(models.PaymentHistory.user_email) == user_email.lower()
     ).order_by(models.PaymentHistory.payment_date.desc()).limit(limit).all()
     return payments
 
@@ -1328,24 +1292,25 @@ def update_payment(payment_id: int, update: PaymentUpdate, db: Session = Depends
 @app.get("/api/users/{email}/profile")
 def get_user_profile_with_subscription(email: str, db: Session = Depends(get_db)):
     """Get complete user profile with subscription and payment info"""
-    user = db.query(models.User).filter(models.User.email == email).first()
+    email_normalized = email.lower().strip()
+    user = db.query(models.User).filter(func.lower(models.User.email) == email_normalized).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
     # Get current subscription
     subscription = db.query(models.UserSubscription).filter(
-        models.UserSubscription.user_email == email,
+        func.lower(models.UserSubscription.user_email) == email_normalized,
         models.UserSubscription.status == "active"
     ).first()
     
     # Get recent payments
     payments = db.query(models.PaymentHistory).filter(
-        models.PaymentHistory.user_email == email
+        func.lower(models.PaymentHistory.user_email) == email_normalized
     ).order_by(models.PaymentHistory.payment_date.desc()).limit(10).all()
     
     # Get analysis count
     analysis_count = db.query(models.SearchHistory).filter(
-        models.SearchHistory.user_email == email
+        func.lower(models.SearchHistory.user_email) == email_normalized
     ).count()
     
     return {

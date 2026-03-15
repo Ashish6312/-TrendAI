@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { Download, FileText, Calculator, CheckSquare, ArrowLeft, Star, Crown, Zap } from "lucide-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -109,7 +110,7 @@ export default function ResourcesPage() {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
+      <div className="min-h-screen bg-white dark:bg-[#020617] text-slate-900 dark:text-white transition-colors duration-500">
         <div className="responsive-container py-8 md:py-12">
           {/* Header */}
           <motion.div 
@@ -119,15 +120,15 @@ export default function ResourcesPage() {
           >
             <button 
               onClick={() => router.back()} 
-              className="flex items-center gap-2 px-3 md:px-4 py-2 rounded-lg md:rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-gray-400 hover:text-white transition-all group"
+              className="flex items-center gap-2 px-3 md:px-4 py-2 rounded-lg md:rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white transition-all group font-black uppercase tracking-widest text-[10px]"
             >
-              <ArrowLeft size={16} className="md:w-[18px] md:h-[18px] group-hover:-translate-x-1 transition-transform" />
+              <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
               <span className="responsive-text-sm">Back</span>
             </button>
             
             <div>
-              <h1 className="responsive-text-2xl md:responsive-text-4xl font-bold text-white">Resource Library</h1>
-              <p className="text-gray-400 responsive-text-sm">Exclusive templates, guides, and tools for your business success</p>
+              <h1 className="responsive-text-2xl md:responsive-text-4xl font-black text-slate-900 dark:text-white italic tracking-tighter uppercase">Resource Library</h1>
+              <p className="text-slate-500 dark:text-gray-400 responsive-text-sm font-black uppercase tracking-widest text-[9px] opacity-70">Exclusive templates, guides, and tools for your business success</p>
             </div>
           </motion.div>
 
@@ -150,8 +151,8 @@ export default function ResourcesPage() {
                   {React.createElement(planIcons[plan], { size: 20, color: theme.primary, className: "md:w-6 md:h-6" })}
                 </div>
                 <div>
-                  <h3 className="responsive-text-lg md:responsive-text-xl font-bold text-white">{planFeatures.planName} Plan</h3>
-                  <p className="text-gray-400 responsive-text-sm">Access to {plan === 'free' ? 'basic' : plan === 'professional' ? 'advanced' : 'all'} resources</p>
+                  <h3 className="responsive-text-lg md:responsive-text-xl font-black text-slate-900 dark:text-white italic tracking-tight uppercase">{planFeatures.planName} Strategic Plan</h3>
+                  <p className="text-slate-500 dark:text-gray-400 responsive-text-sm font-medium">Access to {plan === 'free' ? 'basic' : plan === 'professional' ? 'advanced' : 'all'} business resources</p>
                 </div>
               </div>
               {plan === 'free' && (
@@ -183,8 +184,8 @@ export default function ResourcesPage() {
                   transition={{ delay: index * 0.1 }}
                   className={`responsive-p-md md:responsive-p-lg rounded-xl md:rounded-2xl border backdrop-blur-sm transition-all hover:scale-105 ${
                     canAccess 
-                      ? 'bg-slate-800/50 border-slate-600/50 hover:bg-slate-800/70' 
-                      : 'bg-slate-900/30 border-slate-700/30 opacity-60'
+                      ? 'bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-600/50 hover:bg-white dark:hover:bg-slate-800/70 shadow-lg' 
+                      : 'bg-slate-100 dark:bg-slate-900/30 border-slate-200 dark:border-slate-700/30 opacity-60'
                   }`}
                 >
                   <div className="flex items-start justify-between mb-3 md:mb-4">
@@ -205,11 +206,11 @@ export default function ResourcesPage() {
                     </div>
                   </div>
                   
-                  <h3 className="responsive-text-lg md:responsive-text-xl font-bold text-white mb-2">{resource.title}</h3>
-                  <p className="text-gray-400 responsive-text-sm mb-3 md:mb-4">{resource.description}</p>
+                  <h3 className="responsive-text-lg md:responsive-text-xl font-black text-slate-900 dark:text-white mb-2 tracking-tight italic uppercase">{resource.title}</h3>
+                  <p className="text-slate-500 dark:text-gray-400 responsive-text-sm mb-3 md:mb-4 font-medium leading-relaxed">{resource.description}</p>
                   
                   <div className="flex items-center justify-between mb-3 md:mb-4">
-                    <div className="flex items-center gap-3 md:gap-4 responsive-text-xs text-gray-500">
+                    <div className="flex items-center gap-3 md:gap-4 responsive-text-xs text-slate-400 dark:text-gray-500 font-black uppercase tracking-widest text-[9px]">
                       <span>{resource.format}</span>
                       <span>•</span>
                       <span>{resource.fileSize}</span>
@@ -243,7 +244,7 @@ export default function ResourcesPage() {
             transition={{ delay: 0.8 }}
             className="mt-8 md:mt-12 text-center"
           >
-            <p className="text-gray-400 mb-3 md:mb-4 responsive-text-sm">
+            <p className="text-slate-500 dark:text-gray-400 mb-3 md:mb-4 responsive-text-sm font-black uppercase tracking-widest text-[9px]">
               Need more resources? Contact our support team for custom templates and guides.
             </p>
             <Link 

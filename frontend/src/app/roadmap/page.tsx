@@ -81,8 +81,8 @@ function RoadmapContent() {
           </div>
         </div>
         <div className="space-y-3 text-center">
-          <h2 className="text-2xl font-black text-white tracking-tighter uppercase selection:bg-blue-600">Creating Roadmap</h2>
-          <p className="text-gray-500 text-[10px] font-black tracking-[0.4em] uppercase opacity-70">Analyzing Region...</p>
+          <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter uppercase selection:bg-blue-600">Preparing Your Roadmap</h2>
+          <p className="text-slate-500 dark:text-gray-500 text-[10px] font-black tracking-[0.4em] uppercase opacity-70">Analyzing Market Opportunities...</p>
         </div>
       </div>
     );
@@ -91,16 +91,16 @@ function RoadmapContent() {
   return (
     <div className="min-h-screen relative overflow-hidden bg-[var(--background)]">
       {/* Immersive Background */}
-      <div className="absolute inset-0 z-0">
+      <div className="absolute inset-0 z-0 select-none">
         <motion.img 
           initial={{ scale: 1.1 }}
           animate={{ scale: 1 }}
           transition={{ duration: 1.5 }}
           src="/roadmap_bg.png" 
           alt="Roadmap Architecture" 
-          className="w-full h-full object-cover opacity-20 blur-[2px] animate-pulse-slow"
+          className="w-full h-full object-cover opacity-10 dark:opacity-20 blur-[2px] animate-pulse-slow"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-white/40 via-white to-white dark:from-[#020617]/40 dark:via-[#020617] dark:to-[#020617]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-50/80 via-white/40 to-white dark:from-[#020617]/40 dark:via-[#020617] dark:to-[#020617]" />
       </div>
 
       <div className="responsive-container py-16 md:py-20 lg:py-24 relative z-10">
@@ -109,7 +109,7 @@ function RoadmapContent() {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             onClick={() => router.back()} 
-            className="group flex items-center gap-3 md:gap-4 px-4 md:px-6 py-2.5 md:py-3.5 rounded-xl md:rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-emerald-500/20 text-gray-400 hover:text-white transition-all w-fit shadow-2xl backdrop-blur-xl"
+            className="group flex items-center gap-3 md:gap-4 px-4 md:px-6 py-2.5 md:py-3.5 rounded-xl md:rounded-2xl bg-white/50 dark:bg-white/5 border border-slate-200 dark:border-white/5 hover:bg-slate-100 dark:hover:bg-white/10 hover:border-emerald-500/20 text-slate-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white transition-all w-fit shadow-2xl backdrop-blur-xl"
           >
             <ArrowLeft size={18} className="md:w-5 md:h-5 group-hover:-translate-x-1.5 transition-transform" />
             <span className="responsive-text-xs font-black uppercase tracking-[0.3em]">{t("road_return")}</span>
@@ -139,14 +139,14 @@ function RoadmapContent() {
             >
                <ShieldCheck size={12} className="md:w-[14px] md:h-[14px]" /> Business Roadmap
             </motion.div>
-            <h1 className="responsive-text-2xl sm:responsive-text-4xl md:text-6xl lg:text-8xl font-black text-white tracking-tighter leading-none max-w-5xl mx-auto italic px-4">
-               Your <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-teal-600">Growth</span> Plan.
+            <h1 className="responsive-text-2xl sm:responsive-text-4xl md:text-6xl lg:text-8xl font-black text-slate-900 dark:text-white tracking-tighter leading-none max-w-5xl mx-auto italic px-4">
+               Your <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 to-teal-700 dark:from-emerald-400 dark:to-teal-600">Strategic</span> Plan.
             </h1>
             <div className="flex flex-col items-center gap-6 md:gap-8">
               <motion.h2 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="responsive-text-lg sm:responsive-text-xl md:responsive-text-3xl font-black bg-white/5 px-4 sm:px-6 md:px-10 py-2 sm:py-3 md:py-4 rounded-2xl sm:rounded-[1.5rem] md:rounded-[2.5rem] border border-white/10 text-emerald-400 shadow-2xl tracking-tight selection:bg-emerald-600"
+                className="responsive-text-lg sm:responsive-text-xl md:responsive-text-3xl font-black bg-white dark:bg-white/5 px-4 sm:px-6 md:px-10 py-2 sm:py-3 md:py-4 rounded-2xl sm:rounded-[1.5rem] md:rounded-[2.5rem] border border-slate-200 dark:border-white/10 text-emerald-600 dark:text-emerald-400 shadow-2xl tracking-tight selection:bg-emerald-600 select-all"
               >
                 {title}
               </motion.h2>
@@ -170,31 +170,31 @@ function RoadmapContent() {
                <div className="space-y-6">
                  {steps.map((_, i) => (
                    <div key={i} className="flex items-center gap-5 group cursor-default">
-                     <div className={`w-2.5 h-2.5 rounded-full transition-all duration-700 ${i === 0 ? 'bg-emerald-500 shadow-[0_0_20px_rgba(16,185,129,1)] scale-125' : 'bg-gray-800'}`} />
-                     <span className={`text-[11px] font-black tracking-widest uppercase transition-colors duration-500 ${i === 0 ? 'text-white' : 'text-gray-700 group-hover:text-gray-500'}`}>{t("road_phase")} 0{i+1}</span>
+                     <div className={`w-2.5 h-2.5 rounded-full transition-all duration-700 ${i === 0 ? 'bg-emerald-500 shadow-[0_0_20px_rgba(16,185,129,1)] scale-125' : 'bg-slate-300 dark:bg-gray-800'}`} />
+                     <span className={`text-[11px] font-black tracking-widest uppercase transition-colors duration-500 ${i === 0 ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-gray-700 group-hover:text-slate-600 dark:group-hover:text-gray-500'}`}>{t("road_phase")} 0{i+1}</span>
                    </div>
                  ))}
                </div>
             </motion.div>
             
-            <motion.div 
+             <motion.div 
               initial={{ opacity: 0, x: -30 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
-              className="glass-card p-10 space-y-10 border-white/5 shadow-xl"
+              className="glass-card p-10 space-y-10 border-slate-200 dark:border-white/5 shadow-xl"
             >
                <div className="flex items-center gap-5">
-                  <div className="w-12 h-12 bg-gray-900 rounded-2xl border border-white/5 flex items-center justify-center shadow-inner"><Calendar className="text-gray-500" size={20} /></div>
+                  <div className="w-12 h-12 bg-slate-100 dark:bg-gray-900 rounded-2xl border border-slate-200 dark:border-white/5 flex items-center justify-center shadow-inner"><Calendar className="text-slate-500 dark:text-gray-500" size={20} /></div>
                   <div className="space-y-1">
-                     <div className="text-[9px] font-black text-gray-600 uppercase tracking-widest">{t("road_timeline")}</div>
-                     <div className="text-sm font-black text-gray-300 italic tracking-tight">~ 6 Months Cycle</div>
+                     <div className="text-[9px] font-black text-slate-400 dark:text-gray-600 uppercase tracking-widest">{t("road_timeline")}</div>
+                     <div className="text-sm font-black text-slate-700 dark:text-gray-300 italic tracking-tight">~ 6 Months Cycle</div>
                   </div>
                </div>
                <div className="flex items-center gap-5">
-                  <div className="w-12 h-12 bg-gray-900 rounded-2xl border border-white/5 flex items-center justify-center shadow-inner"><Users className="text-gray-500" size={20} /></div>
+                  <div className="w-12 h-12 bg-slate-100 dark:bg-gray-900 rounded-2xl border border-slate-200 dark:border-white/5 flex items-center justify-center shadow-inner"><Users className="text-slate-500 dark:text-gray-500" size={20} /></div>
                   <div className="space-y-1">
-                     <div className="text-[9px] font-black text-gray-600 uppercase tracking-widest">{t("road_team")}</div>
-                     <div className="text-sm font-black text-gray-300 italic tracking-tight">Elite Taskforce</div>
+                     <div className="text-[9px] font-black text-slate-400 dark:text-gray-600 uppercase tracking-widest">{t("road_team")}</div>
+                     <div className="text-sm font-black text-slate-700 dark:text-gray-300 italic tracking-tight">Elite Taskforce</div>
                   </div>
                </div>
             </motion.div>
@@ -238,31 +238,31 @@ function RoadmapContent() {
                 >
                   {/* Number Badge */}
                   <div className="hidden md:flex absolute left-0 top-0 w-28 h-28 items-center justify-center">
-                    <div className="w-20 h-20 bg-gray-950 border-2 border-white/10 rounded-[2.5rem] flex items-center justify-center text-emerald-500 font-black text-3xl z-10 group-hover:border-emerald-500 group-hover:text-white group-hover:bg-emerald-600 transition-all duration-700 shadow-2xl group-hover:shadow-emerald-600/30 group-hover:-translate-y-2">
+                    <div className="w-20 h-20 bg-white dark:bg-gray-950 border-2 border-slate-200 dark:border-white/10 rounded-[2.5rem] flex items-center justify-center text-emerald-600 dark:text-emerald-500 font-black text-3xl z-10 group-hover:border-emerald-600 group-hover:text-white group-hover:bg-emerald-600 transition-all duration-700 shadow-2xl group-hover:shadow-emerald-600/30 group-hover:-translate-y-2">
                       {step.step_number}
                     </div>
                   </div>
                   
-                  <div className="glass-card p-10 md:p-16 bg-gradient-to-br from-white/[0.03] to-transparent border-white/5 hover:border-emerald-500/30 transition-all duration-700 relative overflow-hidden group shadow-2xl hover:shadow-[0_40px_100px_-20px_rgba(16,185,129,0.1)]">
+                  <div className="glass-card p-10 md:p-16 bg-white/50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/5 hover:border-emerald-500/30 transition-all duration-700 relative overflow-hidden group shadow-2xl hover:shadow-[0_40px_100px_-20px_rgba(16,185,129,0.1)]">
                     <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/5 rounded-full blur-[120px] opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
                     
                     <div className="flex items-center gap-6 mb-8 relative z-10">
                       <div className="w-2.5 h-10 bg-emerald-600 rounded-full shadow-[0_0_30px_#10b981] group-hover:h-12 transition-all duration-500" />
-                      <h3 className="text-3xl md:text-4xl font-black text-white tracking-tighter group-hover:text-emerald-400 transition-colors leading-none">
+                      <h3 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tighter group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors leading-none">
                         {step.step_title}
                       </h3>
                     </div>
                     
                     <div className="space-y-8 relative z-10">
-                       <p className="text-gray-400 leading-relaxed text-lg md:text-xl font-medium tracking-tight opacity-80 group-hover:opacity-100 transition-opacity">
+                       <p className="text-slate-600 dark:text-gray-400 leading-relaxed text-lg md:text-xl font-medium tracking-tight opacity-80 group-hover:opacity-100 transition-opacity">
                          {step.step_description}
                        </p>
                        
-                       <div className="flex flex-wrap gap-4 pt-10 border-t border-white/5">
-                          <div className="flex items-center gap-3 px-5 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[9px] font-black text-emerald-500 uppercase tracking-widest">
+                       <div className="flex flex-wrap gap-4 pt-10 border-t border-slate-100 dark:border-white/5">
+                          <div className="flex items-center gap-3 px-5 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[9px] font-black text-emerald-600 dark:text-emerald-500 uppercase tracking-widest">
                              <ShieldCheck size={16} /> {t("road_priority")}
                           </div>
-                          <div className="flex items-center gap-3 px-5 py-2.5 rounded-xl bg-amber-500/5 border border-amber-500/15 text-[9px] font-black text-amber-500 uppercase tracking-widest hover:bg-amber-500/10 transition-colors cursor-pointer">
+                          <div className="flex items-center gap-3 px-5 py-2.5 rounded-xl bg-amber-500/5 border border-amber-500/15 text-[9px] font-black text-amber-600 dark:text-amber-500 uppercase tracking-widest hover:bg-amber-500/10 transition-colors cursor-pointer">
                              <Play size={16} fill="currentColor" /> {t("road_action")}
                           </div>
                        </div>
@@ -283,20 +283,20 @@ function RoadmapContent() {
                <motion.div 
                   initial={{ opacity: 0, y: 40 }}
                   whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  className="grid md:grid-cols-2 gap-8"
-               >
-                  <div className="glass-card p-12 bg-gradient-to-br from-indigo-600/10 to-transparent border-indigo-500/20 group hover:border-indigo-500/40 transition-all duration-700">
-                     <div className="w-14 h-14 bg-indigo-500/20 rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 group-hover:bg-indigo-600 transition-all duration-500"><Rocket className="text-indigo-400 group-hover:text-white" size={28} /></div>
-                     <h4 className="text-2xl font-black text-white mb-4 tracking-tighter">Fast Growth Plan</h4>
-                     <p className="text-gray-500 font-medium leading-relaxed text-sm">Deploy automated customer acquisition funnels using AI-driven sentiment analysis to capture market share 3x faster than traditional competitors.</p>
-                  </div>
-                  <div className="glass-card p-12 bg-gradient-to-br from-emerald-600/10 to-transparent border-emerald-500/20 group hover:border-emerald-500/40 transition-all duration-700">
-                     <div className="w-14 h-14 bg-emerald-500/20 rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 group-hover:bg-emerald-600 transition-all duration-500"><ShieldCheck className="text-emerald-400 group-hover:text-white" size={28} /></div>
-                     <h4 className="text-2xl font-black text-white mb-4 tracking-tighter">Market Safety</h4>
-                     <p className="text-gray-500 font-medium leading-relaxed text-sm">Diversify revenue streams by integrating local market data into your product cycle, ensuring survival even during volatile economic shifts.</p>
-                  </div>
-               </motion.div>
+                   viewport={{ once: true }}
+                   className="grid md:grid-cols-2 gap-8"
+                >
+                   <div className="glass-card p-12 bg-white/50 dark:bg-gradient-to-br dark:from-indigo-600/10 dark:to-transparent border border-slate-200 dark:border-indigo-500/20 group hover:border-indigo-500/40 transition-all duration-700">
+                      <div className="w-14 h-14 bg-indigo-500/10 dark:bg-indigo-500/20 rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 group-hover:bg-indigo-600 transition-all duration-500 text-indigo-600 dark:text-indigo-400 group-hover:text-white"><Rocket size={28} /></div>
+                      <h4 className="text-2xl font-black text-slate-900 dark:text-white mb-4 tracking-tighter">Fast Growth Plan</h4>
+                      <p className="text-slate-500 dark:text-gray-500 font-medium leading-relaxed text-sm">Deploy automated customer acquisition funnels using AI-driven sentiment analysis to capture market share 3x faster than traditional competitors.</p>
+                   </div>
+                   <div className="glass-card p-12 bg-white/50 dark:bg-gradient-to-br dark:from-emerald-600/10 dark:to-transparent border border-slate-200 dark:border-emerald-500/20 group hover:border-emerald-500/40 transition-all duration-700">
+                      <div className="w-14 h-14 bg-emerald-500/10 dark:bg-emerald-500/20 rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 group-hover:bg-emerald-600 transition-all duration-500 text-emerald-600 dark:text-emerald-400 group-hover:text-white"><ShieldCheck size={28} /></div>
+                      <h4 className="text-2xl font-black text-slate-900 dark:text-white mb-4 tracking-tighter">Market Safety</h4>
+                      <p className="text-slate-500 dark:text-gray-500 font-medium leading-relaxed text-sm">Diversify revenue streams by integrating local market data into your product cycle, ensuring survival even during volatile economic shifts.</p>
+                   </div>
+                </motion.div>
             </div>
 
             {/* Conclusion */}
@@ -304,17 +304,17 @@ function RoadmapContent() {
               initial={{ opacity: 0, scale: 0.95 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
-              className="glass-card p-16 md:p-24 bg-gradient-to-br from-emerald-600/15 via-transparent to-amber-600/15 border-emerald-500/30 flex flex-col items-center text-center relative overflow-hidden shadow-3xl group mb-24"
+              className="glass-card p-16 md:p-24 bg-white/50 dark:bg-gradient-to-br dark:from-emerald-600/15 dark:via-transparent dark:to-amber-600/15 border border-slate-200 dark:border-emerald-500/30 flex flex-col items-center text-center relative overflow-hidden shadow-3xl group mb-24"
             >
               <div className="absolute inset-0 bg-grid-white/[0.01] pointer-events-none" />
               <div className="absolute -top-24 -left-24 w-96 h-96 bg-emerald-600/10 rounded-full blur-[100px] group-hover:opacity-100 transition-opacity" />
               
-              <div className="w-28 h-28 bg-emerald-500/20 rounded-[2.5rem] flex items-center justify-center mb-10 shadow-[0_0_80px_-10px_rgba(16,185,129,0.5)] border-2 border-emerald-500/30 animate-pulse relative z-10">
-                <CheckCircle2 className="w-12 h-12 text-emerald-400" />
+              <div className="w-28 h-28 bg-emerald-500/10 dark:bg-emerald-500/20 rounded-[2.5rem] flex items-center justify-center mb-10 shadow-[0_0_80px_-10px_rgba(16,185,129,0.5)] border-2 border-emerald-500/30 animate-pulse relative z-10">
+                <CheckCircle2 className="w-12 h-12 text-emerald-600 dark:text-emerald-400" />
               </div>
-              <h3 className="text-4xl md:text-6xl font-black text-white mb-8 tracking-tighter uppercase italic relative z-10">{t("road_readiness")}</h3>
-              <p className="text-gray-400 max-w-2xl mx-auto text-xl md:text-2xl font-bold leading-relaxed tracking-tight relative z-10 mb-16 px-4">
-                Analysis complete. Regional analysis confirms <span className="text-emerald-500">high-probability success cycle</span> for this venture.
+              <h3 className="text-4xl md:text-6xl font-black text-slate-900 dark:text-white mb-8 tracking-tighter uppercase italic relative z-10">{t("road_readiness")}</h3>
+              <p className="text-slate-500 dark:text-gray-400 max-w-2xl mx-auto text-xl md:text-2xl font-bold leading-relaxed tracking-tight relative z-10 mb-16 px-4">
+                Analysis complete. Regional analysis confirms <span className="text-emerald-600 dark:text-emerald-500">high-probability success cycle</span> for this venture.
               </p>
               <button 
                 onClick={() => window.print()} 
@@ -331,7 +331,7 @@ function RoadmapContent() {
   );
 }
 
-function RoadmapPage() {
+export default function RoadmapPage() {
   return (
     <ProtectedRoute>
       <Suspense fallback={<div className="flex h-screen items-center justify-center flex-col gap-8 text-gray-500 font-black animate-pulse uppercase tracking-[0.4em] text-xs"><Loader2 className="animate-spin mb-4 w-12 h-12" /> Loading Strategy...</div>}>
