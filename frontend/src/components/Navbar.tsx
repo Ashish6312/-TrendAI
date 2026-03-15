@@ -29,6 +29,23 @@ export default function Navbar() {
   const [showLangs, setShowLangs] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
+  const [marketData, setMarketData] = useState({
+    ai: 12.42,
+    energy: 78.2,
+    sentiment: "SYNCED"
+  });
+
+  // Simulated live updates for "Real-Time" feel without API calls
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMarketData(prev => ({
+        ai: prev.ai + (Math.random() * 0.04 - 0.02),
+        energy: prev.energy + (Math.random() * 0.2 - 0.1),
+        sentiment: Math.random() > 0.9 ? "CALIBRATING" : "SYNCED"
+      }));
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Click outside handlers
   const langRef = useClickOutside<HTMLDivElement>(useCallback(() => setShowLangs(false), []));
@@ -59,42 +76,7 @@ export default function Navbar() {
     { path: '/acquisition-tiers', label: t("btn_pricing"), icon: null },
   ];
 
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case 'payment': return <Zap size={16} className="text-emerald-400" />;
-      case 'analysis': return <Zap size={16} className="text-blue-400" />;
-      case 'market': return <Zap size={16} className="text-purple-400" />;
-      case 'local': return <MapPin size={16} className="text-orange-400" />;
-      case 'trending': return <Zap size={16} className="text-red-400" />;
-      case 'alert': return <AlertTriangle size={16} className="text-yellow-400" />;
-      case 'system': return <Settings size={16} className="text-slate-400" />;
-      case 'location': return <MapPin size={16} className="text-emerald-400" />;
-      default: return <Bell size={16} className="text-blue-400" />;
-    }
-  };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'urgent': return 'border-red-500/30 bg-red-500/10';
-      case 'high': return 'border-orange-500/30 bg-orange-500/10';
-      case 'medium': return 'border-blue-500/30 bg-blue-500/10';
-      default: return 'border-gray-500/30 bg-gray-500/10';
-    }
-  };
-
-  const formatTimeAgo = (date: Date) => {
-    const now = new Date();
-    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-    
-    if (diffInMinutes < 1) return 'Just now';
-    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
-    
-    const diffInHours = Math.floor(diffInMinutes / 60);
-    if (diffInHours < 24) return `${diffInHours}h ago`;
-    
-    const diffInDays = Math.floor(diffInHours / 24);
-    return `${diffInDays}d ago`;
-  };
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-[100] backdrop-blur-xl border-b border-white/5 bg-black/40 dark:bg-gray-900/40">
@@ -309,35 +291,55 @@ export default function Navbar() {
         </div>
       </div>
       
-      {/* Strategic Ticker - Passive Engagement */}
-      <div className="bg-blue-600/5 border-y border-white/5 py-1 hidden sm:block">
+      {/* Strategic Intelligence Ticker - Professional & Live Feeling */}
+      <div className="bg-gray-950/50 border-y border-white/5 py-1.5 hidden sm:block backdrop-blur-md">
         <div className="responsive-container overflow-hidden whitespace-nowrap relative">
+          <div className="absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-gray-950 to-transparent z-10" />
+          <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-gray-950 to-transparent z-10" />
+          
           <motion.div 
-            animate={{ x: [0, -1000] }}
-            transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
-            className="flex gap-12 items-center"
+            animate={{ x: [0, -1500] }}
+            transition={{ duration: 50, repeat: Infinity, ease: "linear" }}
+            className="flex gap-16 items-center"
           >
-            {[1, 2].map((i) => (
-              <div key={i} className="flex gap-12 items-center">
-                <div className="flex items-center gap-2">
-                  <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest">Aritificial Intelligence</span>
-                  <span className="text-[10px] font-bold text-green-400">+12.4% Neural Growth</span>
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex gap-16 items-center">
+                <div className="flex items-center gap-3">
+                  <div className={`w-1 h-1 rounded-full animate-pulse ${marketData.sentiment === 'SYNCED' ? 'bg-blue-500' : 'bg-orange-500'}`} />
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Neural Sync</span>
+                  <span className={`text-[10px] font-mono font-bold ${marketData.sentiment === 'SYNCED' ? 'text-emerald-400' : 'text-orange-400'}`}>
+                    {marketData.sentiment}
+                  </span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest">Renewable Energy</span>
-                  <span className="text-[10px] font-bold text-blue-400">High Territorial Synergy</span>
+                
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-black text-slate-200 uppercase tracking-tighter">Artificial Intelligence</span>
+                  <span className="text-[10px] font-mono font-bold text-emerald-500">+{marketData.ai.toFixed(2)}%</span>
+                  <div className="w-8 h-[1px] bg-emerald-500/20" />
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest">Logistics Automation</span>
-                  <span className="text-[10px] font-bold text-orange-400">Market Gap Identified</span>
+
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-black text-slate-200 uppercase tracking-tighter">Renewable Energy</span>
+                  <span className="text-[10px] font-mono font-bold text-blue-400">{marketData.energy.toFixed(1)} INDEX</span>
+                  <div className="w-8 h-[1px] bg-blue-500/20" />
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest">Digital Health</span>
-                  <span className="text-[10px] font-bold text-green-400">Demand Spike: Global</span>
+
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-black text-slate-200 uppercase tracking-tighter">Logistics Automation</span>
+                  <span className="text-[10px] font-mono font-bold text-orange-400">GAP DETECTED</span>
+                  <div className="w-8 h-[1px] bg-orange-500/20" />
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest">E-commerce 3.0</span>
-                  <span className="text-[10px] font-bold text-blue-400">Niche Opportunity (A)</span>
+
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-black text-slate-200 uppercase tracking-tighter">Digital Therapeutics</span>
+                  <span className="text-[10px] font-mono font-bold text-emerald-500">BULLISH</span>
+                  <div className="w-8 h-[1px] bg-emerald-500/20" />
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-black text-slate-200 uppercase tracking-tighter">FinTech 3.0</span>
+                  <span className="text-[10px] font-mono font-bold text-blue-400">ALPHA PHASE</span>
+                  <div className="w-8 h-[1px] bg-blue-500/20" />
                 </div>
               </div>
             ))}
