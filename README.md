@@ -1,118 +1,95 @@
 # 🚀 TrendAI: Strategic Business Intelligence Terminal
 
-**TrendAI** is a professional-grade AI platform that discovers high-profit business opportunities in any city. This guide explains exactly how the application works, how the search engine performs, and how to use every mode available.
+**TrendAI** is a high-fidelity, professional-grade intelligence platform engineered to identify, analyze, and blueprint high-yield business opportunities globally. Leveraging Advanced Neural Synthesis and Real-Time Market Scraping, TrendAI transforms raw local sentiment into executive-level strategic directives.
 
 ---
 
-## 📖 Table of Contents
-1. [The Core Objective](#-the-core-objective)
-2. [Step-by-Step User Journey](#-step-by-step-user-journey)
-3. [How the "Search & Action" Works](#-how-the-search--action-works)
-4. [Modes of Operation](#-modes-of-operation)
-5. [Setup Guide (Beginner Friendly)](#-setup-guide)
+## 💎 Intelligence Modules
+
+### 1. **Neural Market Discovery Engine**
+*   **The Process**: Conducts a "Deep Scan" of local digital environments (Reddit, News, Global Search Trends).
+*   **Synthesis**: Uses GPT-4 class models to identify local service gaps and saturated markets.
+*   **Output**: Delivers 3 high-probability business recommendations with proprietary scorecards:
+    *   **Profit Velocity**: Projected speed of return.
+    *   **Risk Mitigation**: Local competition and barrier analysis.
+    *   **Capital Efficiency**: Required initial asset allocation.
+
+### 2. **Strategic Intelligence Ticker (Real-Time)**
+*   **The Logic**: A non-intrusive, mission-critical feed integrated into the primary Navigation Terminal.
+*   **Live Metrics**: Displays simulated global sentiment jitter, neural sync status, and sector-specific bull/bear indicators.
+*   **Efficiency**: Engineered for zero-latency passive engagement without unnecessary API exhaustion.
+
+### 3. **Acquisition Protocol (Directive Roadmap)**
+*   **The Framework**: Transforms a business concept into a 6-month operational blueprint.
+*   **Phase-Based Execution**: Walks the user through Foundation, Scalability, and Dominance phases.
+*   **Exportable Intelligence**: Generates printable protocols for formal business reporting.
+
+### 4. **Global Synergy Tiers (Subscription Ecosystem)**
+*   **Monetization**: Integrated with **Razorpay** for seamless local and global transactions.
+*   **Tier Logic**:
+    *   **Standard Intelligence**: Core discovery features.
+    *   **Market Dominator**: Advanced analytics, high-frequency scans, and premium support.
 
 ---
 
-## 🎯 The Core Objective
-TrendAI solves the problem of "Business Blindness." Instead of guessing what business to start, the app uses **Artificial Intelligence** to listen to what local people are saying on the internet and tells you exactly what service is missing in their area.
+## 🌍 Operational Ecosystem
+
+### **Multi-Language Intelligence**
+Native support for **English, Hindi, Spanish, French, and German**. The entire interface, including AI-generated reports and sentiment tags, adapts dynamically via a persistence-locked Context API.
+
+### **Neural Sentiment Analysis**
+Analyzes community reviews and public discourse using sophisticated NLP to assign "Market Sentiments" (e.g., #Bullish, #HighDemand, #GapDetected).
 
 ---
 
-## 🛰 Step-by-Step User Journey
+## 🛠 Technical Architecture
 
-### 1. The Entry Protocol (Home Page)
-*   **Action**: You land on our high-tech terminal.
-*   **Login**: You sign in with your **Google Account**. This secures your data and syncs your profile.
+### **Frontend (Terminal Interface)**
+- **Framework**: Next.js 14 (App Router) + TypeScript.
+- **Animations**: Framer Motion (for high-end executive transitions).
+- **Styling**: Tailwind CSS with custom Glassmorphism/Dark Mode tokens.
+- **State Management**: React Context (Language, Notifications, Subscriptions).
 
-### 2. Physical Target Search (Dashboard)
-*   **The Action**: You type a city name (e.g., "New York" or "New Delhi").
-*   **The Search**: Our system uses a **Global Mapping Engine** (Nominatim) to find the exact coordinates of that city so the AI knows exactly where it is looking.
+### **Backend (Intelligence Hub)**
+- **API**: FastAPI (High-performance Python).
+- **Extraction**: DDGS (Live Web Scraper) + Real-time Location APIs.
+- **Intelligence**: GPT-4 Synthesis via Pollinations Intelligence API.
+- **ORM**: SQLAlchemy with PostgreSQL/SQLite.
 
-### 3. Neural Deep Scan (Discovery)
-*   **The Process**: Once you click `Initiate Market Scan`, the app performs **parallel actions**:
-    *   **Action A**: Scans **Reddit** for local complaints and needs.
-    *   **Action B**: Scans **Google Trends** for rising search demands.
-*   **The Result**: The AI "Synthesizes" this data and gives you **3 tailored business recommendations** with scorecards (Profit, Risk, and Capital needed).
-
-### 4. Real-Time AI Search (Live Concept Testing)
-*   **The Action**: You enter any random business idea and a city (e.g. "Cloud Kitchen in Seattle") into the AI Search Sandbox.
-*   **The Live Extraction**: The engine immediately scrapes real-time posts from Reddit and Web News about your specific query to feed the LLM accurate context.
-*   **The Result**: You receive a comprehensive dashboard with projected 6-month financial growth charts, Live Web Sentiments, and a community Business Score.
-
-### 5. Operational Roadmap (Planning)
-*   **The Action**: You click on a business idea you like.
-*   **The Blueprint**: The app shifts into "Directive Mode" and builds a **scroll-animated roadmap** that walks you through the next 6 months of starting that specific business.
-
-### 6. Interactive Community Review System
-*   **The Action**: Users can leave star ratings and sentiment-analyzed written reviews on business concepts.
-*   **The AI Synthesis**: Reviews are dynamically tagged (e.g. #Profitable, #HighCompetition) and overall emotional sentiment is tracked to score the business dynamically.
+### **Security & Payments**
+- **Authentication**: NextAuth.js with Google OAuth 2.0.
+- **FinTech**: Razorpay Global Payments Integration.
 
 ---
 
-## 🧠 How the "Search & Action" Works
+## 🚀 Deployment & Scaling
 
-As a developer, here is the "Logic Path" the app takes when you perform an action:
+The system is optimized for **Render** using a `render.yaml` blueprint for automated infrastructure provisioning.
 
-| Stage | Action Type | Technology Used | What happens? |
-| :--- | :--- | :--- | :--- |
-| **Search** | Data Retrieval | OpenStreetMap API | Converts city text into physical GPS coordinates. |
-| **Extraction**| Web Scraping | DuckDuckGo Scraper | "Reads" public conversations from Reddit and news sites. |
-| **Synthesis** | AI Logic | Pollinations AI (GPT-4) | Connects the dots between "What people want" and "How to make a business." |
-| **Delivery** | Dynamic UI | Next.js & Framer Motion| Presents the data in a beautiful, animated terminal. |
+### **Configuration Protocol**
+1.  **Backend Vector**: Set `POLLINATION_API_KEY` and `FRONTEND_URL`.
+2.  **Frontend Vector**: Set `NEXT_PUBLIC_API_URL` and `NEXTAUTH_SECRET`.
+3.  **Database Instance**: Spin up a managed PostgreSQL instance on Render.
 
 ---
 
-## ⚙️ Modes of Operation
+## 🛑 Installation Guide
 
-### 🌐 1. Multi-Language Intelligence Mode
-The application can be used in **English, Hindi, Spanish, French, and German**. 
-*   **How it works**: When you switch languages in the navigation bar, the entire app—from landing page text to the AI Search interface and Review form tags—changes instantly via the custom React Context API.
-*   **Persistence**: Once selected, the mode is "locked" to your browser using `localStorage`.
+### **Frontend Setup**
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-### 👤 2. Profile Synchronization Mode
-Your business identity is handled automatically.
-*   **Auto-Sync**: Your Google Name and Picture are pulled immediately.
-*   **Manual Override**: You can enter the "Profile Configuration" and add your personal Bio and Tactical Phone Number to customize your reports.
-
-### 🗺️ 3. Directive Blueprint Mode (Roadmap)
-This isn't just a list; it's a phase-based system.
-*   **Action**: Generates Milestones (Phase 1, 2, 3).
-*   **Output**: Includes a "Printable Protocol" feature so you can extract your business plan as a formal document for your report.
-
----
-
-## 🚀 Deployment (Render Guide)
-
-You can deploy this entire system on **Render** in minutes using the provided `render.yaml` blueprint.
-
-### Automatic Method (Blueprints)
-1.  Connect your GitHub repository to [Render](https://render.com).
-2.  Navigate to **Blueprints** and click **New Blueprint Instance**.
-3.  Select your repository. Render will automatically detect `render.yaml` and set up:
-    *   **FastAPI Backend** (Web Service)
-    *   **Next.js Frontend** (Web Service)
-    *   **PostgreSQL Database** (Instance)
-
-### Environment Variable Setup
-Before the app can run, go to the Render Dashboard and set these variables:
-*   **Backend**: 
-    *   `POLLINATION_API_KEY`: Your AI key.
-    *   `FRONTEND_URL`: The URL of your deployed frontend.
-*   **Frontend**: 
-    *   `NEXT_PUBLIC_API_URL`: The URL of your deployed backend.
+### **Backend Setup**
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate  # or venv\Scripts\activate on Windows
+pip install -r requirements.txt
+python main.py
+```
 
 ---
-
-## 🛑 Local Installation (The Beginner Guide)
-
----
-
-## 🛠 Tech Summary
-*   **Frontend**: React, Next.js, Framer Motion (Animations), Tailwind CSS, Chart.js (Data Visualization).
-*   **Backend**: FastAPI (Python), SQL Alchemy (Database), DDGS (DuckDuckGo Live Scraper), TextBlob (Sentiment Analysis).
-*   **AI**: Llama 3 / GPT-4 via Pollinations API.
-*   **Database**: PostgreSQL / SQLite (Development).
-*   **Authentication**: NextAuth (Google OAuth).
-
----
-*Developed for the Future of Business Intelligence.*
+*Developed for the Future of Strategic Business Intelligence.*
