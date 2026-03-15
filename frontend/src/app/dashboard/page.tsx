@@ -3,18 +3,27 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
+import ProtectedRoute from "../../components/ProtectedRoute";
 import { 
   Search, Loader2, Sparkles, TrendingUp, MapPin, 
   PiggyBank, Activity, DollarSign, ArrowRight,
-  Target, BarChart3, Globe2, Lightbulb
+  Target, BarChart3, Globe2, Lightbulb, ShieldCheck, RefreshCw
 } from "lucide-react";
+import Link from "next/link";
 import { useLanguage } from "@/context/LanguageContext";
+import { useNotifications } from "@/context/NotificationContext";
+import { useSubscription } from "@/context/SubscriptionContext";
 import { motion, AnimatePresence } from "framer-motion";
+import { useSearchParams } from "next/navigation";
+import PaymentSuccessModal from "../../components/PaymentSuccessModal";
 
-export default function Dashboard() {
+function Dashboard() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const { language, t } = useLanguage();
+  const { addNotification, userLocation, refreshLocation } = useNotifications();
+  const { plan, theme, planFeatures, canAccessFeature, getRemainingAnalyses, hasReachedAnalysisLimit } = useSubscription();
+  const searchParams = useSearchParams();
   
   const [area, setArea] = useState("");
   const [suggestions, setSuggestions] = useState<any[]>([]);
@@ -23,17 +32,31 @@ export default function Dashboard() {
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [result, setResult] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
+  const [analysisCount, setAnalysisCount] = useState(0);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('payment_success') === 'true') {
+      setShowSuccessModal(true);
+    }
+    
+    // Handle area or q from notifications
+    const areaParam = searchParams.get('area') || searchParams.get('q');
+    if (areaParam) {
+      setArea(decodeURIComponent(areaParam));
+    } else if (userLocation && !area) {
+      // Pre-fill with detected location if no explicit search is active
+      setArea(userLocation.city);
+    }
+  }, [searchParams, userLocation]);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
   useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/");
-    }
     if (session?.user?.email) {
       fetchHistory();
     }
-  }, [status, router, session]);
+  }, [session]);
 
   const fetchHistory = async () => {
     if (!session?.user?.email) return;
@@ -41,6 +64,7 @@ export default function Dashboard() {
       const response = await fetch(`${apiUrl}/api/history/${session.user.email}`);
       const data = await response.json();
       setHistory(data);
+      setAnalysisCount(data.length);
     } catch (e) {
       console.error("Failed to fetch history", e);
     }
@@ -69,25 +93,23 @@ export default function Dashboard() {
     setShowSuggestions(false);
   };
 
-  useEffect(() => {
-    if (result && area && !loading) {
-      const e = { preventDefault: () => {} } as React.FormEvent;
-      handleAnalyze(e);
-    }
-  }, [language]);
-
   const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!area) return;
+    
+    if (hasReachedAnalysisLimit(analysisCount)) {
+      alert(`You've reached your analysis limit of ${planFeatures.maxAnalyses} analyses. Please upgrade your plan to continue.`);
+      router.push('/acquisition-tiers');
+      return;
+    }
     
     setLoading(true);
     setLoadingProgress(0);
     setResult(null);
 
-    // Realistic Loading Progress Simulation
     const progressInterval = setInterval(() => {
       setLoadingProgress(prev => {
-        if (prev >= 95) return prev; // Hold at 95% until done
+        if (prev >= 95) return prev;
         const increment = Math.random() * (prev < 50 ? 8 : prev < 80 ? 3 : 1);
         return Math.min(prev + increment, 95);
       });
@@ -109,7 +131,22 @@ export default function Dashboard() {
         setResult(data);
         clearInterval(progressInterval);
         setLoading(false);
-      }, 500); // Small delay to show 100%
+        
+        if (session?.user?.email) {
+          addNotification({
+            type: 'analysis',
+            title: 'Market Analysis Complete',
+            message: `Your analysis for ${area} is ready with ${data.recommendations?.length || 0} business opportunities`,
+            priority: 'high',
+            actionUrl: '/dashboard',
+            metadata: {
+              location: area,
+              analysisId: `analysis_${Date.now()}`,
+              recommendationCount: data.recommendations?.length || 0
+            }
+          });
+        }
+      }, 500);
       fetchHistory();
     } catch (error) {
       console.error("Failed to fetch recommendations", error);
@@ -126,381 +163,410 @@ export default function Dashboard() {
       recommendations: item.recommendations,
       id: item.id
     });
-    // Scroll to top if needed
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   if (status === "loading") {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="relative">
-          <div className="w-16 h-16 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin" />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Target className="text-blue-500 animate-pulse" size={24} />
+      <ProtectedRoute>
+        <div className="flex h-screen items-center justify-center bg-[var(--background)] relative overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(16,185,129,0.05),transparent_70%)]" />
+          <div className="relative">
+            <motion.div 
+              animate={{ rotate: 360 }}
+              transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+              className="w-32 h-32 border-4 border-emerald-500/10 border-t-emerald-500 rounded-full shadow-[0_0_50px_rgba(16,185,129,0.2)]" 
+            />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <motion.div
+                animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
+                transition={{ duration: 2, repeat: Infinity }}
+              >
+                <Target className="text-emerald-500" size={40} />
+              </motion.div>
+            </div>
           </div>
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="absolute bottom-12 text-[10px] font-black uppercase tracking-[0.4em] text-emerald-500/40 italic"
+          >
+            Loading Dashboard...
+          </motion.div>
         </div>
-      </div>
+      </ProtectedRoute>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-12">
-      <div className="flex flex-col lg:flex-row gap-12">
-        
-        {/* Left Panel: Search & Filters */}
-        <div className="w-full lg:w-1/3 xl:w-1/4 space-y-8">
-          <div className="glass-card p-8 bg-gradient-to-br from-emerald-600/10 via-transparent to-amber-600/10">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-2 bg-emerald-500/10 rounded-lg">
-                <Target className="text-emerald-500" size={20} />
-              </div>
-              <h2 className="text-xl font-bold text-white tracking-tight">{t("dash_market_scope")}</h2>
-            </div>
-            
-            <form onSubmit={handleAnalyze} className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] pl-1">{t("dash_target_loc")}</label>
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <MapPin className="text-gray-600 group-focus-within:text-blue-500 transition-colors" size={18} />
-                  </div>
-                  <input
-                    type="text"
-                    value={area}
-                    onChange={(e) => {
-                      setArea(e.target.value);
-                      setShowSuggestions(true);
-                    }}
-                    onFocus={() => setShowSuggestions(true)}
-                    className="bg-white/[0.03] border border-white/10 text-white text-sm font-bold rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/50 block w-full pl-11 pr-4 py-4.5 placeholder-gray-700 transition-all font-outfit"
-                    placeholder={t("dash_enter_city")}
-                    required
-                    autoComplete="off"
-                  />
-                  
-                  <AnimatePresence>
-                    {showSuggestions && suggestions.length > 0 && (
-                      <motion.div 
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 10 }}
-                        className="absolute z-50 w-full mt-2 glass-card bg-gray-950/95 p-2 border-white/10 shadow-2xl max-h-72 overflow-y-auto"
-                      >
-                        {suggestions.map((suggestion, idx) => (
-                          <div
-                            key={idx}
-                            onMouseDown={(e) => {
-                              e.preventDefault();
-                              handleSelectSuggestion(suggestion);
-                            }}
-                            className="px-4 py-3 cursor-pointer hover:bg-white/5 rounded-xl text-xs text-gray-300 transition-all flex items-start gap-3 border border-transparent hover:border-white/5 mb-1 last:mb-0"
-                          >
-                            <MapPin size={14} className="mt-0.5 text-blue-500 shrink-0" />
-                            <span className="leading-tight">{suggestion.display_name}</span>
-                          </div>
-                        ))}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+    <ProtectedRoute>
+      <div className="responsive-container py-6 sm:py-8 md:py-12">
+        <div className="flex flex-col lg:flex-row gap-6 md:gap-8 lg:gap-12">
+          
+          {/* Left Panel: Search & Filters */}
+          <div className="w-full lg:w-1/3 xl:w-1/4 space-y-6 md:space-y-8">
+            <div className="glass-card responsive-p-md md:responsive-p-lg bg-gradient-to-br from-emerald-600/10 via-transparent to-amber-600/10" style={{ borderColor: `${theme.primary}20` }}>
+              <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
+                <div className="p-1.5 md:p-2 rounded-lg" style={{ backgroundColor: `${theme.primary}20` }}>
+                  <Target style={{ color: theme.primary }} size={16} className="md:w-5 md:h-5" />
                 </div>
+                <h2 className="responsive-text-lg md:responsive-text-xl font-bold text-white tracking-tight">{t("dash_market_scope")}</h2>
               </div>
               
-              <button
-                type="submit"
-                disabled={loading || !area}
-                className="w-full h-15 growth-gradient text-white font-black uppercase tracking-[0.2em] rounded-2xl text-[11px] px-5 flex justify-center items-center gap-2 transition-all shadow-xl shadow-emerald-600/20 hover:shadow-emerald-600/40 hover:-translate-y-1 active:translate-y-0 disabled:opacity-30 disabled:cursor-not-allowed disabled:grayscale"
-              >
-                {loading ? <Loader2 className="animate-spin" size={20} /> : <Sparkles size={20} fill="currentColor" />}
-                {loading ? t("dash_analyzing") : t("dash_analyze")}
-              </button>
-            </form>
-          </div>
-
-          {/* New History Section */}
-          <div className="glass-card p-8 border-white/5 bg-gradient-to-br from-white/[0.02] to-transparent">
-            <div className="flex items-center gap-3 mb-6">
-               <div className="p-2 bg-indigo-500/10 rounded-lg">
-                  <Activity className="text-indigo-500" size={18} />
-               </div>
-               <h3 className="text-sm font-black text-white uppercase tracking-widest leading-none">Recent Scans</h3>
-            </div>
-            
-            <div className="space-y-3 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
-               {history.length > 0 ? (
-                  history.map((item, idx) => (
-                     <button
-                        key={idx}
-                        onClick={() => loadFromHistory(item)}
-                        className={`w-full text-left p-4 rounded-xl border border-white/5 hover:border-blue-500/30 hover:bg-blue-500/5 transition-all group ${result?.id === item.id ? 'border-blue-500/40 bg-blue-500/10' : ''}`}
-                     >
-                        <div className="flex items-center gap-3">
-                           <MapPin size={12} className="text-gray-600 group-hover:text-blue-500" />
-                           <span className="text-[11px] font-bold text-gray-400 group-hover:text-white truncate uppercase tracking-tighter">
-                              {item.area.split(',')[0]}
-                           </span>
-                        </div>
-                        <div className="mt-1 pl-6 text-[9px] text-gray-600 font-black uppercase tracking-widest">
-                           {new Date(item.created_at).toLocaleDateString()}
-                        </div>
-                     </button>
-                  ))
-               ) : (
-                  <div className="py-8 text-center">
-                     <p className="text-[10px] font-black text-gray-700 uppercase tracking-widest">{status === "authenticated" ? "No scan history found" : "Login to view history"}</p>
-                  </div>
-               )}
-            </div>
-          </div>
-          
-          <div className="glass-card p-8 border-indigo-500/10 relative overflow-hidden group bg-gradient-to-br from-indigo-600/5 via-transparent to-transparent">
-            <div className="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-indigo-500/20 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700" />
-            <div className="flex items-center gap-3 mb-5 relative z-10">
-              <Lightbulb className="text-indigo-400" size={20} />
-              <h3 className="text-lg font-bold text-white tracking-tight">{t("dash_ai_insights")}</h3>
-            </div>
-            <p className="text-[13px] text-gray-500 leading-relaxed mb-8 relative z-10 font-medium">{t("dash_ai_desc")}</p>
-            <div className="flex flex-col gap-3 relative z-10">
-               <div className="flex items-center gap-3 text-[10px] font-black text-gray-500 uppercase tracking-widest bg-white/5 p-3 rounded-xl border border-white/5 group-hover:border-blue-500/20 transition-all">
-                  <Globe2 size={14} className="text-blue-500" />
-                  {t("dash_vector_global")}
-               </div>
-               <div className="flex items-center gap-3 text-[10px] font-black text-gray-500 uppercase tracking-widest bg-white/5 p-3 rounded-xl border border-white/5 group-hover:border-indigo-500/20 transition-all">
-                  <BarChart3 size={14} className="text-indigo-500" />
-                  {t("dash_vector_predict")}
-               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Panel: Results */}
-        <div className="w-full lg:w-2/3 xl:w-3/4">
-          <AnimatePresence mode="wait">
-            {loading ? (
-              <motion.div 
-                key="loading"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 1.05 }}
-                className="glass-card p-24 flex flex-col items-center justify-center min-h-[550px] text-center bg-gradient-to-b from-blue-600/10 to-transparent border-blue-500/20 shadow-[0_40px_100px_-20px_rgba(59,130,246,0.2)]"
-              >
-                <div className="relative mb-12">
-                  <div className="w-48 h-48 border-2 border-dashed border-blue-500/20 rounded-full animate-[spin_20s_linear_infinite]" />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <svg className="w-40 h-40 transform -rotate-90">
-                      <circle cx="80" cy="80" r="70" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-white/5" />
-                      <motion.circle
-                        cx="80" cy="80" r="70" stroke="currentColor" strokeWidth="4" fill="transparent"
-                        strokeDasharray={440}
-                        animate={{ strokeDashoffset: 440 - (440 * loadingProgress) / 100 }}
-                        className="text-emerald-500 drop-shadow-[0_0_10px_#10b981]"
-                      />
-                    </svg>
-                  </div>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <motion.span 
-                      key={Math.floor(loadingProgress)}
-                      initial={{ opacity: 0, y: 5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="text-5xl font-black text-white tracking-tighter"
-                    >
-                      {Math.floor(loadingProgress)}%
-                    </motion.span>
-                    <span className="text-[10px] font-black text-emerald-500/50 uppercase tracking-[0.3em] mt-1">{t("dash_analyzing")}</span>
-                  </div>
-                </div>
-
-                <div className="w-full max-w-md space-y-4">
-                  <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
-                    <motion.div 
-                      className="h-full growth-gradient"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${loadingProgress}%` }}
+              <form onSubmit={handleAnalyze} className="space-y-4 md:space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[9px] md:text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] pl-1">{t("dash_target_loc")}</label>
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-3 md:pl-4 flex items-center pointer-events-none">
+                      <motion.div
+                        animate={{ opacity: [0.4, 1, 0.4] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                      >
+                        <MapPin className="text-emerald-500 md:w-[18px] md:h-[18px]" size={16} />
+                      </motion.div>
+                    </div>
+                    <input
+                      type="text"
+                      value={area}
+                      onChange={(e) => {
+                        setArea(e.target.value);
+                        setShowSuggestions(true);
+                      }}
+                      onFocus={() => setShowSuggestions(true)}
+                      className="bg-white/[0.03] border border-white/10 text-white responsive-text-sm font-black rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/50 block w-full pl-10 md:pl-11 pr-12 py-4 md:py-5 placeholder-gray-800 transition-all italic tracking-tight"
+                      placeholder={t("dash_enter_city")}
+                      required
+                      autoComplete="off"
                     />
-                  </div>
-                  <p className="text-gray-500 font-bold tracking-[0.4em] text-[10px] uppercase opacity-70">Synthesizing Regional Intelligence...</p>
-                </div>
-
-                <div className="flex gap-6 mt-16">
-                  <div className="flex items-center gap-3 px-6 py-2.5 bg-blue-500/10 rounded-2xl text-[10px] font-black text-blue-400 animate-pulse border border-blue-500/20 tracking-widest uppercase">
-                    <Search size={14} /> NEURAL SCAN
-                  </div>
-                  <div className="flex items-center gap-3 px-6 py-2.5 bg-indigo-500/10 rounded-2xl text-[10px] font-black text-indigo-400 animate-pulse delay-75 border border-indigo-500/20 tracking-widest uppercase">
-                    <BarChart3 size={14} /> ECONOMIC SYTHESIS
-                  </div>
-                </div>
-              </motion.div>
-            ) : result ? (
-              <motion.div 
-                key="results"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="space-y-12"
-              >
-                <div className="glass-card p-12 bg-gradient-to-br from-emerald-600/15 via-transparent to-amber-600/10 border-emerald-500/20 relative overflow-hidden shadow-2xl">
-                  <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-500/5 rounded-full blur-[100px] -mr-64 -mt-64 animate-pulse" />
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10 relative z-10">
-                    <div>
-                      <div className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.4em] mb-3">{t("dash_results_header")} {language}</div>
-                      <h2 className="text-5xl font-black text-white tracking-tighter capitalize selection:bg-emerald-600">
-                        {result.area.split(',')[0]}
-                      </h2>
+                    
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          refreshLocation();
+                          addNotification({
+                            type: 'location',
+                            title: 'Syncing Location',
+                            message: 'Detecting your real-time coordinates... Market data will update shortly.',
+                            priority: 'low'
+                          } as any);
+                        }}
+                        className="p-2 rounded-lg hover:bg-emerald-500/10 text-gray-700 hover:text-emerald-500 transition-all group/detect"
+                        title="Auto-detect Location"
+                      >
+                        <RefreshCw size={16} className={`${!userLocation ? "animate-spin" : "group-hover/detect:rotate-180"} transition-transform duration-700`} />
+                      </button>
                     </div>
-                    <div className="flex items-center gap-3 px-5 py-2.5 bg-white/5 rounded-2xl border border-white/10 text-[10px] font-black text-gray-400 tracking-widest uppercase">
-                      <Globe2 size={16} className="text-emerald-500" /> {language} Protocol
-                    </div>
+                    
+                    <AnimatePresence>
+                      {showSuggestions && suggestions.length > 0 && (
+                        <motion.div 
+                          initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                          className="absolute z-50 w-full mt-3 glass-card bg-slate-900/95 p-3 border-emerald-500/20 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.8)] max-h-72 overflow-y-auto"
+                        >
+                          <div className="px-3 pb-2 text-[8px] font-black uppercase tracking-widest text-slate-500 italic border-b border-white/5 mb-2 flex items-center gap-2">
+                             <Search size={10} /> Radar Detections
+                          </div>
+                          {suggestions.map((suggestion, idx) => (
+                            <div
+                              key={idx}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                handleSelectSuggestion(suggestion);
+                              }}
+                              className="px-4 py-3.5 cursor-pointer hover:bg-emerald-500/10 rounded-xl text-[10px] font-bold text-gray-400 hover:text-white transition-all flex items-start gap-4 border border-transparent hover:border-emerald-500/10 mb-1 last:mb-0 group/item"
+                            >
+                              <div className="p-1.5 rounded-lg bg-white/5 group-hover/item:bg-emerald-500/20 transition-colors">
+                                <MapPin size={12} className="text-gray-600 group-hover/item:text-emerald-500" />
+                              </div>
+                              <span className="leading-snug">{suggestion.display_name}</span>
+                            </div>
+                          ))}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
-                  <p className="text-gray-400 leading-relaxed text-xl font-medium selection:bg-blue-500/40 relative z-10">
-                    {result.analysis}
-                  </p>
                 </div>
                 
-                <div className="flex items-center gap-6 px-4">
-                  <h3 className="text-2xl font-black text-white tracking-tighter whitespace-nowrap">
-                    {t("dash_strategic_opps")}
-                  </h3>
-                  <div className="h-px w-full bg-gradient-to-r from-white/10 to-transparent" />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-                  {result.recommendations.map((rec: any, index: number) => (
-                    <motion.div 
-                      key={index} 
-                      whileHover={{ y: -15, scale: 1.02 }}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      onClick={() => router.push(`/roadmap?area=${encodeURIComponent(result.area)}&title=${encodeURIComponent(rec.title)}&desc=${encodeURIComponent(rec.description)}&lang=${language}`)}
-                      className="glass-card p-8 md:p-10 cursor-pointer border-white/5 hover:border-emerald-500/30 hover:bg-white/[0.05] transition-all duration-700 group relative flex flex-col h-full shadow-2xl overflow-hidden"
+                <button
+                  type="submit"
+                  disabled={loading || !area || hasReachedAnalysisLimit(analysisCount)}
+                  className="w-full h-12 md:h-15 text-white font-black uppercase tracking-[0.2em] rounded-xl md:rounded-2xl responsive-text-xs px-4 md:px-5 flex justify-center items-center gap-2 transition-all shadow-xl hover:shadow-2xl hover:-translate-y-1 active:translate-y-0 disabled:opacity-30 disabled:cursor-not-allowed disabled:grayscale"
+                  style={{ 
+                    background: hasReachedAnalysisLimit(analysisCount) 
+                      ? '#6b7280' 
+                      : `linear-gradient(135deg, ${theme.primary}, ${theme.secondary})`,
+                    boxShadow: `0 10px 30px -5px ${theme.primary}40, 0 0 0 1px ${theme.primary}20`
+                  }}
+                >
+                  {loading ? <Loader2 className="animate-spin md:w-5 md:h-5" size={18} /> : <Sparkles className="md:w-5 md:h-5" size={18} fill="currentColor" />}
+                  {hasReachedAnalysisLimit(analysisCount) 
+                    ? "UPGRADE TO CONTINUE" 
+                    : loading 
+                      ? t("dash_analyzing") 
+                      : t("dash_analyze")
+                  }
+                </button>
+                
+                {hasReachedAnalysisLimit(analysisCount) && (
+                  <div className="text-center mt-3">
+                    <p className="text-xs text-red-400 mb-2">
+                      You've used all {planFeatures.maxAnalyses} analyses in your {planFeatures.planName} plan
+                    </p>
+                    <Link 
+                      href="/acquisition-tiers"
+                      className="text-xs font-bold text-blue-400 hover:text-blue-300 underline"
                     >
-                      <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                      
-                      <div className="flex justify-between items-start mb-10 relative z-10 w-full">
-                        <div className="w-16 h-16 bg-emerald-500/10 rounded-[2rem] flex items-center justify-center group-hover:bg-emerald-600 transition-all duration-500 shadow-xl border border-emerald-500/10 shrink-0">
-                          <span className="text-emerald-500 font-black text-2xl group-hover:text-white transition-colors">{index + 1}</span>
-                        </div>
-                        <div className="flex flex-col items-end gap-1.5 min-w-fit">
-                           <div className="flex items-center gap-2 bg-amber-500/10 text-amber-500 px-4 py-2 rounded-2xl text-[9px] font-extrabold uppercase tracking-tight border border-amber-500/20 shadow-lg whitespace-nowrap">
-                             <TrendingUp size={14} className="animate-bounce" /> {rec.profitability_score}% MATCH
-                           </div>
-                        </div>
-                      </div>
-                      
-                      <h4 className="text-2xl font-black text-white mb-6 leading-tight group-hover:text-blue-400 transition-colors tracking-tighter relative z-10">
-                        {rec.title}
-                      </h4>
-                      <p className="text-gray-500 text-sm leading-relaxed mb-10 flex-grow font-medium relative z-10 line-clamp-4">
-                        {rec.description}
-                      </p>
-                      
-                      {(rec.funding_required || rec.survival_rate || rec.estimated_profit) && (
-                        <div className="space-y-4 mb-10 bg-black/40 p-6 rounded-[2rem] border border-white/5 relative z-10 group-hover:border-blue-500/20 transition-all shadow-inner">
-                          <div className="flex justify-between items-center gap-4">
-                             <div className="flex items-center gap-2 shrink-0">
-                               <PiggyBank size={16} className="text-blue-500" />
-                               <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">{t("dash_capital")}</span>
-                             </div>
-                             <span className="text-white font-black tracking-tight text-[11px] sm:text-xs text-right leading-none">
-                               {rec.funding_required}
-                             </span>
-                          </div>
-                          <div className="flex justify-between items-center gap-4">
-                             <div className="flex items-center gap-2 shrink-0">
-                               <Activity size={16} className="text-indigo-500" />
-                               <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">{t("dash_prob")}</span>
-                             </div>
-                             <span className="text-white font-black tracking-tight text-[11px] sm:text-xs text-right leading-none">
-                               {rec.survival_rate}
-                             </span>
-                          </div>
-                          <div className="flex justify-between items-center gap-4 pt-3 border-t border-white/5">
-                             <div className="flex items-center gap-2 shrink-0">
-                               <DollarSign size={16} className="text-green-500" />
-                               <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">{t("dash_revenue")}</span>
-                             </div>
-                             <span className="text-green-400 font-black tracking-tight text-sm sm:text-base drop-shadow-[0_0_15px_rgba(34,197,94,0.4)] text-right leading-none">
-                               {rec.estimated_profit}
-                             </span>
-                          </div>
-                        </div>
-                      )}
- 
-                      <div className="pt-6 border-t border-white/5 flex justify-between items-center mt-auto relative z-10 group-hover:translate-x-1 transition-transform">
-                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] group-hover:text-white transition-colors">
-                          {t("dash_view_plan")}
-                        </span>
-                        <div className="w-10 h-10 rounded-[1.2rem] bg-white/5 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white text-emerald-500 transition-all duration-500 shadow-xl">
-                          <ArrowRight size={18} />
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-
-                {result.logs && (result.logs.reddit?.length > 0 || result.logs.web?.length > 0) && (
-                  <div className="mt-20 glass-card p-12 bg-black/50 border-white/5 relative overflow-hidden group">
-                    <div className="absolute inset-0 bg-grid-white/[0.01] pointer-events-none" />
-                    <h3 className="text-2xl font-black text-white mb-10 flex items-center gap-4 relative z-10">
-                      <div className="w-10 h-10 rounded-2xl bg-white/5 flex items-center justify-center text-gray-500 group-hover:text-emerald-500 transition-colors border border-white/10">
-                        <BarChart3 size={20} />
-                      </div>
-                      {t("dash_neural_input")}
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12 relative z-10">
-                      {result.logs.web?.length > 0 && (
-                        <div className="space-y-6">
-                          <h4 className="text-emerald-500 text-[11px] font-black uppercase tracking-[0.3em] flex items-center gap-3">
-                             <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full shadow-[0_0_15px_#10b981] animate-pulse" /> {t("dash_source_web")}
-                          </h4>
-                          <div className="space-y-4">
-                            {result.logs.web.map((log: string, idx: number) => (
-                              <div key={idx} className="p-5 rounded-2xl bg-white/[0.02] border border-white/5 text-[11px] text-gray-500 leading-relaxed font-bold tracking-tight hover:text-gray-300 transition-colors cursor-default hover:bg-white/[0.04]">
-                                {log}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      {result.logs.reddit?.length > 0 && (
-                        <div className="space-y-6">
-                          <h4 className="text-orange-500 text-[11px] font-black uppercase tracking-[0.3em] flex items-center gap-3">
-                             <div className="w-1.5 h-1.5 bg-orange-500 rounded-full shadow-[0_0_15px_#f97316] animate-pulse" /> {t("dash_source_reddit")}
-                          </h4>
-                          <div className="space-y-4">
-                            {result.logs.reddit.map((log: string, idx: number) => (
-                              <div key={`reddit-${idx}`} className="p-5 rounded-2xl bg-white/[0.02] border border-white/5 text-[11px] text-gray-500 leading-relaxed font-bold tracking-tight hover:text-gray-300 transition-colors cursor-default hover:bg-white/[0.04]">
-                                {log}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                      Upgrade for unlimited analyses →
+                    </Link>
                   </div>
                 )}
-              </motion.div>
-            ) : (
-              <motion.div 
-                key="empty"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="glass-card p-24 flex flex-col items-center justify-center min-h-[550px] text-center bg-gradient-to-tr from-blue-600/5 via-transparent to-indigo-600/5 border-white/5 shadow-inner"
-              >
-                <div className="w-32 h-32 bg-white/5 rounded-[2.5rem] flex items-center justify-center mb-12 transform -rotate-12 border border-white/10 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.4)] group transition-all hover:rotate-0 hover:scale-110 duration-700">
-                  <Globe2 className="text-blue-500/30 group-hover:text-blue-500 transition-colors" size={56} />
+              </form>
+            </div>
+            {/* Institutional Protocol Matrix - High Engagement Utility */}
+            <div className="glass-card p-6 border-white/5 bg-gradient-to-br from-slate-900/50 to-transparent relative overflow-hidden group">
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+              <div className="flex items-center gap-3 mb-6 relative z-10">
+                <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                  <ShieldCheck className="text-blue-400" size={18} />
                 </div>
-                <h2 className="text-4xl font-black text-white mb-5 tracking-tighter uppercase">{t("dash_empty_title")}</h2>
-                <p className="text-gray-500 max-w-sm mx-auto mb-12 leading-relaxed font-bold tracking-tight uppercase text-xs opacity-60">{t("dash_empty_desc")}</p>
-                <div className="flex flex-wrap gap-3 justify-center max-w-lg">
-                   {['Bhopal', 'London', 'Berlin', 'New York'].map(city => (
-                      <button key={city} onClick={() => setArea(city)} className="px-6 py-3 rounded-2xl bg-white/5 border border-white/10 text-[10px] font-black text-gray-600 hover:text-white hover:border-blue-500/50 hover:bg-blue-500/10 transition-all uppercase tracking-[0.2em]">{city}</button>
-                   ))}
+                <div>
+                  <h3 className="text-xs font-black text-white uppercase tracking-[0.2em] italic">Active Protocol Matrix</h3>
+                  <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">{planFeatures.planName} Tier</p>
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+              </div>
+
+              <div className="grid grid-cols-1 gap-2 relative z-10">
+                {[
+                  { key: 'advancedFeatures', label: 'AI Profit Engine', icon: BarChart3 },
+                  { key: 'prioritySupport', label: 'Priority Support', icon: Target },
+                  { key: 'exportToPdf', label: 'PDF Reports', icon: RefreshCw },
+                  { key: 'apiAccess', label: 'Full API Access', icon: Globe2 },
+                  { key: 'realTimeAlerts', label: 'Market Alerts', icon: Activity }
+                ].map((feature, idx) => (
+                  <div 
+                    key={idx}
+                    className={`flex items-center justify-between p-3 rounded-xl border transition-all duration-500 ${
+                      planFeatures[feature.key as keyof typeof planFeatures] 
+                        ? 'bg-blue-500/10 border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.1)]' 
+                        : 'bg-white/5 border-white/5 opacity-30 grayscale'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <feature.icon size={14} className={planFeatures[feature.key as keyof typeof planFeatures] ? 'text-blue-400' : 'text-slate-600'} />
+                      <span className={`text-[9px] font-bold uppercase tracking-wider ${planFeatures[feature.key as keyof typeof planFeatures] ? 'text-white' : 'text-slate-600'}`}>
+                        {feature.label}
+                      </span>
+                    </div>
+                    {planFeatures[feature.key as keyof typeof planFeatures] && (
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse shadow-[0_0_10px_#60a5fa]" />
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-6 pt-6 border-t border-white/5 relative z-10">
+                <Link 
+                  href="/acquisition-tiers"
+                  className="flex items-center justify-between group/link pointer-events-auto"
+                >
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest group-hover/link:text-white transition-colors">Expand Capabilities</span>
+                  <ArrowRight size={14} className="text-slate-600 group-hover/link:translate-x-1 group-hover/link:text-blue-400 transition-all" />
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Panel: Results */}
+          <div className="w-full lg:w-2/3 xl:w-3/4">
+            <AnimatePresence mode="wait">
+              {loading ? (
+                <motion.div 
+                  key="loading"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 1.05 }}
+                  className="glass-card responsive-p-lg md:responsive-p-xl flex flex-col items-center justify-center min-h-[400px] md:min-h-[550px] text-center bg-gradient-to-b from-blue-600/10 to-transparent border-blue-500/20 shadow-[0_40px_100px_-20px_rgba(59,130,246,0.2)]"
+                >
+                  <div className="relative mb-8 md:mb-12">
+                    <div className="w-32 h-32 md:w-48 md:h-48 border-2 border-dashed border-blue-500/20 rounded-full animate-[spin_20s_linear_infinite]" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <svg className="w-28 h-28 md:w-40 md:h-40 transform -rotate-90">
+                        <circle cx="56" cy="56" r="50" stroke="currentColor" strokeWidth="3" fill="transparent" className="text-white/5 md:hidden" />
+                        <circle cx="80" cy="80" r="70" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-white/5 hidden md:block" />
+                        <motion.circle
+                          cx="56" cy="56" r="50" stroke="currentColor" strokeWidth="3" fill="transparent"
+                          strokeDasharray={314}
+                          animate={{ strokeDashoffset: 314 - (314 * loadingProgress) / 100 }}
+                          className="text-emerald-500 drop-shadow-[0_0_10px_#10b981] md:hidden"
+                        />
+                        <motion.circle
+                          cx="80" cy="80" r="70" stroke="currentColor" strokeWidth="4" fill="transparent"
+                          strokeDasharray={440}
+                          animate={{ strokeDashoffset: 440 - (440 * loadingProgress) / 100 }}
+                          className="text-emerald-500 drop-shadow-[0_0_10px_#10b981] hidden md:block"
+                        />
+                      </svg>
+                    </div>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <motion.span 
+                        key={Math.floor(loadingProgress)}
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="responsive-text-3xl md:responsive-text-5xl font-black text-white tracking-tighter"
+                      >
+                        {Math.floor(loadingProgress)}%
+                      </motion.span>
+                      <span className="text-[9px] md:text-[10px] font-black text-emerald-500/50 uppercase tracking-[0.3em] mt-1">{t("dash_analyzing")}</span>
+                    </div>
+                  </div>
+
+                  <div className="w-full max-w-md space-y-3 md:space-y-4">
+                    <div className="h-1 md:h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+                      <motion.div 
+                        className="h-full growth-gradient"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${loadingProgress}%` }}
+                      />
+                    </div>
+                    <p className="text-gray-500 font-bold tracking-[0.4em] responsive-text-xs uppercase opacity-70">Analyzing Market Data...</p>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-4 md:gap-6 mt-12 md:mt-16">
+                    <div className="flex items-center gap-2 md:gap-3 px-4 md:px-6 py-2 md:py-2.5 bg-blue-500/10 rounded-xl md:rounded-2xl responsive-text-xs font-black text-blue-400 animate-pulse border border-blue-500/20 tracking-widest uppercase">
+                      <Search className="md:w-[14px] md:h-[14px]" size={12} /> MARKET SCAN
+                    </div>
+                    <div className="flex items-center gap-2 md:gap-3 px-4 md:px-6 py-2 md:py-2.5 bg-indigo-500/10 rounded-xl md:rounded-2xl responsive-text-xs font-black text-indigo-400 animate-pulse delay-75 border border-indigo-500/20 tracking-widest uppercase">
+                      <BarChart3 className="md:w-[14px] md:h-[14px]" size={12} /> DATA ANALYSIS
+                    </div>
+                  </div>
+                </motion.div>
+              ) : result ? (
+                <motion.div 
+                  key="results"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="space-y-8 md:space-y-12"
+                >
+                  <div className="glass-card responsive-p-lg md:responsive-p-xl bg-gradient-to-br from-emerald-600/15 via-transparent to-amber-600/10 border-emerald-500/20 relative overflow-hidden shadow-2xl">
+                    <div className="absolute top-0 right-0 w-[300px] md:w-[500px] h-[300px] md:h-[500px] bg-emerald-500/5 rounded-full blur-[100px] -mr-32 md:-mr-64 -mt-32 md:-mt-64 animate-pulse" />
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6 mb-6 md:mb-10 relative z-10">
+                      <div>
+                        <div className="responsive-text-xs font-black text-emerald-500 uppercase tracking-[0.4em] mb-2 md:mb-3">{t("dash_results_header")} {language}</div>
+                        <h2 className="responsive-text-3xl md:responsive-text-5xl font-black text-white tracking-tighter capitalize selection:bg-emerald-600">
+                          {result.area.split(',')[0]}
+                        </h2>
+                      </div>
+                      <div className="flex items-center gap-2 md:gap-3 px-3 md:px-5 py-2 md:py-2.5 bg-white/5 rounded-xl md:rounded-2xl border border-white/10 responsive-text-xs font-black text-gray-400 tracking-widest uppercase">
+                      <Globe2 className="md:w-4 md:h-4 text-emerald-500" size={14} /> {language} Protocol
+                      </div>
+                    </div>
+                    <p className="text-gray-400 leading-relaxed responsive-text-lg md:responsive-text-xl font-medium selection:bg-blue-500/40 relative z-10">
+                      {result.analysis}
+                    </p>
+                  </div>
+                  
+                  <div className="flex items-center gap-4 md:gap-6 px-2 md:px-4">
+                    <h3 className="responsive-text-xl md:responsive-text-2xl font-black text-white tracking-tighter whitespace-nowrap">
+                      {t("dash_strategic_opps")}
+                    </h3>
+                    <div className="h-px w-full bg-gradient-to-r from-white/10 to-transparent" />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 md:gap-8">
+                    {result.recommendations.map((rec: any, index: number) => (
+                      <motion.div 
+                        key={index} 
+                        whileHover={{ y: -15, scale: 1.02 }}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        onClick={() => router.push(`/roadmap?area=${encodeURIComponent(result.area)}&title=${encodeURIComponent(rec.title)}&desc=${encodeURIComponent(rec.description)}&lang=${language}`)}
+                        className="glass-card responsive-p-md md:responsive-p-lg cursor-pointer border-white/5 hover:border-emerald-500/30 hover:bg-white/[0.05] transition-all duration-700 group relative flex flex-col h-full shadow-2xl overflow-hidden"
+                      >
+                        <div className="absolute top-0 left-0 w-full h-1 md:h-1.5 bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                        
+                        <div className="flex justify-between items-start mb-6 md:mb-10 relative z-10 w-full">
+                          <div className="w-12 h-12 md:w-16 md:h-16 bg-emerald-500/10 rounded-2xl md:rounded-[2rem] flex items-center justify-center group-hover:bg-emerald-600 transition-all duration-500 shadow-xl border border-emerald-500/10 shrink-0">
+                            <span className="text-emerald-500 font-black responsive-text-lg md:responsive-text-2xl group-hover:text-white transition-colors">{index + 1}</span>
+                          </div>
+                          <div className="flex flex-col items-end gap-1.5 min-w-fit">
+                             <div className="flex items-center gap-1.5 md:gap-2 bg-amber-500/10 text-amber-500 px-3 md:px-4 py-1.5 md:py-2 rounded-xl md:rounded-2xl responsive-text-xs font-extrabold uppercase tracking-tight border border-amber-500/20 shadow-lg whitespace-nowrap">
+                               <TrendingUp className="md:w-[14px] md:h-[14px] animate-bounce" size={12} /> {rec.profitability_score}% MATCH
+                             </div>
+                          </div>
+                        </div>
+                        
+                        <h4 className="responsive-text-lg md:responsive-text-2xl font-black text-white mb-4 md:mb-6 leading-tight group-hover:text-blue-400 transition-colors tracking-tighter relative z-10">
+                          {rec.title}
+                        </h4>
+                        <p className="text-gray-500 responsive-text-sm leading-relaxed mb-6 md:mb-10 flex-grow font-medium relative z-10 line-clamp-4">
+                          {rec.description}
+                        </p>
+                        
+                        <div className="flex items-center justify-between relative z-10 mt-auto">
+                          <div className="flex items-center gap-1.5 md:gap-2 responsive-text-xs text-gray-600">
+                            <PiggyBank className="md:w-[14px] md:h-[14px]" size={12} />
+                            <span>Investment: {rec.investment_range || 'Varies'}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 md:gap-2 responsive-text-xs font-bold text-emerald-500 group-hover:text-white transition-colors">
+                            <span>Explore</span>
+                            <ArrowRight className="md:w-[14px] md:h-[14px] group-hover:translate-x-1 transition-transform" size={12} />
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div 
+                  key="empty"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="glass-card responsive-p-lg md:responsive-p-xl text-center min-h-[400px] md:min-h-[550px] flex flex-col items-center justify-center bg-gradient-to-b from-gray-800/10 to-transparent border-gray-500/20"
+                >
+                  <div className="relative mb-6 md:mb-8">
+                    <div className="w-24 h-24 md:w-32 md:h-32 border-2 border-dashed border-gray-500/30 rounded-full flex items-center justify-center">
+                      <Target className="text-gray-500 md:w-12 md:h-12" size={32} />
+                    </div>
+                  </div>
+                  <h3 className="responsive-text-xl md:responsive-text-2xl font-bold text-white mb-3 md:mb-4">Ready to Analyze</h3>
+                  <p className="text-gray-400 responsive-text-lg mb-6 md:mb-8 max-w-md">
+                    Enter a location to discover market opportunities and business insights powered by AI.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-3 md:gap-4 responsive-text-sm text-gray-500">
+                    <div className="flex items-center gap-2">
+                      <Globe2 className="md:w-4 md:h-4 text-blue-500" size={14} />
+                      <span>Global Market Data</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className="md:w-4 md:h-4 text-indigo-500" size={14} />
+                      <span>AI-Powered Analysis</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="md:w-4 md:h-4 text-emerald-500" size={14} />
+                      <span>Real-time Insights</span>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
-        
       </div>
-    </div>
+      
+      <PaymentSuccessModal 
+        isOpen={showSuccessModal} 
+        onClose={() => {
+          setShowSuccessModal(false);
+          // Remove query params from URL without refreshing
+          router.replace('/dashboard');
+        }} 
+      />
+    </ProtectedRoute>
   );
 }
+
+export default Dashboard;

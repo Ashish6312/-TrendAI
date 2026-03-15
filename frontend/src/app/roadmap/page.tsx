@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/context/LanguageContext";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 function RoadmapContent() {
   const { status } = useSession();
@@ -80,15 +81,15 @@ function RoadmapContent() {
           </div>
         </div>
         <div className="space-y-3 text-center">
-          <h2 className="text-2xl font-black text-white tracking-tighter uppercase selection:bg-blue-600">Architecting Directive</h2>
-          <p className="text-gray-500 text-[10px] font-black tracking-[0.4em] uppercase opacity-70">Synthesizing Regional Intelligence...</p>
+          <h2 className="text-2xl font-black text-white tracking-tighter uppercase selection:bg-blue-600">Creating Roadmap</h2>
+          <p className="text-gray-500 text-[10px] font-black tracking-[0.4em] uppercase opacity-70">Analyzing Region...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-[#020617]">
+    <div className="min-h-screen relative overflow-hidden bg-[var(--background)]">
       {/* Immersive Background */}
       <div className="absolute inset-0 z-0">
         <motion.img 
@@ -99,67 +100,67 @@ function RoadmapContent() {
           alt="Roadmap Architecture" 
           className="w-full h-full object-cover opacity-20 blur-[2px] animate-pulse-slow"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#020617]/40 via-[#020617] to-[#020617]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-white/40 via-white to-white dark:from-[#020617]/40 dark:via-[#020617] dark:to-[#020617]" />
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 py-24 relative z-10">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-10 mb-24">
+      <div className="responsive-container py-16 md:py-20 lg:py-24 relative z-10">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 md:gap-10 mb-16 md:mb-20 lg:mb-24">
           <motion.button 
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             onClick={() => router.back()} 
-            className="group flex items-center gap-4 px-6 py-3.5 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-emerald-500/20 text-gray-400 hover:text-white transition-all w-fit shadow-2xl backdrop-blur-xl"
+            className="group flex items-center gap-3 md:gap-4 px-4 md:px-6 py-2.5 md:py-3.5 rounded-xl md:rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-emerald-500/20 text-gray-400 hover:text-white transition-all w-fit shadow-2xl backdrop-blur-xl"
           >
-            <ArrowLeft size={20} className="group-hover:-translate-x-1.5 transition-transform" />
-            <span className="text-[10px] font-black uppercase tracking-[0.3em]">{t("road_return")}</span>
+            <ArrowLeft size={18} className="md:w-5 md:h-5 group-hover:-translate-x-1.5 transition-transform" />
+            <span className="responsive-text-xs font-black uppercase tracking-[0.3em]">{t("road_return")}</span>
           </motion.button>
           
-          <div className="flex items-center gap-3 px-6 py-3 bg-emerald-500/10 rounded-2xl border border-emerald-500/20 text-[10px] font-black text-emerald-400 uppercase tracking-[0.3em] shadow-lg">
-             <Globe2 size={16} /> {language} Strategic Protocol
+          <div className="flex items-center gap-2 md:gap-3 px-4 md:px-6 py-2 md:py-3 bg-emerald-500/10 rounded-xl md:rounded-2xl border border-emerald-500/20 responsive-text-xs font-black text-emerald-400 uppercase tracking-[0.3em] shadow-lg">
+             <Globe2 size={14} className="md:w-4 md:h-4" /> {language} Strategy
           </div>
         </div>
 
-        <header className="mb-32 space-y-10 text-center">
+        <header className="mb-20 md:mb-24 lg:mb-32 space-y-6 md:space-y-8 lg:space-y-10 text-center">
           <motion.div 
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="flex items-center gap-8 justify-center"
+            className="flex items-center gap-6 md:gap-8 justify-center"
           >
             <div className="h-px bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent flex-1" />
-            <Sparkle className="text-emerald-500 animate-pulse" size={40} fill="currentColor" />
+            <Sparkle className="text-emerald-500 animate-pulse md:w-10 md:h-10" size={32} fill="currentColor" />
             <div className="h-px bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent flex-1" />
           </motion.div>
           
-          <div className="space-y-6">
+          <div className="space-y-4 md:space-y-6">
             <motion.div 
                initial={{ opacity: 0, y: 10 }}
                animate={{ opacity: 1, y: 0 }}
-               className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-[9px] font-black text-blue-400 uppercase tracking-widest mb-4"
+               className="inline-flex items-center gap-2 px-3 md:px-4 py-1 md:py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 responsive-text-xs font-black text-blue-400 uppercase tracking-widest mb-3 md:mb-4"
             >
-               <ShieldCheck size={14} /> Strategic Intelligence Protocol
+               <ShieldCheck size={12} className="md:w-[14px] md:h-[14px]" /> Business Roadmap
             </motion.div>
-            <h1 className="text-4xl sm:text-7xl md:text-8xl font-black text-white tracking-tighter leading-none max-w-5xl mx-auto italic">
-               The <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-teal-600">Growth</span> Directive.
+            <h1 className="responsive-text-2xl sm:responsive-text-4xl md:text-6xl lg:text-8xl font-black text-white tracking-tighter leading-none max-w-5xl mx-auto italic px-4">
+               Your <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-teal-600">Growth</span> Plan.
             </h1>
-            <div className="flex flex-col items-center gap-8">
+            <div className="flex flex-col items-center gap-6 md:gap-8">
               <motion.h2 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="text-xl sm:text-3xl font-black bg-white/5 px-6 sm:px-10 py-3 sm:py-4 rounded-[1.5rem] sm:rounded-[2.5rem] border border-white/10 text-emerald-400 shadow-2xl tracking-tight selection:bg-emerald-600"
+                className="responsive-text-lg sm:responsive-text-xl md:responsive-text-3xl font-black bg-white/5 px-4 sm:px-6 md:px-10 py-2 sm:py-3 md:py-4 rounded-2xl sm:rounded-[1.5rem] md:rounded-[2.5rem] border border-white/10 text-emerald-400 shadow-2xl tracking-tight selection:bg-emerald-600"
               >
                 {title}
               </motion.h2>
-              <div className="flex items-center gap-3 text-gray-500 font-bold tracking-widest uppercase text-[10px]">
-                 <MapPin size={18} className="text-emerald-500" /> 
+              <div className="flex items-center gap-2 md:gap-3 text-gray-500 font-bold tracking-widest uppercase responsive-text-xs">
+                 <MapPin size={16} className="md:w-[18px] md:h-[18px] text-emerald-500" /> 
                  {area}
               </div>
             </div>
           </div>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-12 lg:gap-20">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 md:gap-12 lg:gap-20">
           {/* Progress Sidebar */}
-          <div className="hidden lg:block space-y-8 sticky top-36 h-fit">
+          <div className="hidden lg:block space-y-6 md:space-y-8 sticky top-36 h-fit">
             <motion.div 
               initial={{ opacity: 0, x: -30 }}
               animate={{ opacity: 1, x: 0 }}
@@ -210,7 +211,7 @@ function RoadmapContent() {
                  {[
                    { icon: <Zap size={14} />, text: "Automate core flows first" },
                    { icon: <Globe2 size={14} />, text: "Regional SEO dominance" },
-                   { icon: <Rocket size={14} />, text: "Zero-latency deployments" }
+                   { icon: <Rocket size={14} />, text: "Fast Launch" }
                  ].map((tip, i) => (
                    <li key={i} className="flex items-center gap-4 text-[11px] font-bold text-gray-400 group cursor-default">
                      <span className="text-blue-500 group-hover:scale-125 transition-transform">{tip.icon}</span>
@@ -275,7 +276,7 @@ function RoadmapContent() {
             <div className="md:ml-32 space-y-12">
                <div className="flex items-center gap-6">
                   <div className="h-px bg-white/10 flex-1" />
-                  <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest whitespace-nowrap">Execution Matrix</h4>
+                  <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest whitespace-nowrap">Implementation Strategies</h4>
                   <div className="h-px bg-white/10 flex-1" />
                </div>
                
@@ -287,12 +288,12 @@ function RoadmapContent() {
                >
                   <div className="glass-card p-12 bg-gradient-to-br from-indigo-600/10 to-transparent border-indigo-500/20 group hover:border-indigo-500/40 transition-all duration-700">
                      <div className="w-14 h-14 bg-indigo-500/20 rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 group-hover:bg-indigo-600 transition-all duration-500"><Rocket className="text-indigo-400 group-hover:text-white" size={28} /></div>
-                     <h4 className="text-2xl font-black text-white mb-4 tracking-tighter">Hyper-Scale Protocol</h4>
+                     <h4 className="text-2xl font-black text-white mb-4 tracking-tighter">Fast Growth Plan</h4>
                      <p className="text-gray-500 font-medium leading-relaxed text-sm">Deploy automated customer acquisition funnels using AI-driven sentiment analysis to capture market share 3x faster than traditional competitors.</p>
                   </div>
                   <div className="glass-card p-12 bg-gradient-to-br from-emerald-600/10 to-transparent border-emerald-500/20 group hover:border-emerald-500/40 transition-all duration-700">
                      <div className="w-14 h-14 bg-emerald-500/20 rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 group-hover:bg-emerald-600 transition-all duration-500"><ShieldCheck className="text-emerald-400 group-hover:text-white" size={28} /></div>
-                     <h4 className="text-2xl font-black text-white mb-4 tracking-tighter">Strategic Resilience</h4>
+                     <h4 className="text-2xl font-black text-white mb-4 tracking-tighter">Market Safety</h4>
                      <p className="text-gray-500 font-medium leading-relaxed text-sm">Diversify revenue streams by integrating local market data into your product cycle, ensuring survival even during volatile economic shifts.</p>
                   </div>
                </motion.div>
@@ -313,7 +314,7 @@ function RoadmapContent() {
               </div>
               <h3 className="text-4xl md:text-6xl font-black text-white mb-8 tracking-tighter uppercase italic relative z-10">{t("road_readiness")}</h3>
               <p className="text-gray-400 max-w-2xl mx-auto text-xl md:text-2xl font-bold leading-relaxed tracking-tight relative z-10 mb-16 px-4">
-                Market readiness protocol complete. Regional analysis confirms <span className="text-emerald-500">high-probability success cycle</span> for this venture.
+                Analysis complete. Regional analysis confirms <span className="text-emerald-500">high-probability success cycle</span> for this venture.
               </p>
               <button 
                 onClick={() => window.print()} 
@@ -330,10 +331,12 @@ function RoadmapContent() {
   );
 }
 
-export default function RoadmapPage() {
+function RoadmapPage() {
   return (
-    <Suspense fallback={<div className="flex h-screen items-center justify-center flex-col gap-8 text-gray-500 font-black animate-pulse uppercase tracking-[0.4em] text-xs"><Loader2 className="animate-spin mb-4 w-12 h-12" /> Initializing Strategy Protocol...</div>}>
-      <RoadmapContent />
-    </Suspense>
+    <ProtectedRoute>
+      <Suspense fallback={<div className="flex h-screen items-center justify-center flex-col gap-8 text-gray-500 font-black animate-pulse uppercase tracking-[0.4em] text-xs"><Loader2 className="animate-spin mb-4 w-12 h-12" /> Loading Strategy...</div>}>
+        <RoadmapContent />
+      </Suspense>
+    </ProtectedRoute>
   );
 }

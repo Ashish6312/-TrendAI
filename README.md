@@ -34,9 +34,18 @@ TrendAI solves the problem of "Business Blindness." Instead of guessing what bus
     *   **Action B**: Scans **Google Trends** for rising search demands.
 *   **The Result**: The AI "Synthesizes" this data and gives you **3 tailored business recommendations** with scorecards (Profit, Risk, and Capital needed).
 
-### 4. Operational Roadmap (Planning)
+### 4. Real-Time AI Search (Live Concept Testing)
+*   **The Action**: You enter any random business idea and a city (e.g. "Cloud Kitchen in Seattle") into the AI Search Sandbox.
+*   **The Live Extraction**: The engine immediately scrapes real-time posts from Reddit and Web News about your specific query to feed the LLM accurate context.
+*   **The Result**: You receive a comprehensive dashboard with projected 6-month financial growth charts, Live Web Sentiments, and a community Business Score.
+
+### 5. Operational Roadmap (Planning)
 *   **The Action**: You click on a business idea you like.
 *   **The Blueprint**: The app shifts into "Directive Mode" and builds a **scroll-animated roadmap** that walks you through the next 6 months of starting that specific business.
+
+### 6. Interactive Community Review System
+*   **The Action**: Users can leave star ratings and sentiment-analyzed written reviews on business concepts.
+*   **The AI Synthesis**: Reviews are dynamically tagged (e.g. #Profitable, #HighCompetition) and overall emotional sentiment is tracked to score the business dynamically.
 
 ---
 
@@ -57,7 +66,7 @@ As a developer, here is the "Logic Path" the app takes when you perform an actio
 
 ### 🌐 1. Multi-Language Intelligence Mode
 The application can be used in **English, Hindi, Spanish, French, and German**. 
-*   **How it works**: When you switch languages, the entire app (buttons, labels, and even the AI's complex reports) changes instantly.
+*   **How it works**: When you switch languages in the navigation bar, the entire app—from landing page text to the AI Search interface and Review form tags—changes instantly via the custom React Context API.
 *   **Persistence**: Once selected, the mode is "locked" to your browser using `localStorage`.
 
 ### 👤 2. Profile Synchronization Mode
@@ -99,10 +108,11 @@ Before the app can run, go to the Render Dashboard and set these variables:
 ---
 
 ## 🛠 Tech Summary
-*   **Frontend**: React, Next.js, Framer Motion (Animations), Tailwind CSS.
-*   **Backend**: FastAPI (Python), SQL Alchemy (Database), DDGS (Scraper).
-*   **AI**: Llama 3 / GPT-4 via Pollinations.
-*   **Database**: PostgreSQL / Neon.
+*   **Frontend**: React, Next.js, Framer Motion (Animations), Tailwind CSS, Chart.js (Data Visualization).
+*   **Backend**: FastAPI (Python), SQL Alchemy (Database), DDGS (DuckDuckGo Live Scraper), TextBlob (Sentiment Analysis).
+*   **AI**: Llama 3 / GPT-4 via Pollinations API.
+*   **Database**: PostgreSQL / SQLite (Development).
+*   **Authentication**: NextAuth (Google OAuth).
 
 ---
 *Developed for the Future of Business Intelligence.*
