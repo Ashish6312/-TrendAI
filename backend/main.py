@@ -1341,7 +1341,7 @@ def get_user_profile_with_subscription(email: str, db: Session = Depends(get_db)
     # Get recent payments
     payments = db.query(models.PaymentHistory).filter(
         models.PaymentHistory.user_email == email
-    ).order_by(models.PaymentHistory.payment_date.desc()).limit(5).all()
+    ).order_by(models.PaymentHistory.payment_date.desc()).limit(10).all()
     
     # Get analysis count
     analysis_count = db.query(models.SearchHistory).filter(

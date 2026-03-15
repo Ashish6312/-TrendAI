@@ -130,6 +130,7 @@ function ProfilePageContent() {
   const [joinDate, setJoinDate] = useState<Date | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'profile' | 'billing'>('overview');
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
   const [isOnline, setIsOnline] = useState(true);
   const [autoSave, setAutoSave] = useState(false);
   const [locationDetecting, setLocationDetecting] = useState(false);
@@ -159,6 +160,11 @@ function ProfilePageContent() {
   };
 
   const PlanIcon = planIcons[plan];
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   // Real-time connectivity monitoring
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -451,6 +457,43 @@ function ProfilePageContent() {
       if (!silent) setSaving(false);
     }
   };
+
+  const downloadTransactions = () => {
+    if (!payments.length) return;
+    
+    const headers = ["Invoice ID", "Date", "Plan", "Billing Cycle", "Amount", "Currency", "Status"];
+    const csvRows = [
+      headers.join(","),
+      ...payments.map(p => [
+        p.razorpay_payment_id || p.id,
+        new Date(p.payment_date).toLocaleDateString(),
+        p.plan_name,
+        p.billing_cycle,
+        p.amount,
+        p.currency,
+        p.status
+      ].join(","))
+    ];
+    
+    const csvContent = csvRows.join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `TrendAI_Transactions_${session?.user?.email}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    addNotification({
+      type: 'system',
+      title: 'Download Complete',
+      message: 'Your transaction history has been exported successfully.',
+      priority: 'low',
+      actionUrl: '/profile?tab=billing'
+    });
+  };
   if (status === "loading" || loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
@@ -596,13 +639,11 @@ function ProfilePageContent() {
                 className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-400' : 'bg-red-400'}`}
               />
               <span className="text-xs text-gray-400">
-                {isOnline ? 'Live' : 'Offline'}
+               {isOnline ? 'Live' : 'Offline'}
               </span>
-              {lastUpdated && (
-                <span className="text-xs text-gray-500">
-                  • Updated {lastUpdated.toLocaleTimeString()}
-                </span>
-              )}
+              <span className="text-xs text-gray-500">
+                • {currentTime.toLocaleTimeString()}
+              </span>
             </div>
           </div>
           
@@ -1526,17 +1567,10 @@ function ProfilePageContent() {
                           Recent Transactions
                         </h3>
                         <button 
-                          onClick={() => {
-                            addNotification({
-                              type: 'system',
-                              title: 'Export Initiated',
-                              message: 'Preparing your comprehensive transaction archive... Your download will begin shortly.',
-                              priority: 'medium',
-                              actionUrl: '/profile?tab=billing'
-                            });
-                          }}
-                          className="text-xs font-bold text-slate-500 hover:text-white transition-colors uppercase tracking-widest"
+                          onClick={downloadTransactions}
+                          className="text-xs font-bold text-slate-500 hover:text-white transition-colors uppercase tracking-widest flex items-center gap-2 group"
                         >
+                          <FileText size={12} className="group-hover:scale-110 transition-transform" />
                           Download All
                         </button>
                       </div>
