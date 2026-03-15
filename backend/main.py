@@ -7,7 +7,6 @@ import bcrypt
 import requests
 from duckduckgo_search import DDGS
 from textblob import TextBlob
-import numpy as np
 
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
