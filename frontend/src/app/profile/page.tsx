@@ -124,6 +124,7 @@ function ProfilePageContent() {
     industry: "",
   });
   const [loading, setLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [analysisCount, setAnalysisCount] = useState(0);
@@ -300,7 +301,9 @@ function ProfilePageContent() {
   useEffect(() => {
     const fetchProfile = async (silent = false) => {
       if (!session?.user?.email) return;
-      if (!silent) setLoading(true);
+      
+      // Only show full loading screen on the very first load
+      if (!silent && !hasLoaded) setLoading(true);
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
       const email = session.user.email;
@@ -349,18 +352,19 @@ function ProfilePageContent() {
         }
 
         setLastUpdated(new Date());
+        setHasLoaded(true);
       } catch (error: any) {
         console.error("Optimized fetch failed:", error);
         if (!silent) setMessage("Operating in Lite Mode (Connection Issues)");
       } finally {
-        if (!silent) setLoading(false);
+        setLoading(false);
       }
     };
 
     if (status === "authenticated") {
       fetchProfile();
     }
-  }, [session, status]);
+  }, [session?.user?.email, status, hasLoaded]);
   const handleSubmit = async (e: React.FormEvent, silent = false) => {
     e.preventDefault();
     if (!silent) setSaving(true);
@@ -494,7 +498,9 @@ function ProfilePageContent() {
       actionUrl: '/profile?tab=billing'
     });
   };
-  if (status === "loading" || loading) {
+  // Enhanced loading guard: Only show full-screen loader on initial mount
+  // Subsequent session revalidations or silent refreshes won't interrupt the UI
+  if ((status === "loading" || loading) && !hasLoaded) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
         <motion.div 
