@@ -4,6 +4,8 @@ import "./globals.css";
 import ClientProviders from "@/components/ClientProviders";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { ConditionalLayout } from "@/components/ConditionalLayout";
+import ScrollToTop from "@/components/ScrollToTop";
 
 const outfit = Outfit({ subsets: ["latin"], weight: ["300", "400", "500", "600", "700", "800", "900"] });
 
@@ -18,15 +20,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${outfit.className} antialiased min-h-screen flex flex-col`}>
+    <html lang="en" className="scroll-smooth" data-scroll-behavior="smooth" suppressHydrationWarning>
+      <body className={`${outfit.className} antialiased min-h-screen flex flex-col scroll-smooth`}>
         <div className="bg-glow" />
         <ClientProviders>
-          <Navbar />
-          <main className="flex-1 pt-16 sm:pt-20 lg:pt-24 pb-16 sm:pb-20 w-full overflow-hidden">
+          <ConditionalLayout>
             {children}
-          </main>
-          <Footer />
+          </ConditionalLayout>
+          <ScrollToTop />
         </ClientProviders>
       </body>
     </html>

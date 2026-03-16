@@ -8,7 +8,7 @@ import {
   ShieldCheck, Crown, Zap, Star, Settings, Calendar, 
   MapPin, Globe, Award, BarChart3, Activity, Clock, Building2, 
   Target, Sparkles, ChevronRight, Edit3, Camera,
-  CreditCard, X
+  CreditCard, X, RefreshCw
 } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
 import { useSubscription } from "@/context/SubscriptionContext";
@@ -130,7 +130,7 @@ function ProfilePageContent() {
   const [message, setMessage] = useState("");
   const [analysisCount, setAnalysisCount] = useState(0);
   const [joinDate, setJoinDate] = useState<Date | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'profile' | 'billing'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'profile' | 'billing'>('profile');
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isOnline, setIsOnline] = useState(true);
@@ -138,8 +138,21 @@ function ProfilePageContent() {
   const [locationDetecting, setLocationDetecting] = useState(false);
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<any>(null);
+  const [showAllPayments, setShowAllPayments] = useState(false);
   const searchParams = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Fallback timeout to ensure form is always accessible
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (!hasLoaded) {
+        setHasLoaded(true);
+        setLoading(false);
+      }
+    }, 5000); // 5 second timeout
+
+    return () => clearTimeout(timeout);
+  }, [hasLoaded]);
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -353,17 +366,24 @@ function ProfilePageContent() {
 
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-        // Parallelized fetching for 2x speedup
-        const [userSync, userRes, historyRes, profileRes] = await Promise.all([
-          fetch(`${apiUrl}/api/users/sync`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              email,
-              name: session?.user?.name || "",
-              image_url: session?.user?.image || ""
-            }),
+        
+        // First, sync the user to ensure they exist in the database
+        const userSync = await fetch(`${apiUrl}/api/users/sync`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email,
+            name: session?.user?.name || "",
+            image_url: session?.user?.image || ""
           }),
+        });
+
+        if (!userSync.ok) {
+          console.warn('User sync failed, but continuing with profile fetch');
+        }
+
+        // Now fetch profile data after sync is complete
+        const [userRes, historyRes, profileRes] = await Promise.all([
           fetch(`${apiUrl}/api/users/${email}`),
           fetch(`${apiUrl}/api/history/${email}`),
           fetch(`${apiUrl}/api/users/${email}/profile`)
@@ -393,6 +413,12 @@ function ProfilePageContent() {
           const profileData = await profileRes.json();
           setSubscriptionDetails(profileData.subscription);
           setPayments(profileData.recent_payments || []);
+          console.log('Profile data loaded:', {
+            subscription: profileData.subscription,
+            payments: profileData.recent_payments?.length || 0
+          });
+        } else {
+          console.error('Failed to load profile data:', await profileRes.text());
         }
 
         setLastUpdated(new Date());
@@ -400,6 +426,7 @@ function ProfilePageContent() {
       } catch (error: any) {
         console.error("Optimized fetch failed:", error);
         if (!silent) setMessage("Operating in Lite Mode (Connection Issues)");
+        setHasLoaded(true); // Set hasLoaded to true even on error to show the form
       } finally {
         setLoading(false);
       }
@@ -545,7 +572,7 @@ function ProfilePageContent() {
   };
   // Enhanced loading guard: Only show full-screen loader on initial mount
   // Subsequent session revalidations or silent refreshes won't interrupt the UI
-  if ((status === "loading" || loading) && !hasLoaded) {
+  if ((status === "loading" || loading) && !hasLoaded && status !== "authenticated") {
     return (
       <div className="min-h-screen bg-white dark:bg-[#020617] flex items-center justify-center transition-colors duration-500">
         <motion.div 
@@ -979,8 +1006,7 @@ function ProfilePageContent() {
                   }`}
                   style={{
                     backgroundColor: activeTab === tab.id ? `${theme.primary}20` : 'transparent',
-                    borderColor: activeTab === tab.id ? `${theme.primary}40` : 'transparent',
-                    border: activeTab === tab.id ? '1px solid' : '1px solid transparent'
+                    border: activeTab === tab.id ? `1px solid ${theme.primary}40` : '1px solid transparent'
                   }}
                 >
                   <tab.icon size={16} className="sm:inline hidden" />
@@ -1629,77 +1655,176 @@ function ProfilePageContent() {
                     <div>
                       <div className="flex items-center justify-between mb-6">
                         <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2 italic tracking-tighter">
-                          <Activity size={18} style={{ color: theme.primary }} />
+                          <Activity size={18} className="text-blue-500" />
                           Recent Transactions
                         </h3>
-                        <button 
-                          onClick={downloadTransactions}
-                          className="text-xs font-black text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors uppercase tracking-[0.2em] flex items-center gap-2 group italic"
-                        >
-                          <FileText size={12} className="group-hover:scale-110 transition-transform" />
-                          Download All
-                        </button>
+                        <div className="flex items-center gap-3">
+                          <button 
+                            onClick={async () => {
+                              if (!session?.user?.email) return;
+                              try {
+                                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+                                const profileRes = await fetch(`${apiUrl}/api/users/${session.user.email}/profile`);
+                                if (profileRes.ok) {
+                                  const profileData = await profileRes.json();
+                                  setPayments(profileData.recent_payments || []);
+                                }
+                              } catch (error) {
+                                console.error('Failed to refresh transactions:', error);
+                              }
+                            }}
+                            className="text-xs font-black text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors uppercase tracking-[0.2em] flex items-center gap-2 group italic"
+                          >
+                            <RefreshCw size={12} className="group-hover:rotate-180 transition-transform duration-500" />
+                            Refresh
+                          </button>
+                          <button 
+                            onClick={async () => {
+                              if (!session?.user?.email) return;
+                              try {
+                                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+                                const response = await fetch(`${apiUrl}/payments/download-all-receipts?email=${session.user.email}`);
+                                if (response.ok) {
+                                  const blob = await response.blob();
+                                  const url = window.URL.createObjectURL(blob);
+                                  const a = document.createElement('a');
+                                  a.href = url;
+                                  a.download = `receipts-${Date.now()}.zip`;
+                                  document.body.appendChild(a);
+                                  a.click();
+                                  a.remove();
+                                }
+                              } catch (err) {
+                                console.error('Failed to download receipts', err);
+                              }
+                            }}
+                            className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-900 dark:text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-white/10 transition-all flex items-center gap-2 group italic"
+                          >
+                            <FileText size={12} className="group-hover:scale-110 transition-transform" />
+                            Download All
+                          </button>
+                        </div>
                       </div>
 
                       {payments.length > 0 ? (
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-left">
-                            <thead>
-                              <tr className="border-b border-slate-200 dark:border-white/5">
-                                <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Invoice ID</th>
-                                <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Date</th>
-                                <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Plan</th>
-                                <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Amount</th>
-                                <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Status</th>
-                                <th className="pb-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Action</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 dark:divide-white/5">
-                              {payments.map((payment: any) => (
-                                <tr key={payment.id} className="group hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
-                                  <td className="py-4 font-mono text-xs text-slate-600 dark:text-slate-300 italic">{payment.razorpay_payment_id?.slice(0, 12)}...</td>
-                                  <td className="py-4 text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-tighter">{new Date(payment.payment_date).toLocaleDateString()}</td>
-                                  <td className="py-4">
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-xs font-black text-slate-900 dark:text-white italic">{getProfessionalPlanName(payment.plan_name)}</span>
-                                      <span className="text-[8px] font-black uppercase tracking-tighter text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700/50 rounded-md px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800/50">{payment.billing_cycle}</span>
-                                    </div>
-                                  </td>
-                                  <td className="py-4 text-xs font-black text-slate-900 dark:text-white tracking-tight italic">
-                                    <span className="text-blue-600 dark:text-blue-400 font-black mr-1">{payment.currency === 'INR' ? '₹' : '$'}</span>
-                                    {parseFloat(payment.amount).toLocaleString('en-IN', { minimumFractionDigits: 0 })}
-                                  </td>
-                                  <td className="py-4">
-                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter ${
-                                      payment.status === 'success' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 
-                                      'bg-red-500/10 text-red-400 border border-red-500/20'
-                                    }`}>
-                                      {payment.status}
-                                    </span>
-                                  </td>
-                                  <td className="py-4 text-right">
-                                    <button 
-                                      onClick={() => {
-                                        setSelectedPayment(payment);
-                                        setIsInvoiceModalOpen(true);
-                                      }}
-                                      className="p-2 rounded-lg bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-white/10 transition-all flex items-center gap-2 shadow-sm italic"
-                                      title="View Professional Invoice"
-                                    >
-                                      <FileText size={14} />
-                                      <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Receipt</span>
-                                    </button>
-                                  </td>
+                        <>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left">
+                              <thead>
+                                <tr className="border-b border-slate-200 dark:border-white/5">
+                                  <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Invoice ID</th>
+                                  <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Date</th>
+                                  <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Plan</th>
+                                  <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Amount</th>
+                                  <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Status</th>
+                                  <th className="pb-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Action</th>
                                 </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+                                {(showAllPayments ? payments : payments.slice(0, 3)).map((payment: any) => (
+                                  <tr key={payment.id} className="group hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                                    <td className="py-4 font-mono text-xs text-slate-600 dark:text-slate-300 italic">{payment.razorpay_payment_id?.slice(0, 12)}...</td>
+                                    <td className="py-4 text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-tighter">{new Date(payment.payment_date).toLocaleDateString()}</td>
+                                    <td className="py-4">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs font-black text-slate-900 dark:text-white italic">{getProfessionalPlanName(payment.plan_name)}</span>
+                                        <span className="text-[8px] font-black uppercase tracking-tighter text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700/50 rounded-md px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800/50">{payment.billing_cycle}</span>
+                                      </div>
+                                    </td>
+                                    <td className="py-4 text-xs font-black text-slate-900 dark:text-white tracking-tight italic">
+                                      <span className="text-blue-600 dark:text-blue-400 font-black mr-1">{payment.currency === 'INR' ? '₹' : '$'}</span>
+                                      {parseFloat(payment.amount).toLocaleString('en-IN', { minimumFractionDigits: 0 })}
+                                    </td>
+                                    <td className="py-4">
+                                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter ${
+                                        payment.status === 'success' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 
+                                        'bg-red-500/10 text-red-400 border border-red-500/20'
+                                      }`}>
+                                        {payment.status}
+                                      </span>
+                                    </td>
+                                    <td className="py-4 text-right">
+                                      <button 
+                                        onClick={() => {
+                                          setSelectedPayment(payment);
+                                          setIsInvoiceModalOpen(true);
+                                        }}
+                                        className="p-2 rounded-lg bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-white/10 transition-all flex items-center gap-2 shadow-sm italic"
+                                        title="View Professional Invoice"
+                                      >
+                                        <FileText size={14} />
+                                        <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Receipt</span>
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          {payments.length > 3 && (
+                            <div className="mt-6 text-center">
+                              <button
+                                onClick={() => setShowAllPayments(!showAllPayments)}
+                                className="px-6 py-2 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white transition-all hover:bg-slate-200 dark:hover:bg-white/10 flex items-center gap-2 mx-auto italic"
+                              >
+                                {showAllPayments ? (
+                                  <>Show Fewer Transactions <ChevronRight size={14} className="rotate-[-90deg]" /></>
+                                ) : (
+                                  <>+ {payments.length - 3} More Transactions <ChevronRight size={14} className="rotate-[90deg]" /></>
+                                )}
+                              </button>
+                            </div>
+                          )}
+                        </>
                       ) : (
                         <div className="text-center py-12 bg-slate-100/50 dark:bg-white/5 rounded-2xl border border-dashed border-slate-200 dark:border-white/10">
                           <CreditCard size={40} className="mx-auto mb-4 text-slate-300 dark:text-slate-600 opacity-50" />
-                          <p className="text-sm font-black text-slate-500 dark:text-slate-400 italic">No transactions recorded yet</p>
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-600 mt-2">Upgrade your plan to see your billing history here</p>
+                          <p className="text-sm font-black text-slate-500 dark:text-slate-400 italic mb-2">No transactions found</p>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-600 mb-4">
+                            {plan === 'free' ? 'Upgrade your plan to see billing history' : 'Your payment records will appear here'}
+                          </p>
+                          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                            <button 
+                              onClick={async () => {
+                                if (!session?.user?.email) return;
+                                try {
+                                  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+                                  const profileRes = await fetch(`${apiUrl}/api/users/${session.user.email}/profile`);
+                                  if (profileRes.ok) {
+                                    const profileData = await profileRes.json();
+                                    setPayments(profileData.recent_payments || []);
+                                    addNotification({
+                                      type: 'system',
+                                      title: 'Transactions Refreshed',
+                                      message: `Found ${profileData.recent_payments?.length || 0} transaction records`,
+                                      priority: 'low'
+                                    });
+                                  }
+                                } catch (error) {
+                                  console.error('Failed to refresh transactions:', error);
+                                }
+                              }}
+                              className="px-4 py-2 bg-slate-200 dark:bg-white/10 rounded-lg text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all flex items-center gap-2"
+                            >
+                              <RefreshCw size={12} />
+                              Refresh Transactions
+                            </button>
+                            {plan === 'free' && (
+                              <Link 
+                                href="/acquisition-tiers"
+                                className="px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2"
+                                style={{ 
+                                  backgroundColor: `${theme.primary}20`,
+                                  color: theme.primary,
+                                  border: `1px solid ${theme.primary}40`
+                                }}
+                              >
+                                <Crown size={12} />
+                                Upgrade Plan
+                              </Link>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>

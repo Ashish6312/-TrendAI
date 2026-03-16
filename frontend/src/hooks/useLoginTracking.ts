@@ -63,65 +63,175 @@ function getDeviceType() {
   return "Desktop";
 }
 
-// Helper function to get location from IP
+// Helper function to get location from IP and GPS
 async function getLocationInfo(): Promise<any> {
+  // First try to get GPS location if available and user grants permission
+  if (navigator.geolocation) {
+    try {
+      console.log('Attempting GPS location detection...');
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+          resolve, 
+          reject, 
+          {
+            enableHighAccuracy: true,
+            timeout: 8000, // Reduced timeout
+            maximumAge: 600000 // 10 minutes cache
+          }
+        );
+      });
+
+      // Get location details from coordinates
+      const { latitude, longitude } = position.coords;
+      console.log(`GPS coordinates obtained: ${latitude}, ${longitude} (accuracy: ${position.coords.accuracy}m)`);
+      
+      try {
+        // Try multiple reverse geocoding services
+        const geoServices = [
+          `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`,
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10&addressdetails=1`
+        ];
+
+        for (const serviceUrl of geoServices) {
+          try {
+            const response = await fetch(serviceUrl);
+            if (response.ok) {
+              const data = await response.json();
+              
+              let locationData;
+              if (serviceUrl.includes('bigdatacloud')) {
+                locationData = {
+                  country: data.countryName || 'Unknown',
+                  city: data.city || data.locality || 'Unknown',
+                  region: data.principalSubdivision || 'Unknown',
+                  timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                  ip: 'GPS Location',
+                  accuracy: position.coords.accuracy,
+                  coordinates: { lat: latitude, lng: longitude },
+                  source: 'GPS + BigDataCloud'
+                };
+              } else {
+                // OpenStreetMap Nominatim
+                locationData = {
+                  country: data.address?.country || 'Unknown',
+                  city: data.address?.city || data.address?.town || data.address?.village || 'Unknown',
+                  region: data.address?.state || data.address?.region || 'Unknown',
+                  timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                  ip: 'GPS Location',
+                  accuracy: position.coords.accuracy,
+                  coordinates: { lat: latitude, lng: longitude },
+                  source: 'GPS + OpenStreetMap'
+                };
+              }
+              
+              console.log('GPS location resolved:', locationData);
+              return locationData;
+            }
+          } catch (serviceError) {
+            console.log(`Geocoding service failed: ${serviceUrl}`, serviceError);
+            continue;
+          }
+        }
+      } catch (error) {
+        console.log('Failed to get location from coordinates:', error);
+      }
+    } catch (error) {
+      console.log('GPS location not available or denied:', error instanceof Error ? error.message : 'Unknown error');
+    }
+  } else {
+    console.log('Geolocation API not supported by browser');
+  }
+
+  // Fallback to IP-based location
+  console.log('Falling back to IP-based location detection...');
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
   const services = [
     `${apiUrl}/api/utils/location`,
-    'https://ipwho.is',
     'https://ipapi.co/json/',
+    'https://ipwho.is',
     'https://ipinfo.io/json'
   ];
 
   for (const service of services) {
     try {
-      // Use AbortController for true timeout support in fetch
+      console.log(`Trying location service: ${service}`);
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+      const response = await fetch(service, {
+        signal: controller.signal,
+        headers: {
+          'Accept': 'application/json',
+        }
+      });
       
-      const response = await fetch(service, { signal: controller.signal });
       clearTimeout(timeoutId);
       
       if (response.ok) {
         const data = await response.json();
         
-        // Normalize backend response if it's our API
-        if (service.includes('/api/utils/location')) {
-           return data;
-        }
-
-        // Normalize different service responses
-        if (service.includes('ipwho.is')) {
-          return {
-            country: data.country,
-            city: data.city,
-            region: data.region,
-            timezone: data.timezone?.id,
-            ip: data.ip
-          };
-        } else if (service.includes('ipapi.co')) {
-          return {
+        // Normalize response based on service
+        let locationData;
+        if (service.includes('ipapi.co')) {
+          locationData = {
             country: data.country_name,
             city: data.city,
             region: data.region,
             timezone: data.timezone,
-            ip: data.ip
+            ip: data.ip,
+            source: 'IP-API'
+          };
+        } else if (service.includes('ipwho.is')) {
+          locationData = {
+            country: data.country,
+            city: data.city,
+            region: data.region,
+            timezone: data.timezone?.name,
+            ip: data.ip,
+            source: 'IP-WHO'
           };
         } else if (service.includes('ipinfo.io')) {
-          return {
+          locationData = {
             country: data.country,
             city: data.city,
             region: data.region,
             timezone: data.timezone,
-            ip: data.ip
+            ip: data.ip,
+            source: 'IP-INFO'
           };
+        } else {
+          // Backend service
+          locationData = {
+            country: data.country,
+            city: data.city,
+            region: data.region,
+            timezone: data.timezone,
+            ip: data.ip,
+            source: 'Backend'
+          };
+        }
+        
+        if (locationData.country && locationData.country !== 'Unknown') {
+          console.log('IP location resolved:', locationData);
+          return locationData;
         }
       }
     } catch (error) {
-       // Silent fail to next service
+      console.log(`Failed to get location from ${service}:`, error instanceof Error ? error.message : 'Unknown error');
+      continue;
     }
   }
-  return null;
+  
+  // Ultimate fallback
+  console.log('All location services failed, using fallback');
+  return {
+    country: 'Unknown',
+    city: 'Unknown',
+    region: 'Unknown',
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    ip: 'Unknown',
+    source: 'Fallback'
+  };
 }
 
 export function useLoginTracking() {

@@ -100,16 +100,16 @@ function RoadmapContent() {
           alt="Roadmap Architecture" 
           className="w-full h-full object-cover opacity-10 dark:opacity-20 blur-[2px] animate-pulse-slow"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-slate-50/80 via-white/40 to-white dark:from-[#020617]/40 dark:via-[#020617] dark:to-[#020617]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-100/90 via-white/40 to-white dark:from-[#020617]/40 dark:via-[#020617] dark:to-[#020617] transition-colors duration-500" />
       </div>
 
-      <div className="responsive-container py-16 md:py-20 lg:py-24 relative z-10">
+      <div className="responsive-container navbar-aware pb-16 md:pb-20 lg:pb-24 navbar-content">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 md:gap-10 mb-16 md:mb-20 lg:mb-24">
           <motion.button 
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             onClick={() => router.back()} 
-            className="group flex items-center gap-3 md:gap-4 px-4 md:px-6 py-2.5 md:py-3.5 rounded-xl md:rounded-2xl bg-white/50 dark:bg-white/5 border border-slate-200 dark:border-white/5 hover:bg-slate-100 dark:hover:bg-white/10 hover:border-emerald-500/20 text-slate-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white transition-all w-fit shadow-2xl backdrop-blur-xl"
+            className="group flex items-center gap-3 md:gap-4 px-4 md:px-6 py-2.5 md:py-3.5 rounded-xl md:rounded-2xl bg-white/80 dark:bg-white/5 border border-slate-200 dark:border-white/5 hover:bg-slate-100 dark:hover:bg-white/10 hover:border-emerald-500/20 text-slate-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white transition-all w-fit shadow-2xl backdrop-blur-xl"
           >
             <ArrowLeft size={18} className="md:w-5 md:h-5 group-hover:-translate-x-1.5 transition-transform" />
             <span className="responsive-text-xs font-black uppercase tracking-[0.3em]">{t("road_return")}</span>
@@ -170,8 +170,8 @@ function RoadmapContent() {
                <div className="space-y-6">
                  {steps.map((_, i) => (
                    <div key={i} className="flex items-center gap-5 group cursor-default">
-                     <div className={`w-2.5 h-2.5 rounded-full transition-all duration-700 ${i === 0 ? 'bg-emerald-500 shadow-[0_0_20px_rgba(16,185,129,1)] scale-125' : 'bg-slate-300 dark:bg-gray-800'}`} />
-                     <span className={`text-[11px] font-black tracking-widest uppercase transition-colors duration-500 ${i === 0 ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-gray-700 group-hover:text-slate-600 dark:group-hover:text-gray-500'}`}>{t("road_phase")} 0{i+1}</span>
+                     <div className={`w-2.5 h-2.5 rounded-full transition-all duration-700 ${i === 0 ? 'bg-emerald-500 shadow-[0_0_20px_rgba(16,185,129,1)] scale-125' : 'bg-slate-200 dark:bg-gray-800'}`} />
+                     <span className={`text-[11px] font-black tracking-widest uppercase transition-colors duration-500 ${i === 0 ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-gray-600 group-hover:text-slate-600 dark:group-hover:text-gray-500'}`}>{t("road_phase")} 0{i+1}</span>
                    </div>
                  ))}
                </div>
@@ -243,7 +243,7 @@ function RoadmapContent() {
                     </div>
                   </div>
                   
-                  <div className="glass-card p-10 md:p-16 bg-white/50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/5 hover:border-emerald-500/30 transition-all duration-700 relative overflow-hidden group shadow-2xl hover:shadow-[0_40px_100px_-20px_rgba(16,185,129,0.1)]">
+                  <div className="glass-card p-10 md:p-16 bg-white/80 dark:bg-white/[0.03] border border-slate-200 dark:border-white/5 hover:border-emerald-500/30 transition-all duration-700 relative overflow-hidden group shadow-2xl hover:shadow-[0_40px_100px_-20px_rgba(16,185,129,0.1)]">
                     <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/5 rounded-full blur-[120px] opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
                     
                     <div className="flex items-center gap-6 mb-8 relative z-10">
@@ -254,7 +254,7 @@ function RoadmapContent() {
                     </div>
                     
                     <div className="space-y-8 relative z-10">
-                       <p className="text-slate-600 dark:text-gray-400 leading-relaxed text-lg md:text-xl font-medium tracking-tight opacity-80 group-hover:opacity-100 transition-opacity">
+                       <p className="text-slate-600 dark:text-slate-400 leading-relaxed text-lg md:text-xl font-medium tracking-tight opacity-80 group-hover:opacity-100 transition-opacity">
                          {step.step_description}
                        </p>
                        
@@ -304,7 +304,7 @@ function RoadmapContent() {
               initial={{ opacity: 0, scale: 0.95 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
-              className="glass-card p-16 md:p-24 bg-white/50 dark:bg-gradient-to-br dark:from-emerald-600/15 dark:via-transparent dark:to-amber-600/15 border border-slate-200 dark:border-emerald-500/30 flex flex-col items-center text-center relative overflow-hidden shadow-3xl group mb-24"
+              className="glass-card p-16 md:p-24 bg-white/80 dark:bg-gradient-to-br dark:from-emerald-600/15 dark:via-transparent dark:to-amber-600/15 border border-slate-200 dark:border-emerald-500/30 flex flex-col items-center text-center relative overflow-hidden shadow-3xl group mb-24"
             >
               <div className="absolute inset-0 bg-grid-white/[0.01] pointer-events-none" />
               <div className="absolute -top-24 -left-24 w-96 h-96 bg-emerald-600/10 rounded-full blur-[100px] group-hover:opacity-100 transition-opacity" />
@@ -313,7 +313,7 @@ function RoadmapContent() {
                 <CheckCircle2 className="w-12 h-12 text-emerald-600 dark:text-emerald-400" />
               </div>
               <h3 className="text-4xl md:text-6xl font-black text-slate-900 dark:text-white mb-8 tracking-tighter uppercase italic relative z-10">{t("road_readiness")}</h3>
-              <p className="text-slate-500 dark:text-gray-400 max-w-2xl mx-auto text-xl md:text-2xl font-bold leading-relaxed tracking-tight relative z-10 mb-16 px-4">
+              <p className="text-slate-500 dark:text-slate-400 max-w-2xl mx-auto text-xl md:text-2xl font-bold leading-relaxed tracking-tight relative z-10 mb-16 px-4">
                 Analysis complete. Regional analysis confirms <span className="text-emerald-600 dark:text-emerald-500">high-probability success cycle</span> for this venture.
               </p>
               <button 

@@ -92,7 +92,7 @@ export default function InvoiceModal({ isOpen, onClose, payment, userData }: Inv
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
-          className="absolute inset-0 bg-[#020617]/90 backdrop-blur-xl"
+          className="absolute inset-0 bg-slate-950/80 dark:bg-[#020617]/90 backdrop-blur-xl"
         />
 
         {/* Modal - Institutional Control Panel */}
@@ -100,19 +100,19 @@ export default function InvoiceModal({ isOpen, onClose, payment, userData }: Inv
           initial={{ opacity: 0, scale: 0.98, y: 30 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.98, y: 30 }}
-          className="relative w-full max-w-4xl bg-slate-900 border border-white/10 rounded-3xl shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col max-h-[92vh]"
+          className="relative w-full max-w-4xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-3xl shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col max-h-[92vh]"
         >
           {/* Action Bar - Tactical Utility */}
-          <div className="p-6 border-b border-white/5 bg-slate-950/50 flex items-center justify-between backdrop-blur-md">
+          <div className="p-6 border-b border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-slate-950/50 flex items-center justify-between backdrop-blur-md">
             <div className="flex items-center gap-4">
               <div className="flex flex-col">
                 <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 mb-0.5">Invoice Details</span>
-                <h2 className="text-white font-bold text-sm">Your Payment Receipt</h2>
+                <h2 className="text-slate-900 dark:text-white font-bold text-sm">Your Payment Receipt</h2>
               </div>
               <div className="h-8 w-px bg-white/5 mx-2" />
               <button
                 onClick={handlePrint}
-                className="flex items-center gap-2.5 px-5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white text-[11px] font-black uppercase tracking-widest transition-all border border-white/5 shadow-2xl group"
+                className="flex items-center gap-2.5 px-5 py-2.5 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-900 dark:text-white text-[11px] font-black uppercase tracking-widest transition-all border border-slate-200 dark:border-white/5 shadow-2xl group"
               >
                 <Printer size={14} className="group-hover:scale-110 transition-transform" />
                 Print / Save PDF
@@ -127,7 +127,7 @@ export default function InvoiceModal({ isOpen, onClose, payment, userData }: Inv
             </div>
             <button
               onClick={onClose}
-              className="w-10 h-10 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-all flex items-center justify-center border border-white/5"
+              className="w-10 h-10 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all flex items-center justify-center border border-slate-200 dark:border-white/5"
             >
               <X size={20} />
             </button>

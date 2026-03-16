@@ -37,6 +37,7 @@ interface LoginHistoryProps {
 export default function LoginHistory({ userEmail }: LoginHistoryProps) {
   const [sessions, setSessions] = useState<LoginSession[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAllSessions, setShowAllSessions] = useState(false);
 
   useEffect(() => {
     const fetchSessions = async () => {
@@ -49,9 +50,17 @@ export default function LoginHistory({ userEmail }: LoginHistoryProps) {
         if (response.ok) {
           const data = await response.json();
           setSessions(data);
+        } else if (response.status === 404) {
+          // User not found - this is expected for new users
+          console.log('User sessions not found - user may not be synced yet');
+          setSessions([]);
+        } else {
+          console.error('Failed to fetch login sessions:', response.status);
+          setSessions([]);
         }
       } catch (error) {
         console.error('Failed to fetch login sessions:', error);
+        setSessions([]);
       } finally {
         setLoading(false);
       }
@@ -127,7 +136,7 @@ export default function LoginHistory({ userEmail }: LoginHistoryProps) {
 
   return (
     <div className="space-y-4">
-      {sessions.map((session, index) => (
+      {(showAllSessions ? sessions : sessions.slice(0, 3)).map((session, index) => (
         <motion.div
           key={session.id}
           initial={{ opacity: 0, y: 20 }}
@@ -200,6 +209,21 @@ export default function LoginHistory({ userEmail }: LoginHistoryProps) {
           </div>
         </motion.div>
       ))}
+
+      {sessions.length > 3 && (
+        <div className="pt-2 text-center">
+          <button
+            onClick={() => setShowAllSessions(!showAllSessions)}
+            className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-gray-500 hover:text-slate-900 dark:hover:text-white transition-colors italic flex items-center gap-2 mx-auto"
+          >
+            {showAllSessions ? (
+              <>Show Fewer Sessions <Clock size={12} className="rotate-180 transition-transform" /></>
+            ) : (
+              <>+ {sessions.length - 3} More Sessions Hidden <Clock size={12} /></>
+            )}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

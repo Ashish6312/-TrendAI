@@ -2,61 +2,8 @@ import NextAuth from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
 import CredentialsProvider from "next-auth/providers/credentials"
 
-// Helper function to get client IP and device info
-async function getClientInfo(req: any) {
-  const forwarded = req.headers["x-forwarded-for"];
-  const ip = forwarded ? forwarded.split(",")[0] : req.connection?.remoteAddress || "unknown";
-  const userAgent = req.headers["user-agent"] || "unknown";
-  
-  // Parse user agent for device info
-  const deviceInfo = {
-    browser: "unknown",
-    os: "unknown",
-    device: "unknown"
-  };
-  
-  if (userAgent !== "unknown") {
-    // Simple user agent parsing
-    if (userAgent.includes("Chrome")) deviceInfo.browser = "Chrome";
-    else if (userAgent.includes("Firefox")) deviceInfo.browser = "Firefox";
-    else if (userAgent.includes("Safari")) deviceInfo.browser = "Safari";
-    else if (userAgent.includes("Edge")) deviceInfo.browser = "Edge";
-    
-    if (userAgent.includes("Windows")) deviceInfo.os = "Windows";
-    else if (userAgent.includes("Mac")) deviceInfo.os = "macOS";
-    else if (userAgent.includes("Linux")) deviceInfo.os = "Linux";
-    else if (userAgent.includes("Android")) deviceInfo.os = "Android";
-    else if (userAgent.includes("iOS")) deviceInfo.os = "iOS";
-    
-    if (userAgent.includes("Mobile")) deviceInfo.device = "Mobile";
-    else if (userAgent.includes("Tablet")) deviceInfo.device = "Tablet";
-    else deviceInfo.device = "Desktop";
-  }
-  
-  // Get location info from IP (simple approach)
-  let locationInfo = { country: "unknown", city: "unknown", region: "unknown", timezone: "unknown" };
-  try {
-    if (ip !== "unknown" && !ip.includes("127.0.0.1") && !ip.includes("::1")) {
-      const response = await fetch(`https://ipapi.co/${ip}/json/`);
-      if (response.ok) {
-        const data = await response.json();
-        locationInfo = {
-          country: data.country_name || "unknown",
-          city: data.city || "unknown",
-          region: data.region || "unknown",
-          timezone: data.timezone || "unknown"
-        };
-      }
-    }
-  } catch (error) {
-    console.log("Failed to get location info:", error);
-  }
-  
-  return { ip, userAgent, deviceInfo, locationInfo };
-}
-
 const handler = NextAuth({
-  debug: true, // Enable debug mode
+  debug: process.env.NODE_ENV === 'development', // Only enable debug in development
   pages: {
     signIn: '/auth',
     error: '/auth', // Redirect errors back to auth page
@@ -80,7 +27,6 @@ const handler = NextAuth({
         }
 
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-        console.log('Attempting authentication with:', credentials.email);
         
         try {
           if (credentials.isSignUp === "true") {
@@ -89,7 +35,6 @@ const handler = NextAuth({
               throw new Error("Name is required for sign up");
             }
 
-            console.log('Attempting signup for:', credentials.email);
             const signUpResponse = await fetch(`${apiUrl}/api/auth/signup`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -97,19 +42,17 @@ const handler = NextAuth({
                 email: credentials.email,
                 password: credentials.password,
                 name: credentials.name
-              })
+              }),
+              // Add timeout to prevent hanging
+              signal: AbortSignal.timeout(10000) // 10 second timeout
             });
-
-            console.log('Signup response status:', signUpResponse.status);
             
             if (!signUpResponse.ok) {
               const error = await signUpResponse.json();
-              console.error('Signup error:', error);
               throw new Error(error.detail || "Sign up failed");
             }
 
             const user = await signUpResponse.json();
-            console.log('Signup successful:', user.email);
             return {
               id: user.id.toString(),
               email: user.email,
@@ -118,26 +61,23 @@ const handler = NextAuth({
             };
           } else {
             // Sign in flow
-            console.log('Attempting signin for:', credentials.email);
             const signInResponse = await fetch(`${apiUrl}/api/auth/signin`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 email: credentials.email,
                 password: credentials.password
-              })
+              }),
+              // Add timeout to prevent hanging
+              signal: AbortSignal.timeout(10000) // 10 second timeout
             });
-
-            console.log('Signin response status:', signInResponse.status);
 
             if (!signInResponse.ok) {
               const error = await signInResponse.json();
-              console.error('Signin error:', error);
               throw new Error(error.detail || "Invalid credentials");
             }
 
             const user = await signInResponse.json();
-            console.log('Signin successful:', user.email);
             return {
               id: user.id.toString(),
               email: user.email,
@@ -154,111 +94,60 @@ const handler = NextAuth({
   ],
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   secret: process.env.NEXTAUTH_SECRET,
   callbacks: {
-    async signIn({ user, account, profile, email, credentials }) {
+    async signIn({ user, account, profile }) {
+      // Simplified sign-in callback - remove heavy operations
       if (user.email) {
-        try {
-          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-          
-          // Sync user to database
-          const syncResponse = await fetch(`${apiUrl}/api/users/sync`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              email: user.email, 
-              name: user.name || 'User',
-              image_url: user.image 
-            })
-          });
-          
-          if (syncResponse.ok) {
-            console.log('User synced successfully');
-          } else {
-            console.error('Failed to sync user');
-          }
-          
-        } catch (error) {
-          console.error('Failed to sync user to database', error);
-        }
+        // Only do basic user sync, don't wait for it to complete
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        
+        // Fire and forget - don't await this to speed up login
+        fetch(`${apiUrl}/api/users/sync`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            email: user.email, 
+            name: user.name || 'User',
+            image_url: user.image 
+          }),
+          signal: AbortSignal.timeout(5000) // 5 second timeout
+        }).catch(error => {
+          console.error('Failed to sync user (non-blocking):', error);
+        });
       }
       return true;
     },
     
     async jwt({ token, user, account }) {
-      // Save session info when user first signs in
-      if (account && user?.email) {
-        try {
-          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-          
-          // Create login session record
-          const sessionData = {
-            user_email: user.email,
-            session_token: token.jti || `session_${Date.now()}`,
-            provider: account.provider || "google",
-            ip_address: "server-side", // Will be updated from client
-            user_agent: "server-side", // Will be updated from client
-            device_info: {
-              provider: account.provider,
-              type: account.type,
-              access_token_expires: account.expires_at
-            },
-            location_info: { source: "server" },
-            login_method: "oauth"
-          };
-          
-          await fetch(`${apiUrl}/api/users/login-session`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(sessionData)
-          });
-          
-          // Store session info in token
-          token.sessionId = sessionData.session_token;
-          token.loginTime = Date.now();
-          
-        } catch (error) {
-          console.error('Failed to create login session', error);
-        }
+      // Simplified JWT callback - remove heavy session tracking
+      if (user) {
+        token.id = user.id;
+        token.email = user.email;
+        token.name = user.name;
+        token.image = user.image;
       }
-      
       return token;
     },
     
     async session({ session, token }) {
-      // Add session info to the session object
-      if (token.sessionId) {
-        (session as any).sessionId = token.sessionId;
-        (session as any).loginTime = token.loginTime;
+      // Simplified session callback
+      if (token) {
+        const user = (session.user ?? {}) as any;
+        return {
+          ...session,
+          user: {
+            ...user,
+            id: token.id as string,
+            email: token.email as string,
+            name: token.name as string,
+            image: token.image as string,
+          },
+        };
       }
       return session;
-    }
-  },
-  
-  events: {
-    async signOut({ token, session }) {
-      // End session when user signs out
-      if (token?.sessionId) {
-        try {
-          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-          
-          // Find and end the session
-          const response = await fetch(`${apiUrl}/api/users/${session?.user?.email}/sessions`);
-          if (response.ok) {
-            const sessions = await response.json();
-            const activeSession = sessions.find((s: any) => s.session_token === token.sessionId && s.is_active);
-            
-            if (activeSession) {
-              await fetch(`${apiUrl}/api/users/session/${activeSession.id}/end`, {
-                method: 'PUT'
-              });
-            }
-          }
-        } catch (error) {
-          console.error('Failed to end session', error);
-        }
-      }
     }
   }
 })

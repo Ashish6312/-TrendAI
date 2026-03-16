@@ -126,8 +126,9 @@ function PaymentSuccessContent() {
       
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        console.log('Starting payment and subscription save process...');
         
-        // Create subscription record
+        // Create subscription record first
         const subscriptionData = {
           user_email: session.user.email,
           plan_name: currentPlan,
@@ -146,6 +147,7 @@ function PaymentSuccessContent() {
           razorpay_customer_id: searchParams.get('customer_id')
         };
 
+        console.log('Creating subscription:', subscriptionData);
         const subscriptionResponse = await fetch(`${apiUrl}/api/subscriptions`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -156,13 +158,16 @@ function PaymentSuccessContent() {
         if (subscriptionResponse.ok) {
           const subscription = await subscriptionResponse.json();
           subscriptionId = subscription.id;
-          console.log('Subscription created:', subscription);
+          console.log('Subscription created successfully:', subscription);
+        } else {
+          const errorText = await subscriptionResponse.text();
+          console.error('Subscription creation failed:', errorText);
         }
 
-        // Create payment record
+        // Create payment record - allow null subscription_id for free plans
         const paymentData = {
           user_email: session.user.email,
-          subscription_id: subscriptionId,
+          subscription_id: subscriptionId, // This can be null for free plans
           razorpay_payment_id: paymentId,
           razorpay_order_id: searchParams.get('order_id') || '',
           amount: parseFloat(amount),
@@ -173,6 +178,7 @@ function PaymentSuccessContent() {
           billing_cycle: billingCycle
         };
 
+        console.log('Creating payment record:', paymentData);
         const paymentResponse = await fetch(`${apiUrl}/api/payments`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -181,11 +187,46 @@ function PaymentSuccessContent() {
 
         if (paymentResponse.ok) {
           const payment = await paymentResponse.json();
-          console.log('Payment record created:', payment);
+          console.log('Payment record created successfully:', payment);
+          
+          // Add success notification
+          addNotification({
+            type: 'payment',
+            title: 'Payment Processed',
+            message: `Your ${planParam} subscription payment has been recorded successfully`,
+            priority: 'high',
+            actionUrl: '/profile?tab=billing',
+            metadata: {
+              paymentId,
+              planName: planParam,
+              amount: parseFloat(amount)
+            }
+          });
+        } else {
+          const errorText = await paymentResponse.text();
+          console.error('Payment record creation failed:', errorText);
+          
+          // Still show success but note the issue
+          addNotification({
+            type: 'alert',
+            title: 'Payment Successful',
+            message: `Your ${planParam} subscription is active, but there was an issue saving the transaction record`,
+            priority: 'medium',
+            actionUrl: '/profile?tab=billing'
+          });
         }
 
       } catch (error) {
         console.error('Error saving payment/subscription:', error);
+        
+        // Show error notification
+        addNotification({
+          type: 'alert',
+          title: 'Payment Processing Issue',
+          message: 'Your payment was successful, but there was an issue saving the records. Please contact support if needed.',
+          priority: 'medium',
+          actionUrl: '/profile?tab=billing'
+        });
       }
     };
 
