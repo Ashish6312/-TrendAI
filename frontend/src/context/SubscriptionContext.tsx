@@ -165,7 +165,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
             
             let planToSet: SubscriptionPlan = 'free';
             
-            if (rawPlanName === 'professional' || rawDisplayName === 'growth architect' || rawDisplayName.includes('professional')) {
+            if (rawPlanName === 'professional' || rawPlanName === 'pro' || rawDisplayName === 'growth architect' || rawDisplayName.includes('professional')) {
               planToSet = 'professional';
             } else if (rawPlanName === 'enterprise' || rawDisplayName === 'territorial dominance' || rawDisplayName.includes('enterprise')) {
               planToSet = 'enterprise';
