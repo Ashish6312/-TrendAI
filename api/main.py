@@ -1660,6 +1660,7 @@ async def payment_webhook(request: Request):
 def get_user_profile(email: str, db: Session = Depends(get_db)):
     """Get user profile information - REAL DATA ONLY"""
     from sqlalchemy import func
+    from datetime import datetime, timedelta
 
     email_normalized = email.lower().strip()
     logger.info(f"🔍 Profile request for: {email_normalized}")
@@ -1688,6 +1689,84 @@ def get_user_profile(email: str, db: Session = Depends(get_db)):
 
     logger.info(f"🔍 Found {len(recent_payments)} real payments for {email_normalized}")
 
+    # FIX: If user has payments but no subscription, create subscription from latest payment
+    if recent_payments and not subscription:
+        latest_payment = recent_payments[0]
+        logger.info(f"🔧 Creating subscription from payment: {latest_payment.plan_name}")
+        
+        try:
+            # Map payment plan names to subscription plan names
+            plan_mapping = {
+                'professional': 'professional',
+                'pro': 'professional',
+                'enterprise': 'enterprise',
+                'territorial dominance': 'enterprise',
+                'growth architect': 'professional',
+                'free': 'free'
+            }
+            
+            mapped_plan = plan_mapping.get(latest_payment.plan_name.lower(), 'free')
+            
+            # Create subscription record
+            new_subscription = models.UserSubscription(
+                user_id=user.id,
+                user_email=email_normalized,
+                plan_name=mapped_plan,
+                plan_display_name=latest_payment.plan_name,
+                billing_cycle=latest_payment.billing_cycle or 'yearly',
+                price=latest_payment.amount,
+                currency=latest_payment.currency or 'INR',
+                max_analyses=-1 if mapped_plan in ['professional', 'enterprise'] else 5,
+                features={},
+                subscription_end=datetime.now() + timedelta(days=365),
+                status='active'
+            )
+            
+            db.add(new_subscription)
+            db.commit()
+            db.refresh(new_subscription)
+            
+            subscription = new_subscription
+            logger.info(f"✅ Created subscription: {subscription.plan_name} for {email_normalized}")
+            
+        except Exception as e:
+            logger.error(f"Failed to create subscription from payment: {e}")
+            db.rollback()
+
+    # FIX: If subscription exists but has wrong plan name, update it based on payments
+    elif subscription and recent_payments:
+        latest_payment = recent_payments[0]
+        
+        # Check if subscription plan matches payment plan
+        plan_mapping = {
+            'professional': 'professional',
+            'pro': 'professional', 
+            'enterprise': 'enterprise',
+            'territorial dominance': 'enterprise',
+            'growth architect': 'professional',
+            'free': 'free'
+        }
+        
+        expected_plan = plan_mapping.get(latest_payment.plan_name.lower(), 'free')
+        
+        if subscription.plan_name != expected_plan:
+            logger.info(f"🔧 Updating subscription plan from {subscription.plan_name} to {expected_plan}")
+            
+            try:
+                subscription.plan_name = expected_plan
+                subscription.plan_display_name = latest_payment.plan_name
+                subscription.price = latest_payment.amount
+                subscription.max_analyses = -1 if expected_plan in ['professional', 'enterprise'] else 5
+                
+                db.commit()
+                db.refresh(subscription)
+                
+                logger.info(f"✅ Updated subscription plan to {expected_plan}")
+                
+            except Exception as e:
+                logger.error(f"Failed to update subscription: {e}")
+                db.rollback()
+
     return {
         "user": user,
         "analysis_count": search_count,
@@ -1708,6 +1787,102 @@ def get_user_profile(email: str, db: Session = Depends(get_db)):
         ]
     }
 
+
+@app.post("/api/fix-subscription/{email}")
+def fix_user_subscription(email: str, db: Session = Depends(get_db)):
+    """Fix user subscription based on their payment history"""
+    from sqlalchemy import func
+    from datetime import datetime, timedelta
+    
+    email_normalized = email.lower().strip()
+    logger.info(f"🔧 Fixing subscription for: {email_normalized}")
+    
+    # Get user
+    user = db.query(models.User).filter(func.lower(models.User.email) == email_normalized).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get latest payment
+    latest_payment = db.query(models.PaymentHistory).filter(
+        func.lower(models.PaymentHistory.user_email) == email_normalized
+    ).order_by(models.PaymentHistory.created_at.desc()).first()
+    
+    if not latest_payment:
+        raise HTTPException(status_code=404, detail="No payment history found")
+    
+    # Get existing subscription
+    subscription = db.query(models.UserSubscription).filter(
+        func.lower(models.UserSubscription.user_email) == email_normalized,
+        models.UserSubscription.status == "active"
+    ).first()
+    
+    # Map payment plan names to subscription plan names
+    plan_mapping = {
+        'professional': 'professional',
+        'pro': 'professional',
+        'enterprise': 'enterprise',
+        'territorial dominance': 'enterprise',
+        'growth architect': 'professional',
+        'free': 'free'
+    }
+    
+    mapped_plan = plan_mapping.get(latest_payment.plan_name.lower(), 'free')
+    
+    try:
+        if subscription:
+            # Update existing subscription
+            subscription.plan_name = mapped_plan
+            subscription.plan_display_name = latest_payment.plan_name
+            subscription.price = latest_payment.amount
+            subscription.currency = latest_payment.currency or 'INR'
+            subscription.billing_cycle = latest_payment.billing_cycle or 'yearly'
+            subscription.max_analyses = -1 if mapped_plan in ['professional', 'enterprise'] else 5
+            subscription.subscription_end = datetime.now() + timedelta(days=365)
+            
+            db.commit()
+            db.refresh(subscription)
+            
+            logger.info(f"✅ Updated subscription: {subscription.plan_name}")
+            
+        else:
+            # Create new subscription
+            new_subscription = models.UserSubscription(
+                user_id=user.id,
+                user_email=email_normalized,
+                plan_name=mapped_plan,
+                plan_display_name=latest_payment.plan_name,
+                billing_cycle=latest_payment.billing_cycle or 'yearly',
+                price=latest_payment.amount,
+                currency=latest_payment.currency or 'INR',
+                max_analyses=-1 if mapped_plan in ['professional', 'enterprise'] else 5,
+                features={},
+                subscription_end=datetime.now() + timedelta(days=365),
+                status='active'
+            )
+            
+            db.add(new_subscription)
+            db.commit()
+            db.refresh(new_subscription)
+            
+            subscription = new_subscription
+            logger.info(f"✅ Created subscription: {subscription.plan_name}")
+        
+        return {
+            "status": "success",
+            "message": f"Subscription fixed for {email_normalized}",
+            "subscription": {
+                "plan_name": subscription.plan_name,
+                "plan_display_name": subscription.plan_display_name,
+                "price": subscription.price,
+                "currency": subscription.currency,
+                "max_analyses": subscription.max_analyses
+            }
+        }
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to fix subscription: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fix subscription: {str(e)}")
 
 @app.get("/api/users/{email}/sessions")
 def get_user_sessions(email: str, limit: int = 10, db: Session = Depends(get_db)):

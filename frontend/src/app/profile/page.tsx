@@ -1900,6 +1900,60 @@ function ProfilePageContent() {
                         </h3>
                         <div className="flex flex-wrap items-center gap-3">
                           <button
+                            onClick={async () => {
+                              if (!session?.user?.email) return;
+                              try {
+                                const apiUrl = getApiUrl();
+                                const response = await fetch(`${apiUrl}/api/fix-subscription/${session.user.email}`, {
+                                  method: 'POST'
+                                });
+                                
+                                if (response.ok) {
+                                  const data = await response.json();
+                                  console.log('🔧 Subscription fixed:', data);
+                                  
+                                  // Update plan in context
+                                  if (data.subscription && data.subscription.plan_name) {
+                                    setPlan(data.subscription.plan_name);
+                                  }
+                                  
+                                  // Refresh profile data
+                                  const profileRes = await fetch(`${apiUrl}/api/users/${session.user.email}/profile`);
+                                  if (profileRes.ok) {
+                                    const profileData = await profileRes.json();
+                                    setPayments(profileData.recent_payments || []);
+                                    setSubscriptionDetails(profileData.subscription);
+                                  }
+                                  
+                                  addNotification({
+                                    type: 'system',
+                                    title: '🔧 Subscription Fixed!',
+                                    message: `Plan updated to ${data.subscription.plan_display_name}`,
+                                    priority: 'high'
+                                  });
+                                  
+                                  // Trigger water animation
+                                  startWaterAnimation();
+                                } else {
+                                  throw new Error('Failed to fix subscription');
+                                }
+                              } catch (error) {
+                                console.error('Failed to fix subscription:', error);
+                                addNotification({
+                                  type: 'system',
+                                  title: 'Fix Failed',
+                                  message: 'Could not fix subscription. Please contact support.',
+                                  priority: 'high'
+                                });
+                              }
+                            }}
+                            className="px-3 py-1.5 bg-orange-500 text-white rounded-lg text-xs font-bold hover:bg-orange-600 transition-all flex items-center gap-2"
+                          >
+                            <Settings size={12} />
+                            Fix Plan
+                          </button>
+                          
+                          <button
                             onClick={() => {
                               console.log('🧪 Manual water animation test');
                               startWaterAnimation();
