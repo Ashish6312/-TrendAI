@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useRef } from "react";
 import ProtectedRoute from "../../components/ProtectedRoute";
+import { getApiUrl } from "@/config/api";
 import LoginHistory from "../../components/LoginHistory";
 import InvoiceModal from "../../components/InvoiceModal";
 
@@ -112,7 +113,7 @@ function ProfilePageContent() {
       const base64String = reader.result as string;
       setFormData(prev => ({ ...prev, image_url: base64String }));
       
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const apiUrl = getApiUrl();
       try {
         await fetch(`${apiUrl}/api/users/${session?.user?.email}`, {
           method: "PUT",
@@ -195,7 +196,7 @@ function ProfilePageContent() {
       if (!session?.user?.email) return;
       
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        const apiUrl = getApiUrl();
         const response = await fetch(`${apiUrl}/api/users/${session.user.email}`);
         if (response.ok) {
           const data = await response.json();
@@ -283,7 +284,7 @@ function ProfilePageContent() {
       if (!session?.user?.email) return;
       
       const email = session.user.email.toLowerCase().trim();
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const apiUrl = getApiUrl();
 
       // Only show full loading screen on the very first load if no cache
       if (!silent && !hasLoaded && !localStorage.getItem(`profile_data_${email}`)) {
@@ -376,7 +377,7 @@ function ProfilePageContent() {
     if (!silent) setMessage("");
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const apiUrl = getApiUrl();
       
       // Enhanced validation
       if (!formData.name.trim()) {
@@ -1626,7 +1627,7 @@ function ProfilePageContent() {
                             onClick={async () => {
                               if (!session?.user?.email) return;
                               try {
-                                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+                                const apiUrl = getApiUrl();
                                 const profileRes = await fetch(`${apiUrl}/api/users/${session.user.email}/profile`);
                                 if (profileRes.ok) {
                                   const profileData = await profileRes.json();
@@ -1645,7 +1646,7 @@ function ProfilePageContent() {
                             onClick={async () => {
                               if (!session?.user?.email) return;
                               try {
-                                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+                                const apiUrl = getApiUrl();
                                 const response = await fetch(`${apiUrl}/payments/download-all-receipts?email=${session.user.email}`);
                                 if (response.ok) {
                                   const blob = await response.blob();
@@ -1752,7 +1753,7 @@ function ProfilePageContent() {
                               onClick={async () => {
                                 if (!session?.user?.email) return;
                                 try {
-                                  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+                                  const apiUrl = getApiUrl();
                                   const profileRes = await fetch(`${apiUrl}/api/users/${session.user.email}/profile`);
                                   if (profileRes.ok) {
                                     const profileData = await profileRes.json();

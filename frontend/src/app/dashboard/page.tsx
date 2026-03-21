@@ -152,16 +152,8 @@ function Dashboard() {
 
   // Dynamic API URL based on environment
   const getApiUrl = () => {
-    if (typeof window !== 'undefined') {
-      // Client-side: use current domain in production, localhost in development
-      if (window.location.hostname === 'localhost') {
-        return 'http://localhost:8000';
-      } else {
-        return window.location.origin; // Use same domain as frontend
-      }
-    }
-    // Server-side fallback
-    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    // Always use the Render backend URL
+    return 'https://trendai-api.onrender.com';
   };
   
   const apiUrl = getApiUrl();
