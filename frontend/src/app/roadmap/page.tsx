@@ -330,7 +330,7 @@ function RoadmapContent() {
             area, 
             title, 
             description: desc,
-            user_email: (status === "authenticated" && (status as any)?.data?.user?.email) || "anonymous",
+            user_email: sessionData?.user?.email || "anonymous",
             language: language 
           }),
         });

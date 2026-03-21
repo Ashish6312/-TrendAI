@@ -2,6 +2,8 @@
 .env
 .env.local
 .env.*.local
+.env.production
+.env.staging
 venv/
 __pycache__/
 *.pyc
@@ -22,4 +24,26 @@ dist/
 .DS_Store
 Thumbs.db
 .vercel
-.env*.local
+.render/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# Cache
+.cache/
+*.tsbuildinfo
+
+# Testing
+coverage/
+.nyc_output/
+
+# Temporary files
+*.tmp
+*.temp

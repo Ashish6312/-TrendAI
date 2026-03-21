@@ -8,7 +8,7 @@ import {
   Loader2, TrendingUp, MapPin, 
   Target, BarChart3, Globe2, Lightbulb, 
   ArrowRight, FileText, Clock, ChevronRight,
-  Cpu, Download, Share2, Play, CheckCircle2, AlertCircle
+  Cpu, Download, Share2, Play, CheckCircle2, AlertCircle, Sparkle
 } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -541,8 +541,10 @@ function Dashboard() {
                       )}
                     </div>
                     
-                    <div className="relative">
-                      <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 dark:text-gray-400 z-10" size={18} />
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none z-10">
+                        <MapPin className="text-slate-400 dark:text-gray-500 group-focus-within/loc:text-emerald-500 transition-colors" size={20} />
+                      </div>
                       <input
                         type="text"
                         value={area}
@@ -552,15 +554,15 @@ function Dashboard() {
                         }}
                         onFocus={() => setShowSuggestions(true)}
                         onBlur={() => {
-                          // Delay hiding suggestions to allow for clicks
                           setTimeout(() => setShowSuggestions(false), 200);
                         }}
-                        className="w-full bg-white dark:bg-[#050818] border-2 border-slate-300 dark:border-slate-600 rounded-xl py-4 sm:py-5 pl-12 sm:pl-14 pr-14 text-base font-medium text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 focus:outline-none hover:border-slate-400 dark:hover:border-slate-500 shadow-sm"
+                        className="w-full bg-slate-50 dark:bg-[#030612] border-2 border-slate-200 dark:border-slate-800 rounded-[1.5rem] py-5 sm:py-6 pl-14 sm:pl-16 pr-24 text-lg font-black tracking-tight text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 transition-all focus:border-emerald-500/50 focus:ring-[12px] focus:ring-emerald-500/10 focus:outline-none hover:border-slate-300 dark:hover:border-slate-700 shadow-xl"
                         placeholder={profileLocation ? `Search any location (default: ${profileLocation.split(',')[0]})` : "Search any city or region..."}
                         autoComplete="off"
+                        id="location-input"
                       />
                       
-                      <div className="absolute inset-y-0 right-0 pr-3 flex items-center gap-2">
+                      <div className="absolute inset-y-0 right-0 pr-4 flex items-center gap-1.5 z-10">
                         {profileLocation && (
                           <button
                             type="button"
@@ -568,38 +570,46 @@ function Dashboard() {
                               setArea(profileLocation);
                               setShowSuggestions(false);
                             }}
-                            className="p-2 rounded-lg hover:bg-emerald-500/10 text-slate-600 dark:text-gray-400 hover:text-emerald-500 transition-all"
+                            className="p-2.5 rounded-xl hover:bg-emerald-500/10 text-slate-400 hover:text-emerald-500 transition-all group/btn"
                             title={`Use profile location: ${profileLocation}`}
                           >
-                            <CheckCircle2 size={16} />
+                            <CheckCircle2 size={20} className="group-hover/btn:scale-110 transition-transform" />
                           </button>
                         )}
                         <Link 
                           href="/profile"
-                          className="p-2 rounded-lg hover:bg-blue-500/10 text-slate-600 dark:text-gray-400 hover:text-blue-500 transition-all"
-                          title="Update profile location"
+                          className="p-2.5 rounded-xl hover:bg-blue-500/10 text-slate-400 hover:text-blue-500 transition-all group/btn"
+                          title="Update search preferences"
                         >
-                          <MapPin size={16} />
+                          <MapPin size={20} className="group-hover/btn:scale-110 transition-transform" />
                         </Link>
                       </div>
+                    </div>
                       
-                      {/* Location Status Indicators */}
-                      <div className="mt-2 flex flex-wrap gap-2">
+                    {/* Location Status Indicators - Improved spacing and alignment */}
+                      <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3 px-1">
                         {profileLocation && area === profileLocation && (
-                          <div className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-2 px-2 py-1 bg-emerald-50 dark:bg-emerald-500/10 rounded-md border border-emerald-200 dark:border-emerald-500/20">
-                            <CheckCircle2 size={12} />
-                            Using profile location
+                          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest whitespace-nowrap">
+                              Using profile location
+                            </span>
                           </div>
                         )}
                         {area && area !== profileLocation && (
-                          <div className="text-xs text-blue-600 dark:text-blue-400 font-medium flex items-center gap-2 px-2 py-1 bg-blue-50 dark:bg-blue-500/10 rounded-md border border-blue-200 dark:border-blue-500/20">
-                            <Globe2 size={12} />
-                            Custom search location
+                          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-500/5 dark:bg-blue-500/10 border border-blue-500/20 rounded-full">
+                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                            <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest whitespace-nowrap">
+                              Custom search location
+                            </span>
                           </div>
                         )}
                         {profileLocation && (
-                          <div className="text-xs text-slate-500 dark:text-gray-500 font-medium">
-                            Profile: {profileLocation.split(',')[0]}
+                          <div className="flex items-center gap-2">
+                             <div className="w-px h-3 bg-slate-300 dark:bg-slate-700 hidden sm:block" />
+                             <span className="text-[10px] font-bold text-slate-400 dark:text-gray-500 uppercase tracking-widest overflow-hidden text-ellipsis whitespace-nowrap max-w-[150px]">
+                               Stored: {profileLocation.split(',')[0]}
+                             </span>
                           </div>
                         )}
                       </div>
@@ -636,31 +646,26 @@ function Dashboard() {
                         )}
                       </AnimatePresence>
                     </div>
-                  </div>
                   
                   {/* Search Button */}
                   <button
                     type="submit"
                     disabled={loading || (!area && !profileLocation) || hasReachedAnalysisLimit(analysisCount)}
-                    className={`w-full py-4 sm:py-5 bg-gradient-to-r ${theme.gradient} hover:opacity-90 disabled:bg-slate-300 dark:disabled:bg-slate-700 rounded-xl text-base font-bold text-white disabled:text-slate-500 transition-all shadow-lg disabled:shadow-none hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}
+                    className="w-full h-20 bg-gradient-to-br from-[#8A2BE2] via-[#a855f7] to-[#7c3aed] hover:brightness-110 text-white font-black rounded-3xl flex flex-col items-center justify-center gap-1 transition-all active:scale-[0.98] shadow-[0_20px_60px_-15px_rgba(168,85,247,0.4)] relative overflow-hidden group disabled:opacity-50"
                   >
-                    {loading ? (
-                      <div className="flex items-center justify-center gap-3">
-                        <Loader2 className="animate-spin" size={20} />
-                        <span>{t('dash_analyzing')}</span>
-                      </div>
-                    ) : hasReachedAnalysisLimit(analysisCount) ? (
-                      t('dash_limit_reached')
-                    ) : !area && !profileLocation ? (
-                      "Enter Location to Analyze"
-                    ) : area === profileLocation ? (
-                      `Analyze ${area.split(',')[0]} (Profile)`
-                    ) : area ? (
-                      `Analyze ${area.split(',')[0]}`
-                    ) : profileLocation ? (
-                      `Analyze ${profileLocation.split(',')[0]} (Profile Default)`
-                    ) : (
-                      "Enter Location to Analyze"
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                    <div className="flex items-center gap-3">
+                      {loading ? (
+                         <Loader2 className="animate-spin" size={24} />
+                      ) : (
+                         <Sparkle size={24} fill="currentColor" className="group-hover:rotate-12 transition-transform" />
+                      )}
+                      <span className="text-xl italic tracking-tighter uppercase">
+                        {loading ? t('dash_analyzing') : hasReachedAnalysisLimit(analysisCount) ? t('dash_limit_reached') : t('dash_analyze_btn')}
+                      </span>
+                    </div>
+                    {area && (
+                      <span className="text-[9px] font-black text-white/60 uppercase tracking-[0.2em]">{area.split(',')[0]} Detected</span>
                     )}
                   </button>
 

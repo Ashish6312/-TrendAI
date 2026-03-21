@@ -1,25 +1,125 @@
-# TrendAI - AI-Powered Business Intelligence
+# TrendAI - Business Intelligence Platform
 
-TrendAI is a state-of-the-art market research and business planning tool designed for modern entrepreneurs.
+A comprehensive business intelligence platform that provides AI-powered market analysis, business recommendations, and strategic planning tools.
 
-## 🚀 Deployment Guide
+## 🚀 Live Demo
 
-### **Frontend (Vercel)**
-1. Go to [Vercel.com](https://vercel.com/new).
-2. Click **Import Project**.
-3. Select this GitHub repository: `Ashish6312/TrendAI`.
-4. Set the **Root Directory** to `frontend`.
-5. Add your Environment Variables (from your local `.env.local`).
-6. Click **Deploy**.
+- **Frontend**: [https://trend-ai-main.vercel.app](https://trend-ai-main.vercel.app)
+- **Backend API**: [Your Render URL]
 
-### **Backend (PostgreSQL + FastAPI)**
-Since Vercel is optimized for frontend, we recommend deploying the `backend` folder to a platform like **Railway** or **Render**.
-1. Connect your GitHub.
-2. Select the `backend` folder.
-3. Use the start command: `uvicorn main:app --host 0.0.0.0 --port $PORT`.
+## 📁 Project Structure
 
-## 🛠 Features
-- Responsive Navigation with dynamic scaling.
-- Professional Invoice Generation.
-- Multi-step Payment Success Protocol.
-- Secure Team User Authentication.
+```
+TrendAI-main/
+├── frontend/          # Next.js frontend application
+│   ├── src/
+│   │   ├── app/       # Next.js 13+ app directory
+│   │   ├── components/# React components
+│   │   ├── context/   # React context providers
+│   │   ├── hooks/     # Custom React hooks
+│   │   ├── types/     # TypeScript type definitions
+│   │   └── utils/     # Utility functions
+│   ├── public/        # Static assets
+│   └── package.json   # Frontend dependencies
+│
+├── api/               # FastAPI backend application
+│   ├── main.py        # Main FastAPI application
+│   ├── database.py    # Database configuration
+│   ├── models.py      # SQLAlchemy models
+│   ├── simple_recommendations.py    # Basic recommendation engine
+│   ├── integrated_business_intelligence.py  # Advanced AI engine
+│   ├── requirements.txt  # Python dependencies
+│   ├── Procfile       # Render deployment config
+│   ├── render.yaml    # Render service configuration
+│   └── runtime.txt    # Python version specification
+│
+└── README.md          # This file
+```
+
+## 🛠️ Technology Stack
+
+### Frontend
+- **Framework**: Next.js 14 with App Router
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **Authentication**: NextAuth.js with Google OAuth
+- **Payment**: Razorpay integration
+- **Deployment**: Vercel
+
+### Backend
+- **Framework**: FastAPI (Python)
+- **Database**: PostgreSQL (Neon)
+- **ORM**: SQLAlchemy
+- **AI/ML**: Google Gemini API, OpenAI
+- **External APIs**: SerpAPI, Reddit API, Alpha Vantage
+- **Deployment**: Render
+
+## 🚀 Deployment
+
+### Frontend (Vercel)
+The frontend is automatically deployed to Vercel from the `frontend/` directory.
+
+### Backend (Render)
+The backend is deployed to Render using the configuration in `api/render.yaml`.
+
+## 🔧 Environment Variables
+
+### Frontend (.env)
+```
+NEXT_PUBLIC_API_URL=your_render_backend_url
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+NEXTAUTH_URL=your_frontend_url
+NEXTAUTH_SECRET=your_nextauth_secret
+NEXT_PUBLIC_RAZORPAY_KEY_ID=your_razorpay_key
+RAZORPAY_KEY_SECRET=your_razorpay_secret
+```
+
+### Backend (.env)
+```
+DATABASE_URL=your_postgresql_url
+POLLINATION_API_KEY=your_pollination_key
+SERPAPI_API_KEY=your_serpapi_key
+GEMINI_API_KEY=your_gemini_key
+RAZORPAY_KEY_ID=your_razorpay_key
+RAZORPAY_KEY_SECRET=your_razorpay_secret
+REDDIT_USERNAME=your_reddit_username
+REDDIT_PASSWORD=your_reddit_password
+REDDIT_CLIENT_ID=your_reddit_client_id
+REDDIT_CLIENT_SECRET=your_reddit_client_secret
+```
+
+## 📋 Features
+
+- **AI-Powered Market Analysis**: Get comprehensive business insights for any location
+- **Business Recommendations**: Receive tailored business suggestions based on market data
+- **Strategic Planning**: Generate detailed business plans and roadmaps
+- **User Authentication**: Secure login with Google OAuth and email/password
+- **Subscription Management**: Tiered pricing with Razorpay integration
+- **Location Intelligence**: GPS-based location detection and analysis
+- **Real-time Data**: Integration with multiple APIs for current market data
+
+## 🔄 API Endpoints
+
+### Authentication
+- `POST /api/auth/signup` - User registration
+- `POST /api/auth/signin` - User login
+- `POST /api/users/sync` - Sync user data
+
+### Business Intelligence
+- `POST /api/recommendations` - Get business recommendations
+- `POST /api/business-plan` - Generate business plan
+- `POST /api/roadmap` - Create strategic roadmap
+
+### User Management
+- `GET /api/users/{email}` - Get user information
+- `PUT /api/users/{email}` - Update user profile
+- `GET /api/subscriptions/{email}` - Get user subscription
+
+## 📄 License
+
+This project is proprietary software. All rights reserved.
+
+## 🤝 Support
+
+For support and inquiries, please contact the development team.
