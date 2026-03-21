@@ -1291,6 +1291,39 @@ def get_user_info(email: str, db: Session = Depends(get_db)):
         "created_at": user.created_at
     }
 
+@app.get("/api/debug/users")
+def debug_users(db: Session = Depends(get_db)):
+    """Debug endpoint to see what users exist"""
+    try:
+        users = db.query(models.User).limit(10).all()
+        return {
+            "users_count": len(users),
+            "users": [{"email": u.email, "name": u.name, "created_at": u.created_at} for u in users]
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/api/debug/payments")
+def debug_payments(db: Session = Depends(get_db)):
+    """Debug endpoint to see what payments exist"""
+    try:
+        payments = db.query(models.PaymentHistory).limit(10).all()
+        return {
+            "payments_count": len(payments),
+            "payments": [
+                {
+                    "id": p.id,
+                    "user_email": p.user_email,
+                    "amount": p.amount,
+                    "status": p.status,
+                    "plan_name": p.plan_name,
+                    "created_at": p.created_at
+                } for p in payments
+            ]
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
 @app.get("/api/test-payments/{user_email}")
 def test_payments_endpoint(user_email: str, db: Session = Depends(get_db)):
     """Test endpoint to verify payment data is accessible"""
