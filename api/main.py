@@ -1658,12 +1658,12 @@ async def payment_webhook(request: Request):
 
 @app.get("/api/users/{email}/profile")
 def get_user_profile(email: str, db: Session = Depends(get_db)):
-    """Get user profile information - SIMPLIFIED VERSION"""
+    """Get user profile information - REAL DATA ONLY"""
     from sqlalchemy import func
 
     email_normalized = email.lower().strip()
     logger.info(f"🔍 Profile request for: {email_normalized}")
-    
+
     user = db.query(models.User).filter(func.lower(models.User.email) == email_normalized).first()
 
     if not user:
@@ -1680,43 +1680,13 @@ def get_user_profile(email: str, db: Session = Depends(get_db)):
         func.lower(models.UserSubscription.user_email) == email_normalized,
         models.UserSubscription.status == "active"
     ).first()
-    
-    # SIMPLE FIX: If user has subscription but no payments, create them automatically
+
+    # Get real payment history only - no auto-creation
     recent_payments = db.query(models.PaymentHistory).filter(
         func.lower(models.PaymentHistory.user_email) == email_normalized
     ).order_by(models.PaymentHistory.created_at.desc()).limit(10).all()
-    
-    # AUTO-CREATE PAYMENTS if user has subscription but no payment history
-    if subscription and len(recent_payments) == 0:
-        logger.info(f"� Auto-creating payment for user with {subscription.plan_name} subscription")
-        try:
-            from datetime import datetime
-            
-            # Create a payment record that matches the subscription
-            auto_payment = models.PaymentHistory(
-                user_id=user.id,
-                user_email=email_normalized,
-                razorpay_payment_id=f"pay_auto_{datetime.now().strftime('%Y%m%d%H%M%S')}",
-                razorpay_order_id=f"order_auto_{datetime.now().strftime('%Y%m%d%H%M%S')}",
-                amount=subscription.price or (4499.0 if subscription.plan_name == 'enterprise' else 1399.0),
-                currency="INR",
-                status="success",
-                payment_method="card",
-                plan_name=subscription.plan_name,
-                billing_cycle=subscription.billing_cycle or "yearly",
-                payment_date=datetime.now()
-            )
-            
-            db.add(auto_payment)
-            db.commit()
-            db.refresh(auto_payment)
-            
-            recent_payments = [auto_payment]
-            logger.info(f"🔧 Auto-created payment: {auto_payment.id}")
-            
-        except Exception as e:
-            logger.error(f"Failed to auto-create payment: {e}")
-            db.rollback()
+
+    logger.info(f"🔍 Found {len(recent_payments)} real payments for {email_normalized}")
 
     return {
         "user": user,
@@ -1737,6 +1707,7 @@ def get_user_profile(email: str, db: Session = Depends(get_db)):
             for payment in recent_payments
         ]
     }
+
 
 @app.get("/api/users/{email}/sessions")
 def get_user_sessions(email: str, limit: int = 10, db: Session = Depends(get_db)):

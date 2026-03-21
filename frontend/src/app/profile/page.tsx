@@ -148,9 +148,12 @@ function ProfilePageContent() {
   const [payments, setPayments] = useState<any[]>([]);
   const [subscriptionDetails, setSubscriptionDetails] = useState<any>(null);
   
-  // Real-time payment updates with floating animation
+  // Real-time payment detection with water animation
   useEffect(() => {
-    const loadPayments = async () => {
+    let pollInterval: NodeJS.Timeout;
+    let lastPaymentCount = payments.length;
+    
+    const checkForUpdates = async () => {
       if (!session?.user?.email) return;
       
       try {
@@ -161,115 +164,257 @@ function ProfilePageContent() {
           const data = await response.json();
           
           if (data.recent_payments && Array.isArray(data.recent_payments)) {
-            // Check if payments have changed
             const newPaymentCount = data.recent_payments.length;
-            const oldPaymentCount = payments.length;
             
-            setPayments(data.recent_payments);
-            setSubscriptionDetails(data.subscription);
-            
-            // Show floating animation if new payments detected
-            if (newPaymentCount > oldPaymentCount && oldPaymentCount > 0) {
-              showFloatingUpdateAnimation();
+            // Detect new payments
+            if (newPaymentCount > lastPaymentCount) {
+              console.log('🌊 New payment detected! Starting water animation...');
+              
+              // Update subscription plan if we have subscription data
+              if (data.subscription && data.subscription.plan_name) {
+                const planMapping: Record<string, any> = {
+                  'professional': 'professional',
+                  'pro': 'professional',
+                  'enterprise': 'enterprise',
+                  'free': 'free'
+                };
+                const mappedPlan = planMapping[data.subscription.plan_name.toLowerCase()] || 'free';
+                console.log('🔄 Updating plan from payment detection:', mappedPlan);
+                setPlan(mappedPlan);
+              }
+              
+              // Start water animation
+              startWaterAnimation();
+              
+              // Update data after animation starts
+              setTimeout(() => {
+                setPayments(data.recent_payments);
+                setSubscriptionDetails(data.subscription);
+                
+                addNotification({
+                  type: 'system',
+                  title: '💰 Payment Received!',
+                  message: 'Your payment has been processed successfully. Plan updated!',
+                  priority: 'high'
+                });
+              }, 500);
+            } else {
+              // Silent update if no new payments
+              setPayments(data.recent_payments);
+              setSubscriptionDetails(data.subscription);
+              
+              // Still update plan if subscription exists but no new payments
+              if (data.subscription && data.subscription.plan_name) {
+                const planMapping: Record<string, any> = {
+                  'professional': 'professional',
+                  'pro': 'professional', 
+                  'enterprise': 'enterprise',
+                  'free': 'free'
+                };
+                const mappedPlan = planMapping[data.subscription.plan_name.toLowerCase()] || 'free';
+                if (plan !== mappedPlan) {
+                  console.log('🔄 Updating plan from subscription data:', mappedPlan);
+                  setPlan(mappedPlan);
+                }
+              }
             }
+            
+            lastPaymentCount = newPaymentCount;
           }
         }
       } catch (error) {
-        console.error('Payment loading error:', error);
+        console.error('Real-time update error:', error);
       }
     };
     
     if (session?.user?.email) {
-      loadPayments();
+      // Initial load
+      checkForUpdates();
       
-      // Set up real-time polling every 10 seconds
-      const interval = setInterval(loadPayments, 10000);
-      return () => clearInterval(interval);
-    }
-  }, [session?.user?.email]);
-
-  // Floating water animation for updates
-  const showFloatingUpdateAnimation = () => {
-    // Create floating particles
-    const particles = [];
-    for (let i = 0; i < 20; i++) {
-      const particle = document.createElement('div');
-      particle.className = 'floating-particle';
-      particle.style.cssText = `
-        position: fixed;
-        width: 8px;
-        height: 8px;
-        background: linear-gradient(45deg, ${theme.primary}, ${theme.secondary});
-        border-radius: 50%;
-        pointer-events: none;
-        z-index: 9999;
-        left: ${Math.random() * window.innerWidth}px;
-        top: ${window.innerHeight + 10}px;
-        animation: floatUp 3s ease-out forwards;
-        opacity: 0.8;
-        box-shadow: 0 0 10px ${theme.primary}40;
-      `;
-      
-      document.body.appendChild(particle);
-      particles.push(particle);
-      
-      // Remove particle after animation
-      setTimeout(() => {
-        if (particle.parentNode) {
-          particle.parentNode.removeChild(particle);
-        }
-      }, 3000);
+      // Start real-time polling every 2 seconds for faster detection
+      pollInterval = setInterval(checkForUpdates, 2000);
     }
     
-    // Add CSS animation if not exists
-    if (!document.getElementById('floating-animation-styles')) {
+    return () => {
+      if (pollInterval) clearInterval(pollInterval);
+    };
+  }, [session?.user?.email, payments.length, plan, setPlan]);
+
+  // Water animation from bottom-left to top-right
+  const startWaterAnimation = () => {
+    console.log('🌊 Starting water animation...');
+    
+    // Create water particles
+    const particleCount = 60; // Increased for better visibility
+    const particles: HTMLElement[] = [];
+    
+    // Add CSS for water animation
+    if (!document.getElementById('water-animation-styles')) {
       const style = document.createElement('style');
-      style.id = 'floating-animation-styles';
+      style.id = 'water-animation-styles';
       style.textContent = `
-        @keyframes floatUp {
+        @keyframes waterFlow {
           0% {
-            transform: translateY(0) rotate(0deg);
-            opacity: 0.8;
+            transform: translate(0, 0) scale(0.3);
+            opacity: 0;
           }
-          50% {
-            opacity: 1;
+          5% {
+            opacity: 0.9;
+          }
+          95% {
+            opacity: 0.7;
           }
           100% {
-            transform: translateY(-${window.innerHeight + 100}px) rotate(360deg);
+            transform: translate(calc(100vw + 200px), calc(-100vh - 200px)) scale(1.5);
             opacity: 0;
           }
         }
         
-        @keyframes ripple {
+        @keyframes rippleWave {
           0% {
             transform: scale(0);
             opacity: 1;
           }
           100% {
-            transform: scale(4);
+            transform: scale(25);
             opacity: 0;
           }
         }
         
-        .update-ripple {
+        @keyframes pulseGlow {
+          0%, 100% {
+            box-shadow: 0 0 20px ${theme.primary}60;
+          }
+          50% {
+            box-shadow: 0 0 40px ${theme.primary}80, 0 0 60px ${theme.primary}40;
+          }
+        }
+        
+        .water-particle {
           position: fixed;
-          border: 2px solid ${theme.primary};
           border-radius: 50%;
-          animation: ripple 1s ease-out;
+          pointer-events: none;
+          z-index: 9999;
+          animation: waterFlow 5s ease-out forwards;
+        }
+        
+        .water-ripple {
+          position: fixed;
+          border: 4px solid ${theme.primary};
+          border-radius: 50%;
           pointer-events: none;
           z-index: 9998;
+          animation: rippleWave 3s ease-out forwards;
+        }
+        
+        @keyframes pageRefresh {
+          0% { opacity: 1; transform: scale(1); }
+          25% { opacity: 0.8; transform: scale(1.02); }
+          50% { opacity: 0.9; transform: scale(0.98); }
+          75% { opacity: 0.95; transform: scale(1.01); }
+          100% { opacity: 1; transform: scale(1); }
+        }
+        
+        .page-refresh-animation {
+          animation: pageRefresh 2s ease-in-out;
+        }
+        
+        .success-flash {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: linear-gradient(135deg, ${theme.primary}20, ${theme.secondary}20);
+          pointer-events: none;
+          z-index: 9997;
+          animation: successFlash 1s ease-out forwards;
+        }
+        
+        @keyframes successFlash {
+          0% { opacity: 0; }
+          30% { opacity: 1; }
+          100% { opacity: 0; }
         }
       `;
       document.head.appendChild(style);
     }
     
-    // Show notification with animation
-    addNotification({
-      type: 'system',
-      title: '💫 Payment Updated!',
-      message: 'Your payment history has been automatically refreshed',
-      priority: 'high'
-    });
+    // Create success flash overlay
+    const flash = document.createElement('div');
+    flash.className = 'success-flash';
+    document.body.appendChild(flash);
+    setTimeout(() => flash.remove(), 1000);
+    
+    // Create multiple ripple effects
+    for (let i = 0; i < 3; i++) {
+      setTimeout(() => {
+        const ripple = document.createElement('div');
+        ripple.className = 'water-ripple';
+        ripple.style.cssText = `
+          left: ${30 + i * 20}px;
+          bottom: ${30 + i * 20}px;
+          width: 30px;
+          height: 30px;
+          animation-delay: ${i * 0.3}s;
+        `;
+        document.body.appendChild(ripple);
+        
+        setTimeout(() => {
+          if (ripple.parentNode) {
+            ripple.parentNode.removeChild(ripple);
+          }
+        }, 3000);
+      }, i * 200);
+    }
+    
+    // Create water particles flowing from bottom-left to top-right
+    for (let i = 0; i < particleCount; i++) {
+      setTimeout(() => {
+        const particle = document.createElement('div');
+        particle.className = 'water-particle';
+        
+        const size = Math.random() * 16 + 6; // 6-22px
+        const delay = Math.random() * 3; // 0-3s delay
+        const duration = 4 + Math.random() * 2; // 4-6s duration
+        const startX = Math.random() * 150; // Spread start positions
+        const startY = Math.random() * 150;
+        
+        particle.style.cssText = `
+          left: ${startX}px;
+          bottom: ${startY}px;
+          width: ${size}px;
+          height: ${size}px;
+          background: linear-gradient(135deg, ${theme.primary}90, ${theme.secondary}90, ${theme.primary}60);
+          box-shadow: 0 0 ${size * 3}px ${theme.primary}60, inset 0 0 ${size}px ${theme.secondary}40;
+          animation-delay: ${delay}s;
+          animation-duration: ${duration}s;
+        `;
+        
+        document.body.appendChild(particle);
+        particles.push(particle);
+        
+        // Remove particle after animation
+        setTimeout(() => {
+          if (particle.parentNode) {
+            particle.parentNode.removeChild(particle);
+          }
+        }, (duration + delay) * 1000);
+      }, i * 30); // Faster stagger for more fluid effect
+    }
+    
+    // Add page refresh animation
+    const mainContent = document.querySelector('.min-h-screen');
+    if (mainContent) {
+      mainContent.classList.add('page-refresh-animation');
+      setTimeout(() => {
+        mainContent.classList.remove('page-refresh-animation');
+      }, 2000);
+    }
+    
+    // Show success message in console
+    console.log('🌊 Water animation started with', particleCount, 'particles');
+    console.log('💫 Payment success animation complete!');
   };
   
   // Get location-based pricing
@@ -1755,6 +1900,23 @@ function ProfilePageContent() {
                         </h3>
                         <div className="flex flex-wrap items-center gap-3">
                           <button
+                            onClick={() => {
+                              console.log('🧪 Manual water animation test');
+                              startWaterAnimation();
+                              addNotification({
+                                type: 'system',
+                                title: '🌊 Animation Test',
+                                message: 'Water animation triggered manually for testing',
+                                priority: 'low'
+                              });
+                            }}
+                            className="px-3 py-1.5 bg-blue-500 text-white rounded-lg text-xs font-bold hover:bg-blue-600 transition-all flex items-center gap-2"
+                          >
+                            <Sparkles size={12} />
+                            Test Animation
+                          </button>
+                          
+                          <button
                             onClick={async () => {
                               if (!session?.user?.email) return;
                               try {
@@ -1782,35 +1944,6 @@ function ProfilePageContent() {
                             Refresh
                           </button>
                           
-                          <button
-                            onClick={() => {
-                              // Force load sample data
-                              const samplePayments = [
-                                {
-                                  id: 999,
-                                  amount: 1399.0,
-                                  currency: 'INR',
-                                  razorpay_payment_id: 'pay_sample_123',
-                                  status: 'success',
-                                  plan_name: 'Professional',
-                                  billing_cycle: 'yearly',
-                                  payment_date: new Date().toISOString(),
-                                  payment_method: 'card'
-                                }
-                              ];
-                              setPayments(samplePayments);
-                              addNotification({
-                                type: 'system',
-                                title: 'Sample Data Loaded',
-                                message: 'Loaded sample payment for testing',
-                                priority: 'low'
-                              });
-                            }}
-                            className="px-3 py-1.5 bg-blue-500 text-white rounded-lg text-xs font-bold hover:bg-blue-600 transition-all flex items-center gap-2"
-                          >
-                            <RefreshCw size={12} />
-                            Load Test Data
-                          </button>
                           <button 
                             onClick={async () => {
                               if (!session?.user?.email) return;
@@ -2001,8 +2134,8 @@ function ProfilePageContent() {
                               onClick={async () => {
                                 if (!session?.user?.email) return;
                                 
-                                // Show ripple animation
-                                const button = event.currentTarget;
+                                // Show ripple animation at click position
+                                const button = event.currentTarget as HTMLElement;
                                 const rect = button.getBoundingClientRect();
                                 const ripple = document.createElement('div');
                                 ripple.className = 'update-ripple';
@@ -2020,22 +2153,34 @@ function ProfilePageContent() {
                                   const profileRes = await fetch(`${apiUrl}/api/users/${session.user.email}/profile`);
                                   if (profileRes.ok) {
                                     const profileData = await profileRes.json();
-                                    const oldCount = payments.length;
                                     const newCount = profileData.recent_payments?.length || 0;
                                     
-                                    setPayments(profileData.recent_payments || []);
-                                    
-                                    // Show floating animation if payments updated
-                                    if (newCount !== oldCount) {
-                                      showFloatingUpdateAnimation();
+                                    // Update subscription plan if available
+                                    if (profileData.subscription && profileData.subscription.plan_name) {
+                                      const planMapping: Record<string, any> = {
+                                        'professional': 'professional',
+                                        'pro': 'professional',
+                                        'enterprise': 'enterprise',
+                                        'free': 'free'
+                                      };
+                                      const mappedPlan = planMapping[profileData.subscription.plan_name.toLowerCase()] || 'free';
+                                      setPlan(mappedPlan);
                                     }
                                     
-                                    addNotification({
-                                      type: 'system',
-                                      title: '🔄 Refreshed Successfully',
-                                      message: `Found ${newCount} transaction records`,
-                                      priority: 'low'
-                                    });
+                                    // Show water animation on refresh
+                                    startWaterAnimation();
+                                    
+                                    // Update data after animation starts
+                                    setTimeout(() => {
+                                      setPayments(profileData.recent_payments || []);
+                                      
+                                      addNotification({
+                                        type: 'system',
+                                        title: '🌊 Data Refreshed!',
+                                        message: `Found ${newCount} real transaction records. Plan updated!`,
+                                        priority: 'low'
+                                      });
+                                    }, 500);
                                   }
                                 } catch (error) {
                                   console.error('Failed to refresh transactions:', error);
