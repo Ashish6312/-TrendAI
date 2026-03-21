@@ -155,9 +155,15 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
         try {
           // 2. Verify with API
+          console.log('🔍 Fetching subscription for:', email);
+          console.log('🔍 API URL:', `${apiUrl}/api/subscriptions/${email}`);
+          
           const response = await fetch(`${apiUrl}/api/subscriptions/${email}`);
+          console.log('🔍 Subscription API response status:', response.status);
+          
           if (response.ok) {
             const data = await response.json();
+            console.log('🔍 Subscription data received:', data);
             
             // Robust mapping for plan names
             const rawPlanName = data.plan_name?.toLowerCase() || '';
@@ -173,11 +179,14 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
               planToSet = 'free';
             }
 
+            console.log('🔍 Plan mapped to:', planToSet);
             setPlanState(planToSet);
             localStorage.setItem(`subscription_${email}`, planToSet);
+          } else {
+            console.error('🔍 Subscription API error:', response.status, response.statusText);
           }
         } catch (err) {
-          console.error('❌ AI Terminal: Sync error:', err);
+          console.error('❌ AI Terminal: Subscription fetch error:', err);
         } finally {
           setIsLoading(false);
         }
