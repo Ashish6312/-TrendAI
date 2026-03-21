@@ -100,11 +100,11 @@ function ProfilePageContent() {
 
     if (file.size > 2 * 1024 * 1024) {
       addNotification({
-        type: 'alert',
+        type: 'system',
         title: 'Buffer Overflow',
         message: 'Image payload exceeds 2MB limit. Please provide a high-efficiency compressed visual.',
         priority: 'medium'
-      } as any);
+      });
       return;
     }
 
@@ -125,7 +125,7 @@ function ProfilePageContent() {
         });
         
         addNotification({
-          type: 'profile',
+          type: 'system',
           title: 'Biometric Sync',
           message: 'Your visual identifier has been updated across the neural network.',
           priority: 'low'
@@ -145,85 +145,48 @@ function ProfilePageContent() {
     }
   }, [searchParams]);
 
+  const [payments, setPayments] = useState<any[]>([]);
+  const [subscriptionDetails, setSubscriptionDetails] = useState<any>(null);
+  
   // Force load payments on component mount for testing
   useEffect(() => {
-    const forceLoadPayments = async () => {
+    const loadPayments = async () => {
       if (!session?.user?.email) return;
       
       try {
         const apiUrl = getApiUrl();
-        console.log('🔍 Force loading payments for:', session.user.email);
+        console.log('🔍 Loading payments for:', session.user.email);
+        console.log('🔍 API URL:', apiUrl);
         
-        // Try multiple endpoints to get payment data
-        const endpoints = [
-          `${apiUrl}/api/users/${session.user.email}/profile`,
-          `${apiUrl}/api/test-payments/${session.user.email}`,
-          `${apiUrl}/api/payments/${session.user.email}`
-        ];
+        const response = await fetch(`${apiUrl}/api/users/${session.user.email}/profile`);
+        console.log('🔍 Profile response status:', response.status);
         
-        for (const endpoint of endpoints) {
-          try {
-            console.log('🔍 Trying endpoint:', endpoint);
-            const response = await fetch(endpoint);
-            console.log('🔍 Response status:', response.status);
-            
-            if (response.ok) {
-              const data = await response.json();
-              console.log('🔍 Response data:', data);
-              
-              // Handle different response formats
-              let paymentsData = [];
-              if (data.recent_payments) {
-                paymentsData = data.recent_payments;
-              } else if (data.payments) {
-                paymentsData = data.payments;
-              } else if (Array.isArray(data)) {
-                paymentsData = data;
-              }
-              
-              if (paymentsData && paymentsData.length > 0) {
-                console.log('🔍 Found payments:', paymentsData.length);
-                setPayments(paymentsData);
-                break; // Stop trying other endpoints
-              }
-            }
-          } catch (err) {
-            console.log('🔍 Endpoint failed:', endpoint, err);
+        if (response.ok) {
+          const data = await response.json();
+          console.log('🔍 Profile data:', data);
+          
+          if (data.recent_payments && Array.isArray(data.recent_payments)) {
+            console.log('🔍 Setting payments:', data.recent_payments);
+            setPayments(data.recent_payments);
+            setSubscriptionDetails(data.subscription);
+          } else {
+            console.log('🔍 No payments found in response');
+            setPayments([]);
           }
+        } else {
+          console.error('🔍 Profile API error:', response.status, response.statusText);
+          setPayments([]);
         }
-        
-        // If no payments found, create sample data for testing
-        if (payments.length === 0) {
-          console.log('🔍 No payments found, creating sample data');
-          const samplePayments = [
-            {
-              id: 999,
-              amount: 1399.0,
-              currency: 'INR',
-              razorpay_payment_id: 'pay_sample_test_123',
-              status: 'success',
-              plan_name: 'Professional',
-              billing_cycle: 'yearly',
-              payment_date: new Date().toISOString(),
-              payment_method: 'card'
-            }
-          ];
-          setPayments(samplePayments);
-        }
-        
       } catch (error) {
-        console.error('🔍 Force load payments error:', error);
+        console.error('🔍 Payment loading error:', error);
+        setPayments([]);
       }
     };
     
-    // Only run if we haven't loaded payments yet
-    if (session?.user?.email && payments.length === 0) {
-      forceLoadPayments();
+    if (session?.user?.email) {
+      loadPayments();
     }
-  }, [session?.user?.email, payments.length]);
-
-  const [payments, setPayments] = useState<any[]>([]);
-  const [subscriptionDetails, setSubscriptionDetails] = useState<any>(null);
+  }, [session?.user?.email]);
   
   // Get location-based pricing
   const locationPricing = getPricingForCountry(userLocation?.country || 'Global');
@@ -419,7 +382,6 @@ function ProfilePageContent() {
         if (profileRes.ok) {
           const profileData = await profileRes.json();
           console.log('🔍 Profile data received:', profileData);
-          console.log('🔍 Recent payments:', profileData.recent_payments);
           
           updatedSubscriptionDetails = profileData.subscription;
           updatedPayments = profileData.recent_payments || [];
@@ -427,6 +389,7 @@ function ProfilePageContent() {
           setPayments(updatedPayments);
           
           console.log('🔍 Updated payments state:', updatedPayments);
+          console.log('🔍 Payments count:', updatedPayments.length);
         } else {
           console.error('🔍 Profile API error:', profileRes.status, profileRes.statusText);
         }
@@ -515,7 +478,7 @@ function ProfilePageContent() {
           
           // Add simple notification
           addNotification({
-            type: 'profile',
+            type: 'system',
             title: 'Profile Updated',
             message: 'Your profile has been successfully updated with the latest information.',
             priority: 'low',
@@ -1753,7 +1716,7 @@ function ProfilePageContent() {
                               ];
                               setPayments(samplePayments);
                               addNotification({
-                                type: 'success',
+                                type: 'system',
                                 title: 'Sample Data Loaded',
                                 message: 'Loaded sample payment for testing',
                                 priority: 'low'
@@ -1956,7 +1919,7 @@ function ProfilePageContent() {
                                     if (testData.payments && testData.payments.length > 0) {
                                       setPayments(testData.payments);
                                       addNotification({
-                                        type: 'success',
+                                        type: 'system',
                                         title: 'Test Data Loaded',
                                         message: `Loaded ${testData.payments.length} payments from test endpoint`,
                                         priority: 'medium'
@@ -1994,7 +1957,7 @@ function ProfilePageContent() {
                                 console.log('🔍 Loading sample data:', samplePayments);
                                 setPayments(samplePayments);
                                 addNotification({
-                                  type: 'info',
+                                  type: 'system',
                                   title: 'Sample Data Loaded',
                                   message: 'Loaded sample payment for testing display',
                                   priority: 'low'
@@ -2004,9 +1967,6 @@ function ProfilePageContent() {
                             >
                               <RefreshCw size={12} />
                               Load Sample
-                            </button>
-                              <RefreshCw size={12} />
-                              Refresh Transactions
                             </button>
                             {plan === 'free' && (
                               <Link 
