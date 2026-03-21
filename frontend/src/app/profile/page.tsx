@@ -341,10 +341,17 @@ function ProfilePageContent() {
 
         if (profileRes.ok) {
           const profileData = await profileRes.json();
+          console.log('🔍 Profile data received:', profileData);
+          console.log('🔍 Recent payments:', profileData.recent_payments);
+          
           updatedSubscriptionDetails = profileData.subscription;
           updatedPayments = profileData.recent_payments || [];
           setSubscriptionDetails(updatedSubscriptionDetails);
           setPayments(updatedPayments);
+          
+          console.log('🔍 Updated payments state:', updatedPayments);
+        } else {
+          console.error('🔍 Profile API error:', profileRes.status, profileRes.statusText);
         }
 
         // 4. PERSIST TO CACHE FOR NEXT LOAD
@@ -1757,6 +1764,9 @@ function ProfilePageContent() {
                                   const profileRes = await fetch(`${apiUrl}/api/users/${session.user.email}/profile`);
                                   if (profileRes.ok) {
                                     const profileData = await profileRes.json();
+                                    console.log('🔍 Refresh - Profile data:', profileData);
+                                    console.log('🔍 Refresh - Recent payments:', profileData.recent_payments);
+                                    
                                     setPayments(profileData.recent_payments || []);
                                     addNotification({
                                       type: 'system',
@@ -1764,6 +1774,8 @@ function ProfilePageContent() {
                                       message: `Found ${profileData.recent_payments?.length || 0} transaction records`,
                                       priority: 'low'
                                     });
+                                  } else {
+                                    console.error('🔍 Refresh - Profile API error:', profileRes.status, profileRes.statusText);
                                   }
                                 } catch (error) {
                                   console.error('Failed to refresh transactions:', error);
