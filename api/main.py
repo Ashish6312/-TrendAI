@@ -1400,6 +1400,61 @@ def debug_users(db: Session = Depends(get_db)):
     except Exception as e:
         return {"error": str(e)}
 
+@app.get("/api/debug/all-payments")
+def debug_all_payments(db: Session = Depends(get_db)):
+    """Debug endpoint to see all payments with emails"""
+    try:
+        payments = db.query(models.PaymentHistory).limit(20).all()
+        return {
+            "payments_count": len(payments),
+            "payments": [
+                {
+                    "id": p.id,
+                    "user_email": p.user_email,
+                    "amount": p.amount,
+                    "status": p.status,
+                    "plan_name": p.plan_name,
+                    "created_at": p.created_at.isoformat() if p.created_at else None,
+                    "razorpay_payment_id": p.razorpay_payment_id
+                } for p in payments
+            ]
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/api/payments/search/{partial_email}")
+def search_payments_by_email(partial_email: str, db: Session = Depends(get_db)):
+    """Search payments by partial email match"""
+    try:
+        from sqlalchemy import func
+        
+        # Search for emails that contain the partial email
+        payments = db.query(models.PaymentHistory).filter(
+            func.lower(models.PaymentHistory.user_email).contains(partial_email.lower())
+        ).order_by(models.PaymentHistory.created_at.desc()).limit(10).all()
+        
+        return {
+            "search_term": partial_email,
+            "payments_found": len(payments),
+            "payments": [
+                {
+                    "id": p.id,
+                    "user_email": p.user_email,
+                    "amount": p.amount,
+                    "currency": p.currency,
+                    "status": p.status,
+                    "plan_name": p.plan_name,
+                    "billing_cycle": p.billing_cycle,
+                    "payment_date": p.created_at.isoformat() if p.created_at else None,
+                    "razorpay_payment_id": p.razorpay_payment_id,
+                    "payment_method": p.payment_method
+                } for p in payments
+            ]
+        }
+    except Exception as e:
+        logger.error(f"Search payments error: {e}")
+        return {"error": str(e)}
+
 @app.get("/api/debug/payments")
 def debug_payments(db: Session = Depends(get_db)):
     """Debug endpoint to see what payments exist"""
@@ -1452,13 +1507,28 @@ def test_payments_endpoint(user_email: str, db: Session = Depends(get_db)):
 
 @app.get("/api/users/{email}/profile")
 def get_user_profile(email: str, db: Session = Depends(get_db)):
-    """Get user profile information"""
-    from sqlalchemy import func
+    """Get user profile information with flexible email matching"""
+    from sqlalchemy import func, or_
 
     email_normalized = email.lower().strip()
     logger.info(f"🔍 Profile request for: {email_normalized}")
     
+    # Try exact match first
     user = db.query(models.User).filter(func.lower(models.User.email) == email_normalized).first()
+    
+    # If no exact match, try partial match (for email variations)
+    if not user:
+        logger.info(f"🔍 No exact match, trying partial match for: {email_normalized}")
+        # Extract the username part before @ for partial matching
+        username_part = email_normalized.split('@')[0] if '@' in email_normalized else email_normalized
+        user = db.query(models.User).filter(
+            func.lower(models.User.email).contains(username_part)
+        ).first()
+        
+        if user:
+            logger.info(f"🔍 Found user with partial match: {user.email}")
+            # Update email_normalized to the found user's email for payment search
+            email_normalized = user.email.lower().strip()
 
     if not user:
         logger.error(f"🔍 User not found: {email_normalized}")
@@ -1473,22 +1543,41 @@ def get_user_profile(email: str, db: Session = Depends(get_db)):
     
     logger.info(f"🔍 Search count: {search_count}")
 
-    # Get subscription info
+    # Get subscription info - try both exact and partial match
     subscription = db.query(models.UserSubscription).filter(
         func.lower(models.UserSubscription.user_email) == email_normalized,
         models.UserSubscription.status == "active"
     ).first()
     
+    # If no subscription found with exact email, try partial match
+    if not subscription:
+        username_part = email_normalized.split('@')[0] if '@' in email_normalized else email_normalized
+        subscription = db.query(models.UserSubscription).filter(
+            func.lower(models.UserSubscription.user_email).contains(username_part),
+            models.UserSubscription.status == "active"
+        ).first()
+    
     logger.info(f"🔍 Subscription found: {subscription.plan_name if subscription else 'None'}")
     
-    # Get recent payments
+    # Get recent payments - try both exact and partial match
     recent_payments = db.query(models.PaymentHistory).filter(
         func.lower(models.PaymentHistory.user_email) == email_normalized
     ).order_by(models.PaymentHistory.created_at.desc()).limit(10).all()
     
+    # If no payments found with exact email, try partial match
+    if not recent_payments:
+        logger.info(f"🔍 No payments with exact email, trying partial match")
+        username_part = email_normalized.split('@')[0] if '@' in email_normalized else email_normalized
+        recent_payments = db.query(models.PaymentHistory).filter(
+            func.lower(models.PaymentHistory.user_email).contains(username_part)
+        ).order_by(models.PaymentHistory.created_at.desc()).limit(10).all()
+        
+        if recent_payments:
+            logger.info(f"🔍 Found {len(recent_payments)} payments with partial match")
+    
     logger.info(f"🔍 Payments found: {len(recent_payments)}")
     for payment in recent_payments:
-        logger.info(f"🔍 Payment: {payment.id} - {payment.amount} - {payment.status} - {payment.plan_name}")
+        logger.info(f"🔍 Payment: {payment.id} - {payment.amount} - {payment.status} - {payment.plan_name} - {payment.user_email}")
 
     return {
         "user": user,
