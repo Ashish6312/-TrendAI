@@ -1,6 +1,7 @@
 print("--- TrendAI Backend Booting (v2.0) ---")
 from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from pydantic import BaseModel
@@ -134,10 +135,17 @@ allowed_origins.extend(production_domains)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins to fix CORS issues
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000", 
+        "https://trend-ai-main.vercel.app",
+        "https://*.vercel.app",
+        "*"  # Allow all origins to fix CORS issues
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
 
 
@@ -255,6 +263,29 @@ class PaymentCreate(BaseModel):
     billing_cycle: str
 
 
+
+@app.options("/{full_path:path}")
+async def options_handler(request: Request, full_path: str):
+    """Handle CORS preflight requests"""
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Credentials": "true",
+        }
+    )
+
+@app.middleware("http")
+async def cors_middleware(request: Request, call_next):
+    """Add CORS headers to all responses"""
+    response = await call_next(request)
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    return response
 
 # Root endpoint for health checks and deployment verification
 @app.get("/")
@@ -1045,48 +1076,59 @@ def get_roadmap_guide(request: RoadmapGuideRequest):
 
 @app.post("/api/subscriptions")
 def create_subscription(subscription: SubscriptionCreate, db: Session = Depends(get_db)):
-    """Create or update user subscription"""
+    """Create or update user subscription with enhanced error handling"""
     from sqlalchemy import func
     
     email_normalized = subscription.user_email.lower().strip()
     print(f"DEBUG: Creating subscription for {email_normalized} - Plan: {subscription.plan_name}")
     
-    # Check if user already has an active subscription
-    existing = db.query(models.UserSubscription).filter(
-        func.lower(models.UserSubscription.user_email) == email_normalized,
-        models.UserSubscription.status == "active"
-    ).first()
-    
-    # Get User ID
-    user_rec = db.query(models.User).filter(func.lower(models.User.email) == email_normalized).first()
-    if not user_rec:
-        print(f"DEBUG: User {email_normalized} not found during subscription creation")
-    u_id = user_rec.id if user_rec else None
-
-    if existing:
-        # Update existing subscription instead of creating new
-        existing.user_id = u_id
-        existing.plan_name = subscription.plan_name
-        existing.plan_display_name = subscription.plan_display_name
-        existing.billing_cycle = subscription.billing_cycle
-        existing.price = subscription.price
-        existing.currency = subscription.currency
-        existing.max_analyses = subscription.max_analyses
-        existing.features = subscription.features
-        existing.razorpay_subscription_id = subscription.razorpay_subscription_id
-        existing.razorpay_customer_id = subscription.razorpay_customer_id
-        
-        # Extend/Refresh subscription end date
-        existing.subscription_end = datetime.now() + (timedelta(days=365) if subscription.billing_cycle == "yearly" else timedelta(days=30))
-        
-        db.commit()
-        db.refresh(existing)
-        return existing
-    
-    # Calculate subscription end date
-    sub_end = datetime.now() + (timedelta(days=365) if subscription.billing_cycle == "yearly" else timedelta(days=30))
-
     try:
+        # Check if user already has an active subscription
+        existing = db.query(models.UserSubscription).filter(
+            func.lower(models.UserSubscription.user_email) == email_normalized,
+            models.UserSubscription.status == "active"
+        ).first()
+        
+        # Get User ID with better error handling
+        user_rec = db.query(models.User).filter(func.lower(models.User.email) == email_normalized).first()
+        if not user_rec:
+            print(f"DEBUG: User {email_normalized} not found, creating user record")
+            # Create user if doesn't exist
+            user_rec = models.User(
+                email=email_normalized,
+                name=email_normalized.split('@')[0],
+                auth_provider="razorpay"
+            )
+            db.add(user_rec)
+            db.commit()
+            db.refresh(user_rec)
+        
+        u_id = user_rec.id
+
+        if existing:
+            # Update existing subscription instead of creating new
+            existing.user_id = u_id
+            existing.plan_name = subscription.plan_name
+            existing.plan_display_name = subscription.plan_display_name
+            existing.billing_cycle = subscription.billing_cycle
+            existing.price = subscription.price
+            existing.currency = subscription.currency
+            existing.max_analyses = subscription.max_analyses
+            existing.features = subscription.features
+            existing.razorpay_subscription_id = subscription.razorpay_subscription_id
+            existing.razorpay_customer_id = subscription.razorpay_customer_id
+            
+            # Extend/Refresh subscription end date
+            existing.subscription_end = datetime.now() + (timedelta(days=365) if subscription.billing_cycle == "yearly" else timedelta(days=30))
+            
+            db.commit()
+            db.refresh(existing)
+            print(f"SUCCESS: Updated existing subscription ID: {existing.id}")
+            return existing
+        
+        # Calculate subscription end date
+        sub_end = datetime.now() + (timedelta(days=365) if subscription.billing_cycle == "yearly" else timedelta(days=30))
+
         # Create new subscription
         db_subscription = models.UserSubscription(
             user_id=u_id,
@@ -1106,7 +1148,7 @@ def create_subscription(subscription: SubscriptionCreate, db: Session = Depends(
         db.commit()
         db.refresh(db_subscription)
         
-        print(f"[SUCCESS] Created subscription: {db_subscription.id} for {email_normalized}")
+        print(f"SUCCESS: Created subscription: {db_subscription.id} for {email_normalized}")
         
         return {
             "id": db_subscription.id,
@@ -1116,12 +1158,23 @@ def create_subscription(subscription: SubscriptionCreate, db: Session = Depends(
             "plan_display_name": db_subscription.plan_display_name,
             "status": db_subscription.status
         }
+        
     except Exception as e:
         db.rollback()
-        print(f"[ERROR] ERROR in create_subscription: {e}")
+        print(f"ERROR: Failed to create/update subscription: {e}")
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+        
+        # Return more detailed error information
+        raise HTTPException(
+            status_code=500, 
+            detail={
+                "error": "Failed to create subscription",
+                "message": str(e),
+                "user_email": email_normalized,
+                "plan_name": subscription.plan_name
+            }
+        )
 
 @app.get("/api/system/location")
 def get_system_location(request: Request):
@@ -1199,48 +1252,85 @@ def get_user_subscription(user_email: str, db: Session = Depends(get_db)):
 
 @app.post("/api/payments")
 def create_payment_record(payment: PaymentCreate, db: Session = Depends(get_db)):
-    """Create payment record"""
+    """Create payment record with enhanced error handling"""
     email_normalized = payment.user_email.lower().strip()
-    print(f"DEBUG: Creating payment record for {email_normalized} - Amount: {payment.amount} {payment.currency}")
+    print(f"DEBUG: Creating payment record for {email_normalized} - Amount: {payment.amount}")
     
-    # Get User ID
-    user_rec = db.query(models.User).filter(func.lower(models.User.email) == email_normalized).first()
-    if not user_rec:
-        print(f"DEBUG: User {email_normalized} not found during payment creation")
-    u_id = user_rec.id if user_rec else None
+    # Get User ID with better error handling
+    try:
+        user_rec = db.query(models.User).filter(func.lower(models.User.email) == email_normalized).first()
+        if not user_rec:
+            print(f"DEBUG: User {email_normalized} not found, creating user record")
+            # Create user if doesn't exist
+            user_rec = models.User(
+                email=email_normalized,
+                name=email_normalized.split('@')[0],
+                auth_provider="razorpay"
+            )
+            db.add(user_rec)
+            db.commit()
+            db.refresh(user_rec)
+        
+        u_id = user_rec.id
+    except Exception as e:
+        print(f"ERROR: Failed to get/create user: {e}")
+        u_id = None
 
     try:
+        # Check if payment already exists
+        existing_payment = db.query(models.PaymentHistory).filter(
+            models.PaymentHistory.razorpay_payment_id == payment.razorpay_payment_id
+        ).first()
+        
+        if existing_payment:
+            print(f"INFO: Payment {payment.razorpay_payment_id} already exists, returning existing")
+            return existing_payment
+        
+        # Create new payment record
         db_payment = models.PaymentHistory(
             user_id=u_id,
-            user_email=payment.user_email.lower().strip(),
+            user_email=email_normalized,
             subscription_id=payment.subscription_id,
             amount=payment.amount,
-            currency=payment.currency,
+            currency=payment.currency or "INR",
             razorpay_payment_id=payment.razorpay_payment_id,
             razorpay_order_id=payment.razorpay_order_id,
             status=payment.status,
-            payment_method=payment.payment_method,
+            payment_method=payment.payment_method or "razorpay",
             plan_name=payment.plan_name,
             billing_cycle=payment.billing_cycle
         )
         db.add(db_payment)
         db.commit()
         db.refresh(db_payment)
+        
+        print(f"SUCCESS: Payment record created with ID: {db_payment.id}")
         return db_payment
+        
     except Exception as e:
         db.rollback()
         error_msg = str(e).lower()
-        print(f"[ERROR] Failed to create payment record: {e}")
+        print(f"ERROR: Failed to create payment record: {e}")
         
-        # More robust check for unique constraint violations (IntegrityError)
+        # Check for duplicate key errors
         if any(term in error_msg for term in ["duplicate key", "unique constraint", "already exists"]):
-            # Try to find exactly what was unique (the payment id)
-            existing = db.query(models.PaymentHistory).filter(models.PaymentHistory.razorpay_payment_id == payment.razorpay_payment_id).first()
+            existing = db.query(models.PaymentHistory).filter(
+                models.PaymentHistory.razorpay_payment_id == payment.razorpay_payment_id
+            ).first()
             if existing:
-                print(f"[INFO] Payment record {payment.razorpay_payment_id} already exists, returning existing.")
+                print(f"INFO: Returning existing payment record for {payment.razorpay_payment_id}")
                 return existing
         
-        raise HTTPException(status_code=500, detail=f"Failed to create payment record: {str(e)}")
+        # Return a more detailed error
+        raise HTTPException(
+            status_code=500, 
+            detail={
+                "error": "Failed to create payment record",
+                "message": str(e),
+                "payment_id": payment.razorpay_payment_id,
+                "user_email": email_normalized
+            }
+        )
 
 
 @app.get("/api/payments/{user_email}")
