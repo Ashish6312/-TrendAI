@@ -1,2 +1,12 @@
 fastapi>=0.110.0
 uvicorn>=0.24.0
+sqlalchemy>=2.0.0
+pydantic>=2.0.0
+python-dotenv>=1.0.0
+requests>=2.31.0
+httpx>=0.25.0
+pyjwt>=2.8.0
+passlib[bcrypt]>=1.7.4
+pg8000>=1.30.3
+textblob>=0.17.0
+duckduckgo-search>=3.9.0

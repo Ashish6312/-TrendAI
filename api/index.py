@@ -1,4 +1,4 @@
-from main_minimal import app
+from main import app
 
-# Vercel handler
+# Vercel handler (keeping for compatibility)
 handler = app
