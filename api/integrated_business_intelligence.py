@@ -15,7 +15,9 @@ import random
 import traceback
 from typing import Dict, List, Any, Optional
 from datetime import datetime
-from duckduckgo_search import DDGS
+# The module-level import of duckduckgo_search.DDGS has been removed
+# as per instructions to avoid Vercel startup crashes.
+# It is now imported dynamically within the _fetch_live_market_context method.
 
 class IntegratedBusinessIntelligence:
     def __init__(self):
@@ -355,16 +357,16 @@ class IntegratedBusinessIntelligence:
         city_name = area.split(',')[0].strip()
         currency = "₹" if "india" in area.lower() else "$"
         
-        # Priority 1: AI refined metrics
+        # Priority 1: AI refined metrics with localized fallbacks
         if ai_metrics:
             return {
-                "gdp_growth": ai_metrics.get("gdp_growth", "6.8%"),
-                "investment_inflow": ai_metrics.get("investment_inflow", f"{currency}350Cr"),
+                "gdp_growth": ai_metrics.get("gdp_growth", f"{self._get_consistent_value(area, 'gdp', 6, 9)}.{self._get_consistent_value(area, 'gdp_dec', 1, 9)}%"),
+                "investment_inflow": ai_metrics.get("investment_inflow", f"{currency}{self._get_consistent_value(area, 'investment', 120, 650)}Cr"),
                 "business_registrations": f"+{self._get_consistent_value(area, 'registrations', 15, 35)}% YoY",
-                "consumer_confidence": "74/100",
-                "digital_adoption": ai_metrics.get("consumer_adoption", "78%"),
+                "consumer_confidence": f"{self._get_consistent_value(area, 'confidence', 68, 85)}/100",
+                "digital_adoption": ai_metrics.get("consumer_adoption", f"{self._get_consistent_value(area, 'digital', 70, 95)}%"),
                 "live_trends": [
-                    {"indicator": s.get("sector", "Market Growth"), "value": s.get("growth", "High"), "trend": "Positive"}
+                    {"indicator": s.get("sector", "Local Growth"), "value": s.get("growth", "High"), "trend": "Positive"}
                     for s in ai_metrics.get("emerging_sectors", [])[:3]
                 ],
                 "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")

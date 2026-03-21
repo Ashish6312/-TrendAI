@@ -5,12 +5,30 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from pydantic import BaseModel
 from datetime import datetime, timedelta
-import bcrypt
+from passlib.context import CryptContext
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 import os
 import logging
 import traceback
 import json
 from typing import Dict, List, Any, Optional
+
+# Initialize FastAPI app EARLY for health checks
+app = FastAPI(title="TrendAI Business Intelligence API", version="2.0")
+
+@app.get("/")
+async def root():
+    return {"status": "online", "message": "TrendAI API Shell Active", "version": "2.0"}
+
+@app.get("/api/health")
+async def health():
+    return {"status": "ok", "timestamp": str(datetime.now())}
+
+# Handle favicon.ico
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon_simple():
+    from fastapi.responses import Response
+    return Response(status_code=204)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -69,20 +87,25 @@ except Exception as e:
     logger.error(f"⚠️ Simple recommendations import failed: {e}")
     recommendations_available = False
 
-# Import integrated intelligence with error handling
-try:
-    from integrated_business_intelligence import integrated_intelligence
-    logger.info("✅ Integrated business intelligence imported successfully")
-except ImportError as e:
-    logger.error(f"⚠️ Integrated business intelligence import failed: {e}")
-    integrated_intelligence = None
-except Exception as e:
-    logger.error(f"⚠️ Unexpected error importing integrated business intelligence: {e}")
-    integrated_intelligence = None
+# Import integrated intelligence lazily
+_cached_intelligence = None
+def get_intelligence():
+    global _cached_intelligence
+    if _cached_intelligence is None:
+        try:
+            from integrated_business_intelligence import IntegratedBusinessIntelligence
+            _cached_intelligence = IntegratedBusinessIntelligence()
+            logger.info("✅ Integrated business intelligence initialized lazily")
+        except Exception as e:
+            logger.error(f"⚠️ Lazy intelligence initialization failed: {e}")
+            return None
+    return _cached_intelligence
 
-from dotenv import load_dotenv
+# Remove module-level import that was previously here
+# integrated_intelligence = ... (now accessed via get_intelligence())
 
-load_dotenv()
+# Standard FastAPI app initialization
+import models
 
 # Initialize FastAPI app without lifespan for Vercel compatibility
 app = FastAPI(title="TrendAI Business Intelligence API", version="2.0")
@@ -384,7 +407,7 @@ def sign_up(user_data: UserSignUp, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Password must be at least 6 characters long")
     
     # Hash password
-    password_hash = bcrypt.hashpw(user_data.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    password_hash = pwd_context.hash(user_data.password)
     
     # Create new user
     db_user = models.User(
@@ -423,7 +446,7 @@ def sign_in(user_data: UserSignIn, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="This account uses social login. Please sign in with Google.")
     
     # Verify password
-    if not bcrypt.checkpw(user_data.password.encode('utf-8'), db_user.password_hash.encode('utf-8')):
+    if not pwd_context.verify(user_data.password, db_user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     
     # Update login info
@@ -1423,14 +1446,13 @@ def get_user_location(email: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="User not found")
     
     return {
-        "email": user.email,
         "location": user.location,
         "has_location": bool(user.location)
     }
 
 @app.put("/api/users/{email}/location")
 def update_user_location(email: str, location_data: dict, db: Session = Depends(get_db)):
-    """Update user's location in profile"""
+    """Update user's saved location in profile"""
     from sqlalchemy import func
     
     email_normalized = email.lower().strip()
@@ -1439,10 +1461,7 @@ def update_user_location(email: str, location_data: dict, db: Session = Depends(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Update location
     user.location = location_data.get("location", "").strip()
-    user.updated_at = func.now()
-    
     db.commit()
     db.refresh(user)
     
@@ -1451,3 +1470,27 @@ def update_user_location(email: str, location_data: dict, db: Session = Depends(
         "message": "Location updated successfully",
         "location": user.location
     }
+
+# Add deployment test endpoint
+@app.get("/api/deployment/test")
+def deployment_test():
+    """Test endpoint to verify new deployments"""
+    return {
+        "status": "success",
+        "message": "Deployment test successful",
+        "version": "2.2",
+        "timestamp": datetime.now().isoformat(),
+        "components": {
+            "database": "available" if db_available else "unavailable",
+            "models": "available" if models_available else "unavailable",
+            "recommendations": "available" if recommendations_available else "unavailable",
+            "integrated_intelligence": "available" if get_intelligence() else "unavailable"
+        }
+    }
+
+# Vercel handler
+handler = app
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
