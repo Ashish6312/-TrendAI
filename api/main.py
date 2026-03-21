@@ -1547,6 +1547,64 @@ def get_user_profile(email: str, db: Session = Depends(get_db)):
     }
 
 
+@app.get("/api/debug-user-data/{email}")
+def debug_user_data(email: str, db: Session = Depends(get_db)):
+    """Debug endpoint to see user's complete data"""
+    from sqlalchemy import func
+    
+    email_normalized = email.lower().strip()
+    
+    try:
+        # Get user
+        user = db.query(models.User).filter(func.lower(models.User.email) == email_normalized).first()
+        
+        # Get subscription
+        subscription = db.query(models.UserSubscription).filter(
+            func.lower(models.UserSubscription.user_email) == email_normalized,
+            models.UserSubscription.status == "active"
+        ).first()
+        
+        # Get payments
+        payments = db.query(models.PaymentHistory).filter(
+            func.lower(models.PaymentHistory.user_email) == email_normalized
+        ).order_by(models.PaymentHistory.created_at.desc()).limit(5).all()
+        
+        return {
+            "user": {
+                "id": user.id if user else None,
+                "email": user.email if user else None,
+                "name": user.name if user else None
+            } if user else None,
+            "subscription": {
+                "id": subscription.id if subscription else None,
+                "plan_name": subscription.plan_name if subscription else None,
+                "plan_display_name": subscription.plan_display_name if subscription else None,
+                "status": subscription.status if subscription else None,
+                "max_analyses": subscription.max_analyses if subscription else None,
+                "price": subscription.price if subscription else None
+            } if subscription else None,
+            "payments": [
+                {
+                    "id": p.id,
+                    "amount": p.amount,
+                    "plan_name": p.plan_name,
+                    "status": p.status,
+                    "payment_date": p.created_at.isoformat(),
+                    "razorpay_payment_id": p.razorpay_payment_id
+                }
+                for p in payments
+            ],
+            "debug_info": {
+                "email_normalized": email_normalized,
+                "user_exists": bool(user),
+                "subscription_exists": bool(subscription),
+                "payments_count": len(payments)
+            }
+        }
+        
+    except Exception as e:
+        return {"error": str(e)}
+
 @app.post("/api/refresh-user-plan/{email}")
 def refresh_user_plan(email: str, db: Session = Depends(get_db)):
     """Force refresh user's plan based on their latest payment and subscription data"""

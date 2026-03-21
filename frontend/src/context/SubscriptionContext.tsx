@@ -124,7 +124,7 @@ const planFeatures = {
     phoneSupport: true,
     advancedDashboard: true,
     customDataSources: true,
-    planName: 'Enterprise',
+    planName: 'Territorial Dominance',
     planDescription: 'Complete business solutions with API access and dedicated support for large organizations.'
   }
 };
@@ -136,6 +136,64 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
   // Ensure plan is always valid
   const validPlan = plan && ['free', 'professional', 'enterprise'].includes(plan) ? plan : 'free';
+
+  // Force refresh function
+  const forceRefreshPlan = async () => {
+    if (!session?.user?.email) return;
+    
+    const email = session.user.email.toLowerCase().trim();
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    
+    try {
+      console.log('🔄 Force refreshing subscription plan...');
+      const response = await fetch(`${apiUrl}/api/subscriptions/${email}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('🔍 Force refresh - Subscription data:', data);
+        
+        // Enhanced mapping for plan names
+        const rawPlanName = data.plan_name?.toLowerCase() || '';
+        const rawDisplayName = data.plan_display_name?.toLowerCase() || '';
+        
+        let planToSet: SubscriptionPlan = 'free';
+        
+        // Check for enterprise plans
+        if (rawPlanName === 'enterprise' || 
+            rawDisplayName === 'territorial dominance' || 
+            rawDisplayName === 'market dominator' ||
+            rawDisplayName.includes('enterprise') ||
+            rawDisplayName.includes('territorial') ||
+            rawDisplayName.includes('dominator')) {
+          planToSet = 'enterprise';
+        }
+        // Check for professional plans  
+        else if (rawPlanName === 'professional' || 
+                 rawPlanName === 'pro' || 
+                 rawDisplayName === 'growth architect' || 
+                 rawDisplayName === 'growth accelerator' ||
+                 rawDisplayName.includes('professional') ||
+                 rawDisplayName.includes('growth') ||
+                 rawDisplayName.includes('architect')) {
+          planToSet = 'professional';
+        }
+        // Default to free
+        else {
+          planToSet = 'free';
+        }
+
+        console.log('🔄 Force refresh - Plan mapped to:', planToSet);
+        setPlanState(planToSet);
+        localStorage.setItem(`subscription_${email}`, planToSet);
+        
+        return planToSet;
+      }
+    } catch (error) {
+      console.error('❌ Force refresh failed:', error);
+    }
+    
+    return null;
+  };
 
   // Load subscription plan from API or localStorage
   useEffect(() => {
@@ -154,52 +212,10 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         }
 
         try {
-          // 2. Verify with API
-          console.log('🔍 Fetching subscription for:', email);
-          console.log('🔍 API URL:', `${apiUrl}/api/subscriptions/${email}`);
-          
-          const response = await fetch(`${apiUrl}/api/subscriptions/${email}`);
-          console.log('🔍 Subscription API response status:', response.status);
-          
-          if (response.ok) {
-            const data = await response.json();
-            console.log('🔍 Subscription data received:', data);
-            
-            // Enhanced mapping for plan names
-            const rawPlanName = data.plan_name?.toLowerCase() || '';
-            const rawDisplayName = data.plan_display_name?.toLowerCase() || '';
-            
-            let planToSet: SubscriptionPlan = 'free';
-            
-            // Check for enterprise plans
-            if (rawPlanName === 'enterprise' || 
-                rawDisplayName === 'territorial dominance' || 
-                rawDisplayName === 'market dominator' ||
-                rawDisplayName.includes('enterprise') ||
-                rawDisplayName.includes('territorial') ||
-                rawDisplayName.includes('dominator')) {
-              planToSet = 'enterprise';
-            }
-            // Check for professional plans  
-            else if (rawPlanName === 'professional' || 
-                     rawPlanName === 'pro' || 
-                     rawDisplayName === 'growth architect' || 
-                     rawDisplayName === 'growth accelerator' ||
-                     rawDisplayName.includes('professional') ||
-                     rawDisplayName.includes('growth') ||
-                     rawDisplayName.includes('architect')) {
-              planToSet = 'professional';
-            }
-            // Default to free
-            else {
-              planToSet = 'free';
-            }
-
-            console.log('🔍 Plan mapped to:', planToSet);
-            setPlanState(planToSet);
-            localStorage.setItem(`subscription_${email}`, planToSet);
-          } else {
-            console.error('🔍 Subscription API error:', response.status, response.statusText);
+          // 2. Always verify with API (force refresh)
+          const refreshedPlan = await forceRefreshPlan();
+          if (refreshedPlan) {
+            console.log('✅ Plan successfully refreshed to:', refreshedPlan);
           }
         } catch (err) {
           console.error('❌ AI Terminal: Subscription fetch error:', err);

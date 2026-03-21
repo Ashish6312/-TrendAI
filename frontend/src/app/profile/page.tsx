@@ -1918,6 +1918,36 @@ function ProfilePageContent() {
                               if (!session?.user?.email) return;
                               try {
                                 const apiUrl = getApiUrl();
+                                const response = await fetch(`${apiUrl}/api/debug-user-data/${session.user.email}`);
+                                
+                                if (response.ok) {
+                                  const data = await response.json();
+                                  console.log('🔍 DEBUG - User data:', data);
+                                  
+                                  addNotification({
+                                    type: 'system',
+                                    title: '🔍 Debug Data',
+                                    message: `User: ${data.user?.name || 'N/A'}, Plan: ${data.subscription?.plan_name || 'None'}, Payments: ${data.payments?.length || 0}`,
+                                    priority: 'low'
+                                  });
+                                } else {
+                                  throw new Error('Failed to get debug data');
+                                }
+                              } catch (error) {
+                                console.error('Failed to get debug data:', error);
+                              }
+                            }}
+                            className="px-3 py-1.5 bg-purple-500 text-white rounded-lg text-xs font-bold hover:bg-purple-600 transition-all flex items-center gap-2"
+                          >
+                            <Settings size={12} />
+                            Debug Data
+                          </button>
+                          
+                          <button
+                            onClick={async () => {
+                              if (!session?.user?.email) return;
+                              try {
+                                const apiUrl = getApiUrl();
                                 const response = await fetch(`${apiUrl}/api/refresh-user-plan/${session.user.email}`, {
                                   method: 'POST'
                                 });
