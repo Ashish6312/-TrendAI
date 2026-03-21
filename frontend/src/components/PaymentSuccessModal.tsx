@@ -54,11 +54,12 @@ export default function PaymentSuccessModal({ isOpen, onClose, paymentDetails }:
         'Territorial Dominance': 'enterprise',
         'Market Dominator': 'enterprise',
         'free': 'free',
+        'pro': 'professional',
         'professional': 'professional',
         'enterprise': 'enterprise'
       };
       
-      const currentPlan = planMapping[planParam] || (planParam.toLowerCase() as SubscriptionPlan);
+      const currentPlan = planMapping[planParam] || 'free';
 
       const planFeaturesMap: Record<SubscriptionPlan, any> = {
         'free': { max_analyses: 5, features: { advancedFeatures: false, prioritySupport: false, exportToPdf: false, apiAccess: false } },

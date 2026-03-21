@@ -84,10 +84,11 @@ function PaymentSuccessContent() {
     'Enterprise': 'enterprise',
     'Market Dominator': 'enterprise',
     'free': 'free',
+    'pro': 'professional',
     'professional': 'professional',
     'enterprise': 'enterprise'
   };
-  const currentPlan = planMapping[planParam] || (planParam.toLowerCase() as SubscriptionPlan);
+  const currentPlan = planMapping[planParam] || 'free';
 
   // Plan features for display
   const planFeatures = {
