@@ -1291,6 +1291,84 @@ def get_user_info(email: str, db: Session = Depends(get_db)):
         "created_at": user.created_at
     }
 
+@app.post("/api/debug/create-sample-payment/{user_email}")
+def create_sample_payment(user_email: str, db: Session = Depends(get_db)):
+    """Create sample payment data for testing"""
+    try:
+        from datetime import datetime
+        
+        email_normalized = user_email.lower().strip()
+        
+        # Check if user exists
+        user = db.query(models.User).filter(func.lower(models.User.email) == email_normalized).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Create sample payment
+        sample_payment = models.PaymentHistory(
+            user_id=user.id,
+            user_email=email_normalized,
+            razorpay_payment_id=f"pay_sample_{datetime.now().strftime('%Y%m%d%H%M%S')}",
+            razorpay_order_id=f"order_sample_{datetime.now().strftime('%Y%m%d%H%M%S')}",
+            amount=1399.0,
+            currency="INR",
+            status="success",
+            payment_method="card",
+            plan_name="professional",
+            billing_cycle="yearly",
+            payment_date=datetime.now()
+        )
+        
+        db.add(sample_payment)
+        db.commit()
+        db.refresh(sample_payment)
+        
+        return {
+            "message": "Sample payment created successfully",
+            "payment": {
+                "id": sample_payment.id,
+                "amount": sample_payment.amount,
+                "status": sample_payment.status,
+                "plan_name": sample_payment.plan_name
+            }
+        }
+    except Exception as e:
+        logger.error(f"Create sample payment error: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/payments/download-all-receipts")
+def download_all_receipts(email: str, db: Session = Depends(get_db)):
+    """Download all receipts for a user"""
+    try:
+        from sqlalchemy import func
+        
+        email_normalized = email.lower().strip()
+        payments = db.query(models.PaymentHistory).filter(
+            func.lower(models.PaymentHistory.user_email) == email_normalized,
+            models.PaymentHistory.status == "success"
+        ).order_by(models.PaymentHistory.created_at.desc()).all()
+        
+        if not payments:
+            raise HTTPException(status_code=404, detail="No receipts found")
+        
+        # For now, return a simple response - in production you'd generate a ZIP file
+        return {
+            "message": f"Found {len(payments)} receipts",
+            "receipts": [
+                {
+                    "id": p.razorpay_payment_id,
+                    "amount": p.amount,
+                    "date": p.created_at.isoformat(),
+                    "plan": p.plan_name
+                }
+                for p in payments
+            ]
+        }
+    except Exception as e:
+        logger.error(f"Download receipts error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/debug/users")
 def debug_users(db: Session = Depends(get_db)):
     """Debug endpoint to see what users exist"""
@@ -1359,15 +1437,22 @@ def get_user_profile(email: str, db: Session = Depends(get_db)):
     from sqlalchemy import func
 
     email_normalized = email.lower().strip()
+    logger.info(f"🔍 Profile request for: {email_normalized}")
+    
     user = db.query(models.User).filter(func.lower(models.User.email) == email_normalized).first()
 
     if not user:
+        logger.error(f"🔍 User not found: {email_normalized}")
         raise HTTPException(status_code=404, detail="User not found")
+
+    logger.info(f"🔍 User found: {user.email}")
 
     # Get user statistics
     search_count = db.query(models.SearchHistory).filter(
         func.lower(models.SearchHistory.user_email) == email_normalized
     ).count()
+    
+    logger.info(f"🔍 Search count: {search_count}")
 
     # Get subscription info
     subscription = db.query(models.UserSubscription).filter(
@@ -1375,10 +1460,16 @@ def get_user_profile(email: str, db: Session = Depends(get_db)):
         models.UserSubscription.status == "active"
     ).first()
     
+    logger.info(f"🔍 Subscription found: {subscription.plan_name if subscription else 'None'}")
+    
     # Get recent payments
     recent_payments = db.query(models.PaymentHistory).filter(
         func.lower(models.PaymentHistory.user_email) == email_normalized
     ).order_by(models.PaymentHistory.created_at.desc()).limit(10).all()
+    
+    logger.info(f"🔍 Payments found: {len(recent_payments)}")
+    for payment in recent_payments:
+        logger.info(f"🔍 Payment: {payment.id} - {payment.amount} - {payment.status} - {payment.plan_name}")
 
     return {
         "user": user,
@@ -1388,7 +1479,7 @@ def get_user_profile(email: str, db: Session = Depends(get_db)):
             {
                 "id": payment.id,
                 "amount": payment.amount,
-                "currency": "INR",
+                "currency": payment.currency or "INR",
                 "razorpay_payment_id": payment.razorpay_payment_id,
                 "status": payment.status,
                 "plan_name": payment.plan_name,
