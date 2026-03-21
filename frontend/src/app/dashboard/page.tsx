@@ -743,8 +743,13 @@ function Dashboard() {
                         <h2 className="text-4xl lg:text-6xl font-black text-slate-900 dark:text-white tracking-tight leading-none">
                           {area}
                         </h2>
-                        <p className="text-slate-600 dark:text-gray-400 text-lg font-medium">
-                          Found {result.recommendations?.length || 0} {t('dash_strategic_opps')}
+                        <p className="text-slate-600 dark:text-gray-400 text-lg font-medium flex items-center gap-2">
+                          Found {Array.isArray(result.recommendations) ? result.recommendations.length : 0} {t('dash_strategic_opps')}
+                          {result.cached && (
+                            <span className="px-3 py-1 bg-blue-500/10 text-blue-500 text-[10px] font-black uppercase tracking-tighter rounded-full border border-blue-500/20">
+                              Cached Analysis
+                            </span>
+                          )}
                         </p>
                                              {/* Action Group: Play, Share, Download */}
                         <div className="flex flex-wrap items-center gap-4">
@@ -767,15 +772,24 @@ function Dashboard() {
                     {/* Analysis Summary */}
                     <div className="grid lg:grid-cols-2 gap-8 items-stretch mb-12">
                       <UniformCard 
-                        title="Market Summary"
+                        title="Live Market Intelligence"
                         variant="glass"
                         size="lg"
                         className="shadow-lg border-2 border-slate-200/50 dark:border-white/10 h-full flex flex-col"
                       >
-                        <div className="flex-grow">
-                          {renderFormattedText(typeof result.analysis === 'object' 
-                            ? (result.analysis?.executive_summary || result.analysis?.market_overview) 
-                            : (result.analysis || "Market analysis in progress..."))}
+                        <div className="flex-grow flex flex-col min-h-0">
+                          <div className="flex flex-wrap gap-2 mb-4 shrink-0">
+                            {Array.isArray(result.analysis?.data_sources) && result.analysis.data_sources.map((source: string, i: number) => (
+                              <span key={i} className="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase rounded border border-slate-200 dark:border-slate-700">
+                                {source}
+                              </span>
+                            ))}
+                          </div>
+                          <div className="prose prose-sm lg:prose-base prose-slate dark:prose-invert max-w-none overflow-y-auto max-h-[450px] pr-4 custom-scrollbar">
+                            {renderFormattedText(typeof result.analysis === 'object' 
+                              ? (result.analysis?.executive_summary || result.analysis?.market_overview) 
+                              : (result.analysis || "Market analysis in progress..."))}
+                          </div>
                         </div>
                       </UniformCard>
                       <UniformCard 
@@ -806,9 +820,11 @@ function Dashboard() {
                                 </div>
                               </div>
                               <div className="text-xs font-bold text-slate-500 dark:text-gray-500 uppercase tracking-widest mb-1">Market Gap</div>
-                              <div className="text-4xl lg:text-5xl font-black text-blue-500 tracking-tighter drop-shadow-sm">{
-                                (typeof result.analysis === 'object' ? result.analysis?.market_gap_intensity : "High")
-                              }</div>
+                              <div className="text-2xl lg:text-3xl font-black text-blue-500 tracking-tighter drop-shadow-sm break-words line-clamp-2 min-h-[3rem] flex items-center justify-center leading-tight">
+                                {
+                                  (typeof result.analysis === 'object' ? result.analysis?.market_gap_intensity : "High")
+                                }
+                              </div>
                               <div className="mt-2 text-[10px] font-bold text-blue-600/60 dark:text-blue-400/40 uppercase">Unsaturated</div>
                             </div>
                           </div>
@@ -827,7 +843,7 @@ function Dashboard() {
                         </p>
                       </div>
                       <div className="grid gap-8">
-                        {result.recommendations?.map((rec: any, idx: number) => (
+                        {Array.isArray(result.recommendations) && result.recommendations.map((rec: any, idx: number) => (
                           <motion.div key={idx} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.1 }}>
                             <UniformCard 
                               variant="glass"

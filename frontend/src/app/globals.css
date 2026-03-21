@@ -20,6 +20,11 @@
   --glass-bg: rgba(255, 255, 255, 0.8);
   --glass-border: rgba(148, 163, 184, 0.3);
   
+  /* Custom Scrollbar Utilities */
+  --sb-track: transparent;
+  --sb-thumb: rgba(148, 163, 184, 0.2);
+  --sb-thumb-hover: rgba(148, 163, 184, 0.4);
+  
   /* Subscription theme variables - Light Mode Adjustments */
   --subscription-primary: #475569;
   --subscription-secondary: #64748b;

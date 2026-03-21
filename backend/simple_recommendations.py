@@ -8,54 +8,28 @@ from typing import List, Dict, Any
 import praw
 from duckduckgo_search import DDGS
 
+# Local intelligence module
+try:
+    from integrated_business_intelligence import integrated_intelligence
+except ImportError:
+    integrated_intelligence = None
+
 # Resolve global cache at module level to avoid function attribute lints
 _LOCATION_CACHE: Dict[str, Any] = {}
 
 def generate_detailed_roadmap_step_guide(step_title: str, step_description: str, business_type: str, location: str) -> Dict[str, Any]:
-    """Generate high-fidelity implementation details for a roadmap step using AI"""
-    try:
-        prompt = f"As a professional business consultant, provide a DETAILED IMPLEMENTATION GUIDE for: '{step_title}' in the context of a {business_type} in {location}. Description: {step_description}. Return ONLY raw JSON strictly using these EXACT keys: 'objective', 'key_activities', 'metrics', 'pro_tips', 'implementation_steps'. The 'implementation_steps' must be an array of objects with exactly 'title' and 'desc' keys. Do not use single quotes for keys, use valid JSON double quotes."
-        response = requests.post("https://text.pollinations.ai/", json={"messages": [{"role": "user", "content": prompt}]}, timeout=60)
-        content = response.text
-        
-        # Ultra-resilient JSON extraction
-        if "```json" in content: content = content.split("```json")[1].split("```")[0].strip()
-        elif "```" in content: content = content.split("```")[1].split("```")[0].strip()
-        elif "{" in content and "}" in content:
-            content = content[content.find("{"):content.rfind("}")+1]
-            
-        import re
-        # Fix common AI JSON mistakes (single quotes to double quotes)
-        content = re.sub(r"'([^']+)':", r'"\1":', content)
-        
-        guide_data = json.loads(content)
-        
-        # Resilient structure parsing to prevent blank data
-        normalized = {}
-        for k, v in guide_data.items(): normalized[k.lower()] = v
-        if "guide" in normalized and isinstance(normalized["guide"], dict):
-            normalized = {k.lower(): v for k, v in normalized["guide"].items()}
-            
-        return {
-            "objective": normalized.get("objective", normalized.get("primary_objective", f"Execute the strategic operations for {step_title}.")) if isinstance(normalized.get("objective"), str) else f"Professional execution of {step_title}.",
-            "key_activities": normalized.get("key_activities", normalized.get("activities", [f"Analyze requirements for {step_title}", "Allocate necessary resources", "Begin phased execution"])) if isinstance(normalized.get("key_activities"), list) else [f"Review {step_title} guidelines"],
-            "metrics": normalized.get("metrics", normalized.get("success_metrics", ["Action completion rate", "Time to deploy"])) if isinstance(normalized.get("metrics"), list) else ["Success rate"],
-            "pro_tips": normalized.get("pro_tips", normalized.get("tips", "Maintain agile execution and monitor initial traction.")) if isinstance(normalized.get("pro_tips"), str) else "Stay focused on core objectives.",
-            "implementation_steps": normalized.get("implementation_steps", normalized.get("steps", [{"title": f"Phase 1: {step_title}", "desc": "Follow standardized protocols."}])) if isinstance(normalized.get("implementation_steps"), list) else [{"title": "Execution", "desc": "Begin operations."}]
-        }
-    except Exception as e:
-        print(f"⚠️ Guide generation failure: {e}")
-        return {
-            "objective": f"Professional execution of {step_title} for {business_type} in {location}.",
-            "key_activities": [f"Research protocols for {step_title}", "Assess operational readiness", f"Align team on {step_title} objectives"],
-            "metrics": ["Completion velocity", "Operational stability", "Resource efficiency"],
-            "pro_tips": "Implement data-driven feedback loops to refine your tactical approach.",
-            "implementation_steps": [
-                {"title": "Initial Assessment", "desc": f"Evaluate current state regarding {step_title}."},
-                {"title": "Active Execution", "desc": f"Implement the core requirements for {step_title}."},
-                {"title": "Review & Optimize", "desc": "Measure outcomes and adjust strategy."}
-            ]
-        }
+    """Generate high-fidelity implementation details for a roadmap step using advanced intelligence"""
+    if integrated_intelligence:
+        return integrated_intelligence.generate_implementation_guide(step_title, step_description, business_type, location)
+    
+    # Static Fallback if module is missing
+    return {
+        "objective": f"Professional execution of {step_title}.",
+        "key_activities": ["Resource planning", "Operational setup", "Review phase"],
+        "metrics": ["Completion rate", "Efficiency"],
+        "pro_tips": "Focus on high-value milestones first.",
+        "implementation_steps": [{"title": "Phase 1", "desc": "Initial start"}]
+    }
 
 def parse_real_location_data(area: str) -> Dict[str, Any]:
     area_lower = area.lower()
@@ -407,10 +381,11 @@ def generate_ai_recommendations(area: str, location_info: Dict[str, Any], langua
         return None
 
 def generate_ai_business_plan(business_title: str, area: str, language: str = "English") -> Dict[str, Any]:
-    """Generate a detailed 6-month business plan using AI and real-time data"""
-    market_context = get_real_time_market_data(f"market for {business_title} in {area}")
-    location_info = parse_real_location_data(area)
-    currency = location_info.get('currency_symbol', '₹')
+    # Determine currency and market context
+    area_lower = area.lower()
+    is_indian_city = 'india' in area_lower or any(city in area_lower for city in ['mumbai', 'delhi', 'bangalore', 'chennai', 'bhopal', 'berasia', 'pune', 'kolkata'])
+    currency = "₹" if is_indian_city else "$"
+    market_context = f"Current market trends and opportunities in {area} for {business_title}"
     
     prompt = f"""
     Create a professional 6-month business plan for: {business_title} in {area}.
@@ -508,15 +483,23 @@ def generate_dynamic_recommendations(area: str, user_email: str, language: str =
     is_indian = 'india' in area_lower or location_info.get('country_code') == 'IN'
     currency = location_info.get('currency_symbol', '₹' if is_indian else '$')
     
-    # 🎯 NEW: Prioritize AI recommendations for real-time grounded data
+    # 🎯 NEW: Prioritize Integrated Intelligence for real-time grounded data
+    if integrated_intelligence:
+        try:
+            print("🤖 Calling Enhanced Integrated Intelligence Engine...")
+            return integrated_intelligence.generate_data_driven_recommendations(area, user_email, language)
+        except Exception as e:
+            print(f"⚠️ Integrated Intelligence failed, falling back to basic AI: {e}")
+    
+    # Original AI recommendation attempt
     try:
-        print("🤖 Attempting AI-driven recommendations for maximum realism...")
+        print("🤖 Attempting basic AI-driven recommendations...")
         ai_result = generate_ai_recommendations(area, location_info, language)
         if ai_result and "recommendations" in ai_result and len(ai_result["recommendations"]) > 0:
-            print("✅ AI Recommendations successful!")
+            print("✅ Basic AI Recommendations successful!")
             return ai_result
     except Exception as e:
-        print(f"⚠️ AI Recommendation attempt failed, falling back to templates: {e}")
+        print(f"⚠️ Basic AI attempt failed, falling back to templates: {e}")
     
     # Real location-specific business data based on actual market research and 2025 government policies
     real_location_data = {
@@ -594,6 +577,27 @@ def generate_dynamic_recommendations(area: str, user_email: str, language: str =
                 'gdp': '₹8,56,270 crores',
                 'population': '3,25,65,085',
                 'main_industries': ['Government', 'Services', 'Manufacturing', 'Trade']
+            }
+        },
+        'indore': {
+            'country': 'India',
+            'state': 'Madhya Pradesh',
+            'country_code': 'IN',
+            'coordinates': {'lat': 22.7196, 'lng': 75.8577},
+            'categories': ['Food Processing', 'Logistics', 'Textiles', 'IT Services', 'Healthcare', 'Education Hub', 'Pharmaceuticals', 'Startups'],
+            'key_facts': [
+                'Commercial capital of MP and India\'s cleanest city for 7 consecutive years',
+                'Major trading hub with upcoming ₹450 cr Multi-Modal Logistics Park',
+                'Strong presence of IT majors like TCS and Infosys in Super Corridor',
+                'Educational hub with both IIT and IIM, driving student-focused economy',
+                'Center for pharmaceutical manufacturing and PITHAMPUR industrial area proximity'
+            ],
+            'economic_data': {
+                'gdp': '₹65,000 crores approx',
+                'population': '3,276,697',
+                'main_industries': ['Trading', 'IT', 'Food Processing', 'Pharmaceuticals', 'Textiles'],
+                'gdp_growth': '8.2%',
+                'investment_climate': 'Highly positive with top-tier infrastructure and investment policies'
             }
         },
         'bangalore': {
