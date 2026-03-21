@@ -1096,35 +1096,6 @@ def create_subscription(subscription: SubscriptionCreate, db: Session = Depends(
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
-@app.get("/api/system/location")
-def get_system_location(request: Request):
-    """Detect location from IP address"""
-    try:
-        # For development, we'll use a public API to get the IP's location
-        # In production, this can use CloudFront-Viewer-City or GEOLITE
-        import requests
-        res = requests.get("https://ipapi.co/json/", timeout=5)
-        if res.status_code == 200:
-            data = res.json()
-            return {
-                "country": data.get("country_name", "Unknown"),
-                "city": data.get("city", "Unknown"),
-                "country_code": data.get("country_code", "XX"),
-                "currency": data.get("currency", "$"),
-                "ip": data.get("ip", "0.0.0.0")
-            }
-    except Exception as e:
-        print(f"Location detection failed: {e}")
-    
-    # Fallback
-    return {
-        "country": "India",
-        "city": "Unknown",
-        "country_code": "IN",
-        "currency": "INR",
-        "ip": "0.0.0.0"
-    }
-
 @app.get("/api/subscriptions/{user_email}")
 @app.get("/api/subscription/{user_email}") # Support both singular and plural
 def get_user_subscription(user_email: str, db: Session = Depends(get_db)):
