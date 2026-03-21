@@ -86,6 +86,11 @@ try:
 except Exception as e:
     logger.error(f"⚠️ Simple recommendations import failed: {e}")
     recommendations_available = False
+    # Create dummy functions to prevent crashes
+    def generate_ai_business_plan(*args, **kwargs):
+        return None
+    def generate_ai_roadmap(*args, **kwargs):
+        return None
 
 # Import integrated intelligence lazily
 _cached_intelligence = None
@@ -98,6 +103,9 @@ def get_intelligence():
             logger.info("✅ Integrated business intelligence initialized lazily")
         except Exception as e:
             logger.error(f"⚠️ Lazy intelligence initialization failed: {e}")
+            logger.error(f"Full error: {str(e)}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return None
     return _cached_intelligence
 
@@ -153,7 +161,11 @@ def get_db_session():
 def get_db_with_fallback():
     """Original get_db function with fallback handling"""
     if db_available:
-        return get_db()
+        try:
+            return get_db()
+        except Exception as e:
+            logger.error(f"Database connection failed: {e}")
+            raise HTTPException(status_code=503, detail="Database not available")
     else:
         raise HTTPException(status_code=503, detail="Database not available")
 class UserSignUp(BaseModel):
@@ -324,7 +336,7 @@ def read_root():
                 "database": "connected" if db_available else "disconnected",
                 "models": "available" if models_available else "unavailable", 
                 "recommendations": "available" if recommendations_available else "unavailable",
-                "integrated_intelligence": "available" if integrated_intelligence else "unavailable"
+                "integrated_intelligence": "available" if get_intelligence() else "unavailable"
             },
             "environment_check": {
                 "database_url": bool(os.getenv("DATABASE_URL")),
@@ -353,7 +365,7 @@ def health_check():
                 "database": "ok" if db_available else "error",
                 "models": "ok" if models_available else "error",
                 "recommendations": "ok" if recommendations_available else "error",
-                "integrated_intelligence": "ok" if integrated_intelligence else "error"
+                "integrated_intelligence": "ok" if get_intelligence() else "error"
             }
         }
         
@@ -583,9 +595,10 @@ def get_recommendations(request: RecommendationRequest, db: Session = Depends(ge
 
         print("[SUCCESS] No cache found. Calling fresh REAL-TIME intelligence engine...")
         # Generate dynamic recommendations DIRECTLY from intelligence module (Zero Hardcoding)
-        if integrated_intelligence:
+        intelligence = get_intelligence()
+        if intelligence:
             try:
-                result = integrated_intelligence.generate_data_driven_recommendations(analysis_area, request.user_email, request.language, request.phase)
+                result = intelligence.generate_data_driven_recommendations(analysis_area, request.user_email, request.language, request.phase)
                 print(f"[SUCCESS] Generated {len(result['recommendations'])} real-time recommendations")
             except Exception as e:
                 logger.error(f"Integrated intelligence failed: {e}")
@@ -596,10 +609,14 @@ def get_recommendations(request: RecommendationRequest, db: Session = Depends(ge
         if not result and recommendations_available:
             try:
                 print("⚠️ Integrated intelligence not available, using fallback")
-                # Import fallback function
-                from simple_recommendations import generate_dynamic_recommendations
-                result = generate_dynamic_recommendations(analysis_area, request.user_email, request.language)
-                print(f"[FALLBACK] Generated {len(result['recommendations'])} fallback recommendations")
+                # Import fallback function with error handling
+                try:
+                    from simple_recommendations import generate_dynamic_recommendations
+                    result = generate_dynamic_recommendations(analysis_area, request.user_email, request.language)
+                    print(f"[FALLBACK] Generated {len(result.get('recommendations', []))} fallback recommendations")
+                except ImportError as ie:
+                    logger.error(f"Failed to import fallback function: {ie}")
+                    result = None
             except Exception as e:
                 logger.error(f"Simple recommendations failed: {e}")
                 result = None
@@ -941,8 +958,9 @@ def get_roadmap_guide(request: RoadmapGuideRequest):
     
     try:
         # Use enhanced phase-aware implementation guide
-        if integrated_intelligence:
-            guide = integrated_intelligence.generate_implementation_guide(
+        intelligence = get_intelligence()
+        if intelligence:
+            guide = intelligence.generate_implementation_guide(
                 request.step_title, 
                 request.step_description, 
                 request.business_type, 

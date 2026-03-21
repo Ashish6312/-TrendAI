@@ -233,6 +233,9 @@ class IntegratedBusinessIntelligence:
         # 1. Aggressive DDGS search for real-time data
         for i, query in enumerate(queries):
             try:
+                # Dynamic import to avoid startup crashes
+                from duckduckgo_search import DDGS
+                
                 with DDGS() as ddgs:
                     # Specific region targeting to avoid generic global results like Baidu/Win10
                     region_code = 'in-en' if 'india' in area.lower() or any(city in area.lower() for city in ['mumbai', 'delhi', 'bhopal', 'indore']) else 'wt-wt'
@@ -1374,6 +1377,9 @@ class IntegratedBusinessIntelligence:
         
         # 1. Fetch business-specific launch context
         try:
+            # Dynamic import to avoid startup crashes
+            from duckduckgo_search import DDGS
+            
             with DDGS() as ddgs:
                 search_query = f"how to start a {title} business in {area} 2026 regulations and market entry steps"
                 results = list(ddgs.text(search_query, max_results=5))

@@ -6,7 +6,8 @@ import requests
 import json
 from typing import List, Dict, Any
 import praw
-from duckduckgo_search import DDGS
+# Dynamic import of DDGS to avoid startup crashes
+# from duckduckgo_search import DDGS
 
 # Local intelligence module
 try:
@@ -187,6 +188,9 @@ def format_amount(amt_lakhs, is_ind, curr):
 def get_real_time_market_data(area: str) -> str:
     """Fetch real-time market data and news using DuckDuckGo Search"""
     try:
+        # Dynamic import to avoid startup crashes
+        from duckduckgo_search import DDGS
+        
         with DDGS() as ddgs:
             # Search for business opportunities and market trends
             search_query = f"business opportunities and market trends in {area} 2025 2026"
