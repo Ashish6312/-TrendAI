@@ -165,17 +165,33 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
             const data = await response.json();
             console.log('🔍 Subscription data received:', data);
             
-            // Robust mapping for plan names
+            // Enhanced mapping for plan names
             const rawPlanName = data.plan_name?.toLowerCase() || '';
             const rawDisplayName = data.plan_display_name?.toLowerCase() || '';
             
             let planToSet: SubscriptionPlan = 'free';
             
-            if (rawPlanName === 'professional' || rawPlanName === 'pro' || rawDisplayName === 'growth architect' || rawDisplayName.includes('professional')) {
-              planToSet = 'professional';
-            } else if (rawPlanName === 'enterprise' || rawDisplayName === 'territorial dominance' || rawDisplayName.includes('enterprise')) {
+            // Check for enterprise plans
+            if (rawPlanName === 'enterprise' || 
+                rawDisplayName === 'territorial dominance' || 
+                rawDisplayName === 'market dominator' ||
+                rawDisplayName.includes('enterprise') ||
+                rawDisplayName.includes('territorial') ||
+                rawDisplayName.includes('dominator')) {
               planToSet = 'enterprise';
-            } else {
+            }
+            // Check for professional plans  
+            else if (rawPlanName === 'professional' || 
+                     rawPlanName === 'pro' || 
+                     rawDisplayName === 'growth architect' || 
+                     rawDisplayName === 'growth accelerator' ||
+                     rawDisplayName.includes('professional') ||
+                     rawDisplayName.includes('growth') ||
+                     rawDisplayName.includes('architect')) {
+              planToSet = 'professional';
+            }
+            // Default to free
+            else {
               planToSet = 'free';
             }
 

@@ -170,15 +170,22 @@ function ProfilePageContent() {
             if (newPaymentCount > lastPaymentCount) {
               console.log('🌊 New payment detected! Starting water animation...');
               
-              // Update subscription plan if we have subscription data
+              // Enhanced plan mapping with all variations
               if (data.subscription && data.subscription.plan_name) {
                 const planMapping: Record<string, any> = {
                   'professional': 'professional',
                   'pro': 'professional',
+                  'growth accelerator': 'professional',
+                  'growth architect': 'professional',
                   'enterprise': 'enterprise',
-                  'free': 'free'
+                  'territorial dominance': 'enterprise',
+                  'market dominator': 'enterprise',
+                  'free': 'free',
+                  'starter': 'free',
+                  'venture strategist': 'free'
                 };
-                const mappedPlan = planMapping[data.subscription.plan_name.toLowerCase()] || 'free';
+                const mappedPlan = planMapping[data.subscription.plan_name.toLowerCase()] || 
+                                 planMapping[data.subscription.plan_display_name?.toLowerCase()] || 'free';
                 console.log('🔄 Updating plan from payment detection:', mappedPlan);
                 setPlan(mappedPlan);
               }
@@ -203,15 +210,22 @@ function ProfilePageContent() {
               setPayments(data.recent_payments);
               setSubscriptionDetails(data.subscription);
               
-              // Still update plan if subscription exists but no new payments
+              // Enhanced plan mapping with all variations
               if (data.subscription && data.subscription.plan_name) {
                 const planMapping: Record<string, any> = {
                   'professional': 'professional',
-                  'pro': 'professional', 
+                  'pro': 'professional',
+                  'growth accelerator': 'professional',
+                  'growth architect': 'professional',
                   'enterprise': 'enterprise',
-                  'free': 'free'
+                  'territorial dominance': 'enterprise',
+                  'market dominator': 'enterprise',
+                  'free': 'free',
+                  'starter': 'free',
+                  'venture strategist': 'free'
                 };
-                const mappedPlan = planMapping[data.subscription.plan_name.toLowerCase()] || 'free';
+                const mappedPlan = planMapping[data.subscription.plan_name.toLowerCase()] || 
+                                 planMapping[data.subscription.plan_display_name?.toLowerCase()] || 'free';
                 if (plan !== mappedPlan) {
                   console.log('🔄 Updating plan from subscription data:', mappedPlan);
                   setPlan(mappedPlan);
@@ -1904,17 +1918,17 @@ function ProfilePageContent() {
                               if (!session?.user?.email) return;
                               try {
                                 const apiUrl = getApiUrl();
-                                const response = await fetch(`${apiUrl}/api/fix-subscription/${session.user.email}`, {
+                                const response = await fetch(`${apiUrl}/api/refresh-user-plan/${session.user.email}`, {
                                   method: 'POST'
                                 });
                                 
                                 if (response.ok) {
                                   const data = await response.json();
-                                  console.log('🔧 Subscription fixed:', data);
+                                  console.log('🔄 Plan refreshed:', data);
                                   
                                   // Update plan in context
-                                  if (data.subscription && data.subscription.plan_name) {
-                                    setPlan(data.subscription.plan_name);
+                                  if (data.current_plan) {
+                                    setPlan(data.current_plan);
                                   }
                                   
                                   // Refresh profile data
@@ -1927,47 +1941,30 @@ function ProfilePageContent() {
                                   
                                   addNotification({
                                     type: 'system',
-                                    title: '🔧 Subscription Fixed!',
-                                    message: `Plan updated to ${data.subscription.plan_display_name}`,
+                                    title: '🔄 Plan Refreshed!',
+                                    message: `Plan updated to ${data.plan_display_name} with ${data.max_analyses === -1 ? 'unlimited' : data.max_analyses} analyses`,
                                     priority: 'high'
                                   });
                                   
                                   // Trigger water animation
                                   startWaterAnimation();
                                 } else {
-                                  throw new Error('Failed to fix subscription');
+                                  throw new Error('Failed to refresh plan');
                                 }
                               } catch (error) {
-                                console.error('Failed to fix subscription:', error);
+                                console.error('Failed to refresh plan:', error);
                                 addNotification({
                                   type: 'system',
-                                  title: 'Fix Failed',
-                                  message: 'Could not fix subscription. Please contact support.',
+                                  title: 'Refresh Failed',
+                                  message: 'Could not refresh plan. Please contact support.',
                                   priority: 'high'
                                 });
                               }
                             }}
-                            className="px-3 py-1.5 bg-orange-500 text-white rounded-lg text-xs font-bold hover:bg-orange-600 transition-all flex items-center gap-2"
+                            className="px-3 py-1.5 bg-green-500 text-white rounded-lg text-xs font-bold hover:bg-green-600 transition-all flex items-center gap-2"
                           >
-                            <Settings size={12} />
-                            Fix Plan
-                          </button>
-                          
-                          <button
-                            onClick={() => {
-                              console.log('🧪 Manual water animation test');
-                              startWaterAnimation();
-                              addNotification({
-                                type: 'system',
-                                title: '🌊 Animation Test',
-                                message: 'Water animation triggered manually for testing',
-                                priority: 'low'
-                              });
-                            }}
-                            className="px-3 py-1.5 bg-blue-500 text-white rounded-lg text-xs font-bold hover:bg-blue-600 transition-all flex items-center gap-2"
-                          >
-                            <Sparkles size={12} />
-                            Test Animation
+                            <RefreshCw size={12} />
+                            Refresh Plan
                           </button>
                           
                           <button
@@ -1981,10 +1978,29 @@ function ProfilePageContent() {
                                   console.log('🔍 Manual refresh - Profile data:', profileData);
                                   setPayments(profileData.recent_payments || []);
                                   
+                                  // Enhanced plan mapping with all variations
+                                  if (profileData.subscription && profileData.subscription.plan_name) {
+                                    const planMapping: Record<string, any> = {
+                                      'professional': 'professional',
+                                      'pro': 'professional',
+                                      'growth accelerator': 'professional',
+                                      'growth architect': 'professional',
+                                      'enterprise': 'enterprise',
+                                      'territorial dominance': 'enterprise',
+                                      'market dominator': 'enterprise',
+                                      'free': 'free',
+                                      'starter': 'free',
+                                      'venture strategist': 'free'
+                                    };
+                                    const mappedPlan = planMapping[profileData.subscription.plan_name.toLowerCase()] || 
+                                                     planMapping[profileData.subscription.plan_display_name?.toLowerCase()] || 'free';
+                                    setPlan(mappedPlan);
+                                  }
+                                  
                                   addNotification({
                                     type: 'system',
                                     title: 'Transactions Refreshed',
-                                    message: `Found ${profileData.recent_payments?.length || 0} transaction records`,
+                                    message: `Found ${profileData.recent_payments?.length || 0} real transaction records`,
                                     priority: 'low'
                                   });
                                 }
@@ -1998,25 +2014,6 @@ function ProfilePageContent() {
                             Refresh
                           </button>
                           
-                          <button 
-                            onClick={async () => {
-                              if (!session?.user?.email) return;
-                              try {
-                                const apiUrl = getApiUrl();
-                                const profileRes = await fetch(`${apiUrl}/api/users/${session.user.email}/profile`);
-                                if (profileRes.ok) {
-                                  const profileData = await profileRes.json();
-                                  setPayments(profileData.recent_payments || []);
-                                }
-                              } catch (error) {
-                                console.error('Failed to refresh transactions:', error);
-                              }
-                            }}
-                            className="text-xs font-black text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors uppercase tracking-[0.2em] flex items-center gap-2 group italic"
-                          >
-                            <RefreshCw size={12} className="group-hover:rotate-180 transition-transform duration-500" />
-                            Refresh
-                          </button>
                           <button 
                             onClick={async () => {
                               if (!session?.user?.email) return;
@@ -2209,15 +2206,22 @@ function ProfilePageContent() {
                                     const profileData = await profileRes.json();
                                     const newCount = profileData.recent_payments?.length || 0;
                                     
-                                    // Update subscription plan if available
+                                    // Enhanced plan mapping with all variations
                                     if (profileData.subscription && profileData.subscription.plan_name) {
                                       const planMapping: Record<string, any> = {
                                         'professional': 'professional',
                                         'pro': 'professional',
+                                        'growth accelerator': 'professional',
+                                        'growth architect': 'professional',
                                         'enterprise': 'enterprise',
-                                        'free': 'free'
+                                        'territorial dominance': 'enterprise',
+                                        'market dominator': 'enterprise',
+                                        'free': 'free',
+                                        'starter': 'free',
+                                        'venture strategist': 'free'
                                       };
-                                      const mappedPlan = planMapping[profileData.subscription.plan_name.toLowerCase()] || 'free';
+                                      const mappedPlan = planMapping[profileData.subscription.plan_name.toLowerCase()] || 
+                                                       planMapping[profileData.subscription.plan_display_name?.toLowerCase()] || 'free';
                                       setPlan(mappedPlan);
                                     }
                                     

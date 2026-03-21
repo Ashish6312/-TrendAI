@@ -373,25 +373,7 @@ def health_check():
             "timestamp": datetime.now().isoformat()
         }
 
-# Authentication endpoints
-@app.get("/api/auth/test")
-def test_auth():
-    """Test endpoint to verify auth endpoints are working"""
-    return {"status": "ok", "message": "Auth endpoints are working"}
 
-@app.get("/test")
-def test_endpoint():
-    return {
-        "test": "success",
-        "message": "API is working correctly",
-        "timestamp": datetime.now().isoformat(),
-        "all_systems": {
-            "database": db_available,
-            "models": models_available,
-            "recommendations": recommendations_available,
-            "integrated_intelligence": integrated_intelligence is not None
-        }
-    }
 
 @app.post("/api/auth/signup")
 def sign_up(user_data: UserSignUp, db: Session = Depends(get_db)):
@@ -1285,71 +1267,6 @@ def get_user_info(email: str, db: Session = Depends(get_db)):
         "created_at": user.created_at
     }
 
-@app.post("/api/debug/create-sample-payment/{user_email}")
-def create_sample_payment(user_email: str, db: Session = Depends(get_db)):
-    """Create sample payment data for testing"""
-    try:
-        from datetime import datetime
-        from sqlalchemy import func
-        
-        email_normalized = user_email.lower().strip()
-        
-        # Check if user exists
-        user = db.query(models.User).filter(func.lower(models.User.email) == email_normalized).first()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        
-        # Get user's current subscription to match payment data
-        subscription = db.query(models.UserSubscription).filter(
-            func.lower(models.UserSubscription.user_email) == email_normalized,
-            models.UserSubscription.status == "active"
-        ).first()
-        
-        # Determine plan details based on subscription
-        if subscription:
-            plan_name = subscription.plan_name
-            amount = subscription.price or (4499.0 if plan_name == 'enterprise' else 1399.0 if plan_name == 'professional' else 0.0)
-            billing_cycle = subscription.billing_cycle or 'yearly'
-        else:
-            # Default to professional if no subscription found
-            plan_name = 'professional'
-            amount = 1399.0
-            billing_cycle = 'yearly'
-        
-        # Create sample payment matching the subscription
-        sample_payment = models.PaymentHistory(
-            user_id=user.id,
-            user_email=email_normalized,
-            razorpay_payment_id=f"pay_sample_{datetime.now().strftime('%Y%m%d%H%M%S')}",
-            razorpay_order_id=f"order_sample_{datetime.now().strftime('%Y%m%d%H%M%S')}",
-            amount=amount,
-            currency="INR",
-            status="success",
-            payment_method="card",
-            plan_name=plan_name,
-            billing_cycle=billing_cycle,
-            payment_date=datetime.now()
-        )
-        
-        db.add(sample_payment)
-        db.commit()
-        db.refresh(sample_payment)
-        
-        return {
-            "message": "Sample payment created successfully",
-            "payment": {
-                "id": sample_payment.id,
-                "amount": sample_payment.amount,
-                "status": sample_payment.status,
-                "plan_name": sample_payment.plan_name,
-                "billing_cycle": sample_payment.billing_cycle
-            }
-        }
-    except Exception as e:
-        logger.error(f"Create sample payment error: {e}")
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-
 @app.get("/payments/download-all-receipts")
 def download_all_receipts(email: str, db: Session = Depends(get_db)):
     """Download all receipts for a user"""
@@ -1382,99 +1299,7 @@ def download_all_receipts(email: str, db: Session = Depends(get_db)):
         logger.error(f"Download receipts error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/debug/users")
-def debug_users(db: Session = Depends(get_db)):
-    """Debug endpoint to see what users exist"""
-    try:
-        users = db.query(models.User).limit(10).all()
-        return {
-            "users_count": len(users),
-            "users": [{"email": u.email, "name": u.name, "created_at": u.created_at} for u in users]
-        }
-    except Exception as e:
-        return {"error": str(e)}
 
-@app.post("/api/create-real-payments/{user_email}")
-def create_real_payments(user_email: str, db: Session = Depends(get_db)):
-    """Create real payment records for user based on their subscription"""
-    try:
-        from datetime import datetime, timedelta
-        from sqlalchemy import func
-        
-        email_normalized = user_email.lower().strip()
-        logger.info(f"🔧 Creating real payments for: {email_normalized}")
-        
-        # Get user and subscription
-        user = db.query(models.User).filter(func.lower(models.User.email) == email_normalized).first()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        
-        subscription = db.query(models.UserSubscription).filter(
-            func.lower(models.UserSubscription.user_email) == email_normalized,
-            models.UserSubscription.status == "active"
-        ).first()
-        
-        if not subscription:
-            raise HTTPException(status_code=404, detail="No active subscription found")
-        
-        logger.info(f"🔧 User ID: {user.id}, Subscription: {subscription.plan_name}, Price: {subscription.price}")
-        
-        # Create multiple realistic payment records
-        payments_to_create = []
-        base_date = datetime.now() - timedelta(days=90)  # Start 3 months ago
-        
-        # Create 3-5 payment records based on subscription
-        if subscription.plan_name == 'enterprise':
-            amounts = [4499.0, 4499.0, 4499.0]  # 3 enterprise payments
-            plan_name = 'enterprise'
-        elif subscription.plan_name == 'professional':
-            amounts = [1399.0, 1399.0, 1399.0, 1399.0]  # 4 professional payments
-            plan_name = 'professional'
-        else:
-            amounts = [197.0, 197.0]  # 2 basic payments
-            plan_name = 'professional'
-        
-        for i, amount in enumerate(amounts):
-            payment_date = base_date + timedelta(days=i*30)  # Monthly payments
-            
-            payment = models.PaymentHistory(
-                user_id=user.id,
-                user_email=email_normalized,
-                razorpay_payment_id=f"pay_real_{datetime.now().strftime('%Y%m%d')}_{i+1}",
-                razorpay_order_id=f"order_real_{datetime.now().strftime('%Y%m%d')}_{i+1}",
-                amount=amount,
-                currency="INR",
-                status="success",
-                payment_method="card",
-                plan_name=plan_name,
-                billing_cycle=subscription.billing_cycle or "yearly",
-                payment_date=payment_date,
-                created_at=payment_date
-            )
-            payments_to_create.append(payment)
-        
-        # Add all payments to database
-        for payment in payments_to_create:
-            db.add(payment)
-        
-        db.commit()
-        
-        # Refresh to get IDs
-        for payment in payments_to_create:
-            db.refresh(payment)
-        
-        return {
-            "message": f"Created {len(payments_to_create)} real payment records",
-            "payments_created": len(payments_to_create),
-            "total_amount": sum(p.amount for p in payments_to_create),
-            "user_id": user.id,
-            "plan": subscription.plan_name
-        }
-        
-    except Exception as e:
-        logger.error(f"Create real payments error: {e}")
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/fix-payment-email/{current_email}")
 def fix_payment_email(current_email: str, db: Session = Depends(get_db)):
@@ -1531,27 +1356,6 @@ def fix_payment_email(current_email: str, db: Session = Depends(get_db)):
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/debug/all-payments")
-def debug_all_payments(db: Session = Depends(get_db)):
-    """Debug endpoint to see all payments with emails"""
-    try:
-        payments = db.query(models.PaymentHistory).limit(20).all()
-        return {
-            "payments_count": len(payments),
-            "payments": [
-                {
-                    "id": p.id,
-                    "user_email": p.user_email,
-                    "amount": p.amount,
-                    "status": p.status,
-                    "plan_name": p.plan_name,
-                    "created_at": p.created_at.isoformat() if p.created_at else None,
-                    "razorpay_payment_id": p.razorpay_payment_id
-                } for p in payments
-            ]
-        }
-    except Exception as e:
-        return {"error": str(e)}
 
 @app.get("/api/payments/search/{partial_email}")
 def search_payments_by_email(partial_email: str, db: Session = Depends(get_db)):
@@ -1586,55 +1390,6 @@ def search_payments_by_email(partial_email: str, db: Session = Depends(get_db)):
         logger.error(f"Search payments error: {e}")
         return {"error": str(e)}
 
-@app.get("/api/debug/payments")
-def debug_payments(db: Session = Depends(get_db)):
-    """Debug endpoint to see what payments exist"""
-    try:
-        payments = db.query(models.PaymentHistory).limit(10).all()
-        return {
-            "payments_count": len(payments),
-            "payments": [
-                {
-                    "id": p.id,
-                    "user_email": p.user_email,
-                    "amount": p.amount,
-                    "status": p.status,
-                    "plan_name": p.plan_name,
-                    "created_at": p.created_at
-                } for p in payments
-            ]
-        }
-    except Exception as e:
-        return {"error": str(e)}
-
-@app.get("/api/test-payments/{user_email}")
-def test_payments_endpoint(user_email: str, db: Session = Depends(get_db)):
-    """Test endpoint to verify payment data is accessible"""
-    from sqlalchemy import func
-    
-    email_normalized = user_email.lower().strip()
-    
-    # Get payments directly
-    payments = db.query(models.PaymentHistory).filter(
-        func.lower(models.PaymentHistory.user_email) == email_normalized
-    ).order_by(models.PaymentHistory.created_at.desc()).limit(10).all()
-    
-    return {
-        "user_email": email_normalized,
-        "payments_count": len(payments),
-        "payments": [
-            {
-                "id": p.id,
-                "amount": p.amount,
-                "currency": p.currency,
-                "status": p.status,
-                "plan_name": p.plan_name,
-                "payment_date": p.created_at.isoformat(),
-                "razorpay_payment_id": p.razorpay_payment_id
-            }
-            for p in payments
-        ]
-    }
 
 @app.post("/api/payment-webhook")
 async def payment_webhook(request: Request):
@@ -1737,14 +1492,18 @@ def get_user_profile(email: str, db: Session = Depends(get_db)):
     elif subscription and recent_payments:
         latest_payment = recent_payments[0]
         
-        # Check if subscription plan matches payment plan
+        # Enhanced plan mapping with all possible variations
         plan_mapping = {
             'professional': 'professional',
-            'pro': 'professional', 
+            'pro': 'professional',
+            'growth accelerator': 'professional',
+            'growth architect': 'professional',
             'enterprise': 'enterprise',
             'territorial dominance': 'enterprise',
-            'growth architect': 'professional',
-            'free': 'free'
+            'market dominator': 'enterprise',
+            'free': 'free',
+            'starter': 'free',
+            'venture strategist': 'free'
         }
         
         expected_plan = plan_mapping.get(latest_payment.plan_name.lower(), 'free')
@@ -1788,6 +1547,104 @@ def get_user_profile(email: str, db: Session = Depends(get_db)):
     }
 
 
+@app.post("/api/refresh-user-plan/{email}")
+def refresh_user_plan(email: str, db: Session = Depends(get_db)):
+    """Force refresh user's plan based on their latest payment and subscription data"""
+    from sqlalchemy import func
+    from datetime import datetime, timedelta
+    
+    email_normalized = email.lower().strip()
+    logger.info(f"🔄 Force refreshing plan for: {email_normalized}")
+    
+    try:
+        # Get user
+        user = db.query(models.User).filter(func.lower(models.User.email) == email_normalized).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Get latest payment
+        latest_payment = db.query(models.PaymentHistory).filter(
+            func.lower(models.PaymentHistory.user_email) == email_normalized
+        ).order_by(models.PaymentHistory.created_at.desc()).first()
+        
+        # Get current subscription
+        subscription = db.query(models.UserSubscription).filter(
+            func.lower(models.UserSubscription.user_email) == email_normalized,
+            models.UserSubscription.status == "active"
+        ).first()
+        
+        # Enhanced plan mapping
+        plan_mapping = {
+            'professional': 'professional',
+            'pro': 'professional',
+            'growth accelerator': 'professional',
+            'growth architect': 'professional',
+            'enterprise': 'enterprise',
+            'territorial dominance': 'enterprise',
+            'market dominator': 'enterprise',
+            'free': 'free',
+            'starter': 'free',
+            'venture strategist': 'free'
+        }
+        
+        if latest_payment:
+            # Determine correct plan from payment
+            payment_plan = plan_mapping.get(latest_payment.plan_name.lower(), 'free')
+            
+            if subscription:
+                # Update existing subscription
+                subscription.plan_name = payment_plan
+                subscription.plan_display_name = latest_payment.plan_name
+                subscription.price = latest_payment.amount
+                subscription.currency = latest_payment.currency or 'INR'
+                subscription.billing_cycle = latest_payment.billing_cycle or 'yearly'
+                subscription.max_analyses = -1 if payment_plan in ['professional', 'enterprise'] else 5
+                subscription.subscription_end = datetime.now() + timedelta(days=365)
+                
+                db.commit()
+                db.refresh(subscription)
+                
+                logger.info(f"✅ Updated subscription plan to: {payment_plan}")
+                
+            else:
+                # Create new subscription
+                new_subscription = models.UserSubscription(
+                    user_id=user.id,
+                    user_email=email_normalized,
+                    plan_name=payment_plan,
+                    plan_display_name=latest_payment.plan_name,
+                    billing_cycle=latest_payment.billing_cycle or 'yearly',
+                    price=latest_payment.amount,
+                    currency=latest_payment.currency or 'INR',
+                    max_analyses=-1 if payment_plan in ['professional', 'enterprise'] else 5,
+                    features={},
+                    subscription_end=datetime.now() + timedelta(days=365),
+                    status='active'
+                )
+                
+                db.add(new_subscription)
+                db.commit()
+                db.refresh(new_subscription)
+                
+                subscription = new_subscription
+                logger.info(f"✅ Created new subscription with plan: {payment_plan}")
+        
+        return {
+            "status": "success",
+            "message": f"Plan refreshed for {email_normalized}",
+            "user_email": email_normalized,
+            "current_plan": subscription.plan_name if subscription else 'free',
+            "plan_display_name": subscription.plan_display_name if subscription else 'Free',
+            "max_analyses": subscription.max_analyses if subscription else 5,
+            "has_payment": bool(latest_payment),
+            "payment_amount": latest_payment.amount if latest_payment else 0
+        }
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to refresh user plan: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to refresh plan: {str(e)}")
+
 @app.post("/api/fix-subscription/{email}")
 def fix_user_subscription(email: str, db: Session = Depends(get_db)):
     """Fix user subscription based on their payment history"""
@@ -1816,14 +1673,18 @@ def fix_user_subscription(email: str, db: Session = Depends(get_db)):
         models.UserSubscription.status == "active"
     ).first()
     
-    # Map payment plan names to subscription plan names
+    # Enhanced plan mapping with all possible variations
     plan_mapping = {
         'professional': 'professional',
         'pro': 'professional',
+        'growth accelerator': 'professional',
+        'growth architect': 'professional',
         'enterprise': 'enterprise',
         'territorial dominance': 'enterprise',
-        'growth architect': 'professional',
-        'free': 'free'
+        'market dominator': 'enterprise',
+        'free': 'free',
+        'starter': 'free',
+        'venture strategist': 'free'
     }
     
     mapped_plan = plan_mapping.get(latest_payment.plan_name.lower(), 'free')
@@ -2024,22 +1885,6 @@ def update_user_location(email: str, location_data: dict, db: Session = Depends(
         "location": user.location
     }
 
-# Add deployment test endpoint
-@app.get("/api/deployment/test")
-def deployment_test():
-    """Test endpoint to verify new deployments"""
-    return {
-        "status": "success",
-        "message": "Deployment test successful",
-        "version": "2.2",
-        "timestamp": datetime.now().isoformat(),
-        "components": {
-            "database": "available" if db_available else "unavailable",
-            "models": "available" if models_available else "unavailable",
-            "recommendations": "available" if recommendations_available else "unavailable",
-            "integrated_intelligence": "available" if get_intelligence() else "unavailable"
-        }
-    }
 
 # Vercel handler
 handler = app
