@@ -1794,17 +1794,19 @@ function ProfilePageContent() {
                         </div>
                       </div>
 
-                      {/* Debug info */}
-                      <div className="mb-4 p-3 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg border border-yellow-300 dark:border-yellow-700">
-                        <p className="text-xs font-bold text-yellow-800 dark:text-yellow-200">
-                          Debug: Payments array length: {payments.length}
-                        </p>
-                        {payments.length > 0 && (
-                          <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
-                            First payment: {JSON.stringify(payments[0], null, 2).substring(0, 100)}...
+                      {/* Debug info - Remove this in production */}
+                      {process.env.NODE_ENV === 'development' && (
+                        <div className="mb-4 p-3 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg border border-yellow-300 dark:border-yellow-700">
+                          <p className="text-xs font-bold text-yellow-800 dark:text-yellow-200">
+                            Debug: Payments array length: {payments.length}
                           </p>
-                        )}
-                      </div>
+                          {payments.length > 0 && (
+                            <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
+                              Latest payment: {payments[0]?.plan_name} - ₹{payments[0]?.amount} - {payments[0]?.status}
+                            </p>
+                          )}
+                        </div>
+                      )}
 
                       {payments.length > 0 ? (
                         <div className="space-y-4">
@@ -1893,7 +1895,7 @@ function ProfilePageContent() {
                                 if (!session?.user?.email) return;
                                 try {
                                   const apiUrl = getApiUrl();
-                                  console.log('🔍 Testing API URL:', `${apiUrl}/api/users/${session.user.email}/profile`);
+                                  console.log('🔍 Refreshing payments for:', session.user.email);
                                   const profileRes = await fetch(`${apiUrl}/api/users/${session.user.email}/profile`);
                                   console.log('🔍 Refresh - Profile response status:', profileRes.status);
                                   if (profileRes.ok) {
@@ -1923,78 +1925,84 @@ function ProfilePageContent() {
                               Refresh Transactions
                             </button>
                             
-                            <button 
-                              onClick={async () => {
-                                if (!session?.user?.email) return;
-                                try {
-                                  const apiUrl = getApiUrl();
-                                  console.log('🔍 Testing direct payments API:', `${apiUrl}/api/test-payments/${session.user.email}`);
-                                  const testRes = await fetch(`${apiUrl}/api/test-payments/${session.user.email}`);
-                                  console.log('🔍 Test API response status:', testRes.status);
-                                  if (testRes.ok) {
-                                    const testData = await testRes.json();
-                                    console.log('🔍 Test API data:', testData);
-                                    
-                                    // Force update payments with test data
-                                    if (testData.payments && testData.payments.length > 0) {
-                                      setPayments(testData.payments);
-                                      addNotification({
-                                        type: 'system',
-                                        title: 'Test Data Loaded',
-                                        message: `Loaded ${testData.payments.length} payments from test endpoint`,
-                                        priority: 'medium'
-                                      });
+                            {/* Development-only buttons */}
+                            {process.env.NODE_ENV === 'development' && (
+                              <>
+                                <button 
+                                  onClick={async () => {
+                                    if (!session?.user?.email) return;
+                                    try {
+                                      const apiUrl = getApiUrl();
+                                      console.log('🔍 Testing direct payments API:', `${apiUrl}/api/test-payments/${session.user.email}`);
+                                      const testRes = await fetch(`${apiUrl}/api/test-payments/${session.user.email}`);
+                                      console.log('🔍 Test API response status:', testRes.status);
+                                      if (testRes.ok) {
+                                        const testData = await testRes.json();
+                                        console.log('🔍 Test API data:', testData);
+                                        
+                                        // Force update payments with test data
+                                        if (testData.payments && testData.payments.length > 0) {
+                                          setPayments(testData.payments);
+                                          addNotification({
+                                            type: 'system',
+                                            title: 'Test Data Loaded',
+                                            message: `Loaded ${testData.payments.length} payments from test endpoint`,
+                                            priority: 'medium'
+                                          });
+                                        }
+                                      } else {
+                                        console.error('🔍 Test API error:', testRes.status, testRes.statusText);
+                                      }
+                                    } catch (error) {
+                                      console.error('Failed to test payments API:', error);
                                     }
-                                  } else {
-                                    console.error('🔍 Test API error:', testRes.status, testRes.statusText);
-                                  }
-                                } catch (error) {
-                                  console.error('Failed to test payments API:', error);
-                                }
-                              }}
-                              className="px-4 py-2 bg-blue-500 text-white rounded-lg text-xs font-black uppercase tracking-widest hover:bg-blue-600 transition-all flex items-center gap-2"
-                            >
-                              <RefreshCw size={12} />
-                              Test API Direct
-                            </button>
+                                  }}
+                                  className="px-4 py-2 bg-blue-500 text-white rounded-lg text-xs font-black uppercase tracking-widest hover:bg-blue-600 transition-all flex items-center gap-2"
+                                >
+                                  <RefreshCw size={12} />
+                                  Test API Direct
+                                </button>
+                                
+                                <button 
+                                  onClick={async () => {
+                                    if (!session?.user?.email) return;
+                                    try {
+                                      const apiUrl = getApiUrl();
+                                      console.log('🔍 Creating sample payment for:', session.user.email);
+                                      const response = await fetch(`${apiUrl}/api/debug/create-sample-payment/${session.user.email}`, {
+                                        method: 'POST'
+                                      });
+                                      if (response.ok) {
+                                        const data = await response.json();
+                                        console.log('🔍 Sample payment created:', data);
+                                        
+                                        // Refresh payments
+                                        const profileRes = await fetch(`${apiUrl}/api/users/${session.user.email}/profile`);
+                                        if (profileRes.ok) {
+                                          const profileData = await profileRes.json();
+                                          setPayments(profileData.recent_payments || []);
+                                          addNotification({
+                                            type: 'system',
+                                            title: 'Sample Payment Created',
+                                            message: 'Sample payment data has been created for testing',
+                                            priority: 'medium'
+                                          });
+                                        }
+                                      } else {
+                                        console.error('🔍 Failed to create sample payment:', response.status);
+                                      }
+                                    } catch (error) {
+                                      console.error('Failed to create sample payment:', error);
+                                    }
+                                  }}
+                                  className="px-4 py-2 bg-purple-500 text-white rounded-lg text-xs font-black uppercase tracking-widest hover:bg-purple-600 transition-all flex items-center gap-2"
+                                >
+                                  <RefreshCw size={12} />
+                                  Create Sample Payment
+                                </button>
+                              </>
+                            )}
                             
-                            <button 
-                              onClick={async () => {
-                                if (!session?.user?.email) return;
-                                try {
-                                  const apiUrl = getApiUrl();
-                                  console.log('🔍 Creating sample payment for:', session.user.email);
-                                  const response = await fetch(`${apiUrl}/api/debug/create-sample-payment/${session.user.email}`, {
-                                    method: 'POST'
-                                  });
-                                  if (response.ok) {
-                                    const data = await response.json();
-                                    console.log('🔍 Sample payment created:', data);
-                                    
-                                    // Refresh payments
-                                    const profileRes = await fetch(`${apiUrl}/api/users/${session.user.email}/profile`);
-                                    if (profileRes.ok) {
-                                      const profileData = await profileRes.json();
-                                      setPayments(profileData.recent_payments || []);
-                                      addNotification({
-                                        type: 'system',
-                                        title: 'Sample Payment Created',
-                                        message: 'Sample payment data has been created for testing',
-                                        priority: 'medium'
-                                      });
-                                    }
-                                  } else {
-                                    console.error('🔍 Failed to create sample payment:', response.status);
-                                  }
-                                } catch (error) {
-                                  console.error('Failed to create sample payment:', error);
-                                }
-                              }}
-                              className="px-4 py-2 bg-purple-500 text-white rounded-lg text-xs font-black uppercase tracking-widest hover:bg-purple-600 transition-all flex items-center gap-2"
-                            >
-                              <RefreshCw size={12} />
-                              Create Sample Payment
-                            </button>
                             {plan === 'free' && (
                               <Link 
                                 href="/acquisition-tiers"
