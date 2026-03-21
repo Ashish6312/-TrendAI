@@ -1588,6 +1588,9 @@ async def payment_webhook(request: Request):
 @app.post("/api/process-payment")
 async def process_payment_immediately(request: Request, db: Session = Depends(get_db)):
     """Process payment immediately after successful Razorpay transaction"""
+    from sqlalchemy import func
+    import traceback
+    
     try:
         body = await request.json()
         logger.info(f"🔔 Processing immediate payment: {body}")
