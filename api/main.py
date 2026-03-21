@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from pydantic import BaseModel
 from datetime import datetime, timedelta
+from contextlib import asynccontextmanager
 import bcrypt
 import models
 import os
@@ -17,7 +18,15 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    init_database()
+    check_db_connection()
+    yield
+    # Shutdown (if needed)
+
+app = FastAPI(lifespan=lifespan)
 
 # CORS configuration
 allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
@@ -120,17 +129,6 @@ class PaymentCreate(BaseModel):
     billing_cycle: str
 
 
-@app.on_event("startup")
-def startup_event():
-    """
-    Ensure the database is ready before serving requests.
-    This will create the tables (users, subscriptions, profiles, payments, etc.)
-    and verify that the connection works.
-    """
-    # Initialize tables if they don't exist
-    init_database()
-    # Check basic connectivity (logs result)
-    check_db_connection()
 
 # Simple global cache for location data (IP -> data)
 LOCATION_CACHE = {}

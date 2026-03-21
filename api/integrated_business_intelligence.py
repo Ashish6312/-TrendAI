@@ -7,10 +7,11 @@ Redundancy Stack (Gemini -> Pollinations)
 import requests
 import json
 import os
+import random
 import traceback
 from typing import Dict, List, Any, Optional
 from datetime import datetime
-from duckduckgo_search import DDGS
+from ddgs import DDGS
 
 class IntegratedBusinessIntelligence:
     def __init__(self):
