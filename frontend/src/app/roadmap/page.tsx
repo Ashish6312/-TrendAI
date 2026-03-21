@@ -7,7 +7,7 @@ import {
   ArrowLeft, CheckCircle2, Loader2, Play, 
   ChevronRight, Calendar, Users, Rocket,
   ShieldCheck, Sparkle, MapPin, Printer, Globe2, Zap,
-  BookOpen, Target, Activity, TrendingUp, X
+  BookOpen, Target, Activity, TrendingUp, X, Clock, CheckCircle
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/context/LanguageContext";
@@ -80,6 +80,37 @@ function ImplementationGuideModal({ step, onClose, businessInfo }: { step: any, 
              </div>
           ) : (
             <>
+              {/* Phase Information */}
+              {guide?.phase_info && (
+                <div className="p-6 rounded-2xl bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
+                        <Target className="text-blue-500" size={16} />
+                      </div>
+                      <h5 className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">Current Phase</h5>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-lg font-black text-blue-600 dark:text-blue-400">{guide.phase_info.current_phase}</div>
+                      <div className="text-xs text-blue-500 font-bold">{guide.phase_info.phase_progress} Complete</div>
+                    </div>
+                  </div>
+                  <p className="text-sm text-blue-700 dark:text-blue-300 font-medium">
+                    Next Milestone: {guide.phase_info.next_milestone}
+                  </p>
+                </div>
+              )}
+
+              {/* Phase Context */}
+              {guide?.phase_specific_context && (
+                <div className="space-y-4">
+                  <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Phase Context</h5>
+                  <p className="text-sm text-slate-600 dark:text-slate-400 font-medium leading-relaxed bg-slate-50 dark:bg-white/5 p-6 rounded-2xl border border-slate-100 dark:border-white/5">
+                    {guide.phase_specific_context}
+                  </p>
+                </div>
+              )}
+
               {/* Objective Section */}
               <div className="space-y-6">
                 <div className="flex items-center gap-4">
@@ -111,7 +142,7 @@ function ImplementationGuideModal({ step, onClose, businessInfo }: { step: any, 
                       <h5 className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-widest">Success Metrics</h5>
                    </div>
                    <ul className="space-y-4">
-                     {guide?.metrics?.map((metric: string, i: number) => (
+                     {guide?.phase_metrics?.map((metric: string, i: number) => (
                        <li key={i} className="flex items-start gap-3 text-xs text-slate-600 dark:text-slate-400 font-bold group">
                          <div className="w-1.5 h-1.5 rounded-full bg-purple-500 mt-1.5 flex-shrink-0 group-hover:scale-150 transition-transform" />
                          {metric}
@@ -125,17 +156,111 @@ function ImplementationGuideModal({ step, onClose, businessInfo }: { step: any, 
               <div className="space-y-8">
                 <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Professional Execution Steps</h5>
                 <div className="space-y-4">
-                   {guide?.implementation_steps?.map((s: any, i: number) => (
+                   {guide?.detailed_steps?.map((s: any, i: number) => (
                       <div key={i} className="p-6 rounded-2xl bg-white dark:bg-white/5 border border-slate-100 dark:border-white/5 hover:border-emerald-500/30 transition-all group">
                          <div className="flex items-center gap-4 mb-2">
                             <span className="w-6 h-6 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center text-[10px] font-black group-hover:bg-emerald-500 group-hover:text-white transition-all">{i+1}</span>
                             <h6 className="font-black text-slate-900 dark:text-white">{s.title}</h6>
                          </div>
-                         <p className="text-xs text-slate-500 dark:text-slate-400 font-medium pl-10">{s.desc}</p>
+                         <p className="text-xs text-slate-500 dark:text-slate-400 font-medium pl-10">{s.description}</p>
+                         <div className="mt-4 pl-10 space-y-2">
+                           <div className="flex items-center gap-2 text-[10px] text-slate-400 font-bold">
+                             <Clock size={12} />
+                             <span>Duration: {s.duration}</span>
+                           </div>
+                           <div className="flex items-center gap-2 text-[10px] text-slate-400 font-bold">
+                             <CheckCircle size={12} />
+                             <span>Success: {s.success_criteria}</span>
+                           </div>
+                         </div>
                       </div>
                    ))}
                 </div>
               </div>
+
+              {/* Implementation Timeline */}
+              {guide?.implementation_timeline && (
+                <div className="space-y-6">
+                  <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Implementation Timeline</h5>
+                  <div className="p-6 rounded-2xl bg-emerald-500/5 border border-emerald-500/20">
+                    <div className="flex items-center gap-4 mb-4">
+                      <Calendar className="text-emerald-500" size={20} />
+                      <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
+                        Total Duration: {guide.implementation_timeline.duration}
+                      </span>
+                    </div>
+                    <div className="grid gap-3">
+                      {guide.implementation_timeline.milestones?.map((milestone: string, i: number) => (
+                        <div key={i} className="flex items-center gap-3">
+                          <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                          <span className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">{milestone}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Risk Mitigation */}
+              {guide?.risk_mitigation && (
+                <div className="space-y-6">
+                  <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Risk Management</h5>
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div className="p-6 rounded-2xl bg-red-500/5 border border-red-500/20">
+                      <h6 className="text-xs font-black text-red-600 dark:text-red-400 mb-4 uppercase tracking-wider">Common Risks</h6>
+                      <ul className="space-y-2">
+                        {guide.risk_mitigation.common_risks?.map((risk: string, i: number) => (
+                          <li key={i} className="flex items-start gap-2 text-xs text-red-700 dark:text-red-300 font-medium">
+                            <div className="w-1 h-1 rounded-full bg-red-500 mt-2 flex-shrink-0" />
+                            {risk}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div className="p-6 rounded-2xl bg-green-500/5 border border-green-500/20">
+                      <h6 className="text-xs font-black text-green-600 dark:text-green-400 mb-4 uppercase tracking-wider">Mitigation Strategies</h6>
+                      <ul className="space-y-2">
+                        {guide.risk_mitigation.mitigation_strategies?.map((strategy: string, i: number) => (
+                          <li key={i} className="flex items-start gap-2 text-xs text-green-700 dark:text-green-300 font-medium">
+                            <CheckCircle size={12} className="text-green-500 mt-0.5 flex-shrink-0" />
+                            {strategy}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Location Advantages */}
+              {guide?.location_advantages && (
+                <div className="space-y-4">
+                  <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Location Advantages</h5>
+                  <div className="p-6 rounded-2xl bg-blue-500/5 border border-blue-500/20">
+                    <div className="flex items-start gap-4">
+                      <MapPin className="text-blue-500 mt-1" size={20} />
+                      <p className="text-sm text-blue-700 dark:text-blue-300 font-medium leading-relaxed">
+                        {guide.location_advantages}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Next Phase Preparation */}
+              {guide?.next_phase_preparation && (
+                <div className="space-y-4">
+                  <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Next Phase Preparation</h5>
+                  <div className="p-6 rounded-2xl bg-purple-500/5 border border-purple-500/20">
+                    <div className="flex items-start gap-4">
+                      <ChevronRight className="text-purple-500 mt-1" size={20} />
+                      <p className="text-sm text-purple-700 dark:text-purple-300 font-medium leading-relaxed">
+                        {guide.next_phase_preparation}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Expert Pro Tip */}
               <div className="p-8 rounded-3xl bg-emerald-500/10 border border-emerald-500/20">

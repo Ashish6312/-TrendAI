@@ -32,9 +32,16 @@ app = FastAPI(lifespan=lifespan)
 allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
 allowed_origins = [origin.strip() for origin in allowed_origins_str.split(",") if origin.strip()]
 
+# Add wildcard for Vercel domains in production
+if os.getenv("VERCEL_ENV"):  # Running on Vercel
+    allowed_origins.extend([
+        "https://*.vercel.app",
+        "https://trend-ai-sand.vercel.app",  # Your specific domain
+    ])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=allowed_origins if not os.getenv("VERCEL_ENV") else ["*"],  # Allow all origins on Vercel
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -343,10 +350,34 @@ def get_recommendations(request: RecommendationRequest, db: Session = Depends(ge
     print(f"--- User email: {request.user_email}")
     
     try:
+        # Get user's saved location from profile as default
+        user_location = None
+        if request.user_email:
+            from sqlalchemy import func
+            user = db.query(models.User).filter(func.lower(models.User.email) == request.user_email.lower()).first()
+            if user and user.location:
+                user_location = user.location
+                print(f"--- User's profile location: {user_location}")
+        
+        # Use request area if provided, otherwise use profile location
+        analysis_area = request.area if request.area else user_location
+        
+        if not analysis_area:
+            return {
+                "error": "No location provided. Please enter a location or set one in your profile.",
+                "area": "",
+                "analysis": {"error": "Location required"},
+                "recommendations": [],
+                "profile_location_available": bool(user_location),
+                "profile_location": user_location
+            }
+        
+        print(f"--- Final analysis area: {analysis_area}")
+        
         # Cache Check: Look for recent searches for the same area by same user
         existing_record = db.query(models.SearchHistory).filter(
             models.SearchHistory.user_email == request.user_email,
-            models.SearchHistory.area == request.area
+            models.SearchHistory.area == analysis_area
         ).order_by(models.SearchHistory.created_at.desc()).first()
         
         # Helper to safely parse JSON from DB
@@ -370,23 +401,25 @@ def get_recommendations(request: RecommendationRequest, db: Session = Depends(ge
                     "analysis": safe_json_load(existing_record.analysis),
                     "recommendations": cached_recs,
                     "logs": {"reddit": [], "web": []},
-                    "cached": True
+                    "cached": True,
+                    "using_profile_location": bool(user_location and not request.area),
+                    "profile_location": user_location
                 }
             else:
-                print(f"⚠️  Cached result for {request.area} is stale or low-quality (len={len(cached_recs) if isinstance(cached_recs, list) else 0}). Purging and refreshing...")
+                print(f"⚠️  Cached result for {analysis_area} is stale or low-quality (len={len(cached_recs) if isinstance(cached_recs, list) else 0}). Purging and refreshing...")
                 db.delete(existing_record)
                 db.commit()
 
         print("[SUCCESS] No cache found. Calling fresh REAL-TIME intelligence engine...")
         # Generate dynamic recommendations DIRECTLY from intelligence module (Zero Hardcoding)
-        result = integrated_intelligence.generate_data_driven_recommendations(request.area, request.user_email, request.language, request.phase)
+        result = integrated_intelligence.generate_data_driven_recommendations(analysis_area, request.user_email, request.language, request.phase)
         print(f"[SUCCESS] Generated {len(result['recommendations'])} real-time recommendations")
         
         # Save to database
         import json
         db_record = models.SearchHistory(
             user_email=request.user_email,
-            area=request.area,
+            area=analysis_area,
             analysis=json.dumps(result["analysis"]) if isinstance(result["analysis"], (dict, list)) else str(result["analysis"]),
             recommendations=json.dumps(result["recommendations"]) if isinstance(result["recommendations"], (dict, list)) else str(result["recommendations"])
         )
@@ -405,7 +438,9 @@ def get_recommendations(request: RecommendationRequest, db: Session = Depends(ge
             "cached": False,
             "system_status": result.get("system_status", "Live Data Processing Active (2026)"),
             "timestamp": result.get("timestamp"),
-            "location_data": result.get("location_data", {})
+            "location_data": result.get("location_data", {}),
+            "using_profile_location": bool(user_location and not request.area),
+            "profile_location": user_location
         }
         
     except Exception as e:
@@ -652,17 +687,108 @@ def update_roadmap_step(request: RoadmapStepUpdate, db: Session = Depends(get_db
 
 @app.post("/api/roadmap/guide")
 def get_roadmap_guide(request: RoadmapGuideRequest):
-    """Generate high-fidelity implementation details for a specific roadmap step"""
-    from simple_recommendations import generate_detailed_roadmap_step_guide
+    """Generate comprehensive phase-aware implementation guide for a specific roadmap step"""
     
-    print(f"--- Generating strategic guide for: {request.step_title}")
-    guide = generate_detailed_roadmap_step_guide(
-        request.step_title, 
-        request.step_description, 
-        request.business_type, 
-        request.location
-    )
-    return guide
+    print(f"--- Generating phase-aware strategic guide for: {request.step_title}")
+    
+    # Determine phase from step title or use discovery as default
+    phase = "discovery"  # Default phase
+    
+    # Phase detection based on step title keywords
+    step_lower = request.step_title.lower()
+    if any(keyword in step_lower for keyword in ['research', 'analysis', 'identify', 'discover', 'explore']):
+        phase = "discovery"
+    elif any(keyword in step_lower for keyword in ['validate', 'test', 'feedback', 'interview', 'mvp']):
+        phase = "validation"
+    elif any(keyword in step_lower for keyword in ['plan', 'strategy', 'business model', 'financial', 'funding']):
+        phase = "planning"
+    elif any(keyword in step_lower for keyword in ['setup', 'infrastructure', 'team', 'hire', 'establish']):
+        phase = "setup"
+    elif any(keyword in step_lower for keyword in ['launch', 'marketing', 'customer', 'sales', 'go-to-market']):
+        phase = "launch"
+    elif any(keyword in step_lower for keyword in ['scale', 'grow', 'expand', 'optimize', 'improve']):
+        phase = "growth"
+    
+    # Get phase from request if provided
+    if hasattr(request, 'phase') and request.phase:
+        phase = request.phase
+    
+    print(f"--- Detected phase: {phase} for step: {request.step_title}")
+    
+    try:
+        # Use enhanced phase-aware implementation guide
+        guide = integrated_intelligence.generate_implementation_guide(
+            request.step_title, 
+            request.step_description, 
+            request.business_type, 
+            request.location,
+            phase
+        )
+        
+        # Add metadata
+        guide["generated_at"] = datetime.now().isoformat()
+        guide["step_title"] = request.step_title
+        guide["business_type"] = request.business_type
+        guide["location"] = request.location
+        guide["detected_phase"] = phase
+        
+        print(f"✅ Generated comprehensive {phase} phase guide with {len(guide.get('detailed_steps', []))} detailed steps")
+        
+        return guide
+        
+    except Exception as e:
+        print(f"❌ Error generating implementation guide: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        # Enhanced fallback
+        return {
+            "phase_info": {
+                "current_phase": phase.title(),
+                "phase_progress": "Unknown",
+                "next_milestone": "Continue with next steps"
+            },
+            "objective": f"Execute {request.step_title} for {request.business_type} in {request.location}",
+            "phase_specific_context": f"This step is important for {phase} phase success",
+            "key_activities": [
+                f"Plan and prepare for {request.step_title}",
+                f"Execute core activities for {request.business_type}",
+                f"Monitor progress and adjust strategy"
+            ],
+            "implementation_timeline": {
+                "duration": "2-4 weeks",
+                "milestones": ["Planning", "Execution", "Review"]
+            },
+            "detailed_steps": [
+                {
+                    "step_number": 1,
+                    "title": "Planning and Preparation",
+                    "description": f"Plan and prepare all necessary resources for {request.step_title}",
+                    "duration": "1 week",
+                    "resources_needed": ["Planning tools", "Team coordination", "Resource allocation"],
+                    "success_criteria": "All preparations completed and team aligned"
+                },
+                {
+                    "step_number": 2,
+                    "title": "Execution and Implementation",
+                    "description": f"Execute the main activities for {request.step_title}",
+                    "duration": "1-2 weeks",
+                    "resources_needed": ["Implementation tools", "Team effort", "Quality control"],
+                    "success_criteria": "Core objectives achieved with quality standards"
+                }
+            ],
+            "phase_metrics": ["Completion rate", "Quality score", "Timeline adherence"],
+            "risk_mitigation": {
+                "common_risks": ["Resource constraints", "Timeline delays", "Quality issues"],
+                "mitigation_strategies": ["Proper planning", "Regular monitoring", "Quality checkpoints"]
+            },
+            "location_advantages": f"{request.location} provides local market knowledge and community support",
+            "next_phase_preparation": "Prepare for next phase by documenting learnings and planning next steps",
+            "pro_tips": f"Focus on {phase} phase objectives while maintaining quality and timeline adherence",
+            "ai_generated": False,
+            "fallback_quality": "Basic Fallback System",
+            "error": str(e)
+        }
 
 @app.post("/api/subscriptions")
 def create_subscription(subscription: SubscriptionCreate, db: Session = Depends(get_db)):
@@ -1056,3 +1182,44 @@ def update_user_profile(email: str, user_update: UserUpdate, db: Session = Depen
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
+@app.get("/api/users/{email}/location")
+def get_user_location(email: str, db: Session = Depends(get_db)):
+    """Get user's saved location from profile"""
+    from sqlalchemy import func
+    
+    email_normalized = email.lower().strip()
+    user = db.query(models.User).filter(func.lower(models.User.email) == email_normalized).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {
+        "email": user.email,
+        "location": user.location,
+        "has_location": bool(user.location)
+    }
+
+@app.put("/api/users/{email}/location")
+def update_user_location(email: str, location_data: dict, db: Session = Depends(get_db)):
+    """Update user's location in profile"""
+    from sqlalchemy import func
+    
+    email_normalized = email.lower().strip()
+    user = db.query(models.User).filter(func.lower(models.User.email) == email_normalized).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Update location
+    user.location = location_data.get("location", "").strip()
+    user.updated_at = func.now()
+    
+    db.commit()
+    db.refresh(user)
+    
+    return {
+        "status": "success",
+        "message": "Location updated successfully",
+        "location": user.location
+    }

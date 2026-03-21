@@ -8,14 +8,14 @@ import {
   Loader2, TrendingUp, MapPin, 
   Target, BarChart3, Globe2, Lightbulb, 
   ArrowRight, FileText, Clock, ChevronRight,
-  Cpu, Download, Share2, Play
+  Cpu, Download, Share2, Play, CheckCircle2, AlertCircle
 } from "lucide-react";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
 import { generateProfessionalPDF } from "@/utils/pdfReportGenerator";
 import { useLanguage } from "@/context/LanguageContext";
 import { useNotifications } from "@/context/NotificationContext";
 import { useSubscription } from "@/context/SubscriptionContext";
-import { motion, AnimatePresence } from "framer-motion";
 import { useSearchParams } from "next/navigation";
 import PaymentSuccessModal from "../../components/PaymentSuccessModal";
 import UniformCard from "@/components/UniformCard";
@@ -83,7 +83,7 @@ function Dashboard() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const { language, t } = useLanguage();
-  const { addNotification, userLocation, refreshLocation } = useNotifications();
+  const { addNotification } = useNotifications();
   const { theme, planFeatures, hasReachedAnalysisLimit } = useSubscription();
   const { resolvedTheme } = useTheme();
   const searchParams = useSearchParams();
@@ -99,6 +99,7 @@ function Dashboard() {
   }, []);
 
   const [area, setArea] = useState("");
+  const [profileLocation, setProfileLocation] = useState("");
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -146,13 +147,79 @@ function Dashboard() {
     const areaParam = searchParams.get('area') || searchParams.get('q');
     if (areaParam) {
       setArea(decodeURIComponent(areaParam));
-    } else if (userLocation && !area) {
-      setArea(userLocation.city);
     }
-  }, [searchParams, userLocation]);
+  }, [searchParams]);
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  // Dynamic API URL based on environment
+  const getApiUrl = () => {
+    if (typeof window !== 'undefined') {
+      // Client-side: use current domain in production, localhost in development
+      if (window.location.hostname === 'localhost') {
+        return 'http://localhost:8000';
+      } else {
+        return window.location.origin; // Use same domain as frontend
+      }
+    }
+    // Server-side fallback
+    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  };
   
+  const apiUrl = getApiUrl();
+  
+  // Fetch user's profile location
+  useEffect(() => {
+    const fetchProfileLocation = async () => {
+      if (session?.user?.email) {
+        try {
+          const encodedEmail = encodeURIComponent(session.user.email);
+          const response = await fetch(`${apiUrl}/api/users/${encodedEmail}/location`);
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.location) {
+              setProfileLocation(data.location);
+              // Set as default if no area is already set
+              if (!area) {
+                setArea(data.location);
+              }
+              console.log('Profile location available:', data.location);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching profile location:', error);
+        }
+      }
+    };
+
+    if (session?.user?.email) {
+      fetchProfileLocation();
+    }
+  }, [session, apiUrl]);
+
+  // Location suggestions
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(async () => {
+      if (area && showSuggestions && area.length > 2) {
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(area)}&limit=5`);
+          const data = await res.json();
+          setSuggestions(data);
+        } catch (e) {
+          console.error("Error fetching locations", e);
+        }
+      } else {
+        setSuggestions([]);
+      }
+    }, 400);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [area, showSuggestions]);
+
+  const handleSelectSuggestion = (suggestion: any) => {
+    setArea(suggestion.display_name);
+    setShowSuggestions(false);
+  };
+
   // Sync user with backend when session is available
   useEffect(() => {
     const syncUser = async () => {
@@ -212,33 +279,22 @@ function Dashboard() {
     }
   };
 
-  // Location suggestions
-  useEffect(() => {
-    const delayDebounceFn = setTimeout(async () => {
-      if (area && showSuggestions && area.length > 2) {
-        try {
-          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(area)}&limit=5`);
-          const data = await res.json();
-          setSuggestions(data);
-        } catch (e) {
-          console.error("Error fetching locations", e);
-        }
-      } else {
-        setSuggestions([]);
-      }
-    }, 400);
-
-    return () => clearTimeout(delayDebounceFn);
-  }, [area, showSuggestions]);
-
-  const handleSelectSuggestion = (suggestion: any) => {
-    setArea(suggestion.display_name);
-    setShowSuggestions(false);
-  };
   // Handle analyze function
   const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!area) return;
+    
+    // Use profile location as fallback if no area is entered
+    const searchArea = area || profileLocation;
+    
+    if (!searchArea) {
+      addNotification({
+        type: 'alert',
+        title: 'Location Required',
+        message: 'Please enter a location or set one in your profile to get business recommendations.',
+        priority: 'high'
+      });
+      return;
+    }
     
     if (hasReachedAnalysisLimit(analysisCount)) {
       addNotification({
@@ -268,7 +324,7 @@ function Dashboard() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          area, 
+          area: searchArea, // Use the determined search area
           user_email: session?.user?.email,
           language: language,
           timestamp: Date.now()
@@ -288,10 +344,11 @@ function Dashboard() {
         setLoading(false);
         
         if (session?.user?.email) {
+          const locationSource = data.using_profile_location ? ' (from your profile)' : ' (custom search)';
           addNotification({
             type: 'analysis',
             title: 'Analysis Complete',
-            message: `Found ${data.recommendations?.length || 0} business opportunities in ${area}`,
+            message: `Found ${data.recommendations?.length || 0} business opportunities in ${searchArea}${locationSource}`,
             priority: 'high'
           });
         }
@@ -406,8 +463,8 @@ function Dashboard() {
                 <div className="flex flex-wrap gap-3 pt-4">
                   {[
                     { label: t('dash_vector_global'), active: true, icon: <TrendingUp size={12} /> },
-                    userLocation ? { 
-                      label: `${userLocation.city}, ${userLocation.country}`, 
+                    profileLocation ? { 
+                      label: profileLocation.split(',')[0], 
                       active: true, 
                       icon: <Globe2 size={12} className="text-blue-400" />,
                       special: true 
@@ -469,9 +526,21 @@ function Dashboard() {
               >
                 <form onSubmit={handleAnalyze} className="space-y-6 sm:space-y-8">
                   <div className="space-y-4">
-                    <label className="text-xs font-bold text-slate-500 dark:text-gray-500 uppercase tracking-wider pl-1">
-                      {t('dash_target_loc')}
-                    </label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-500 dark:text-gray-500 uppercase tracking-wider pl-1">
+                        {t('dash_target_loc')}
+                      </label>
+                      {profileLocation && (
+                        <button
+                          type="button"
+                          onClick={() => setArea(profileLocation)}
+                          className="text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 font-medium underline transition-colors"
+                        >
+                          Use Profile Location
+                        </button>
+                      )}
+                    </div>
+                    
                     <div className="relative">
                       <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 dark:text-gray-400 z-10" size={18} />
                       <input
@@ -482,30 +551,59 @@ function Dashboard() {
                           setShowSuggestions(true);
                         }}
                         onFocus={() => setShowSuggestions(true)}
+                        onBlur={() => {
+                          // Delay hiding suggestions to allow for clicks
+                          setTimeout(() => setShowSuggestions(false), 200);
+                        }}
                         className="w-full bg-white dark:bg-[#050818] border-2 border-slate-300 dark:border-slate-600 rounded-xl py-4 sm:py-5 pl-12 sm:pl-14 pr-14 text-base font-medium text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 focus:outline-none hover:border-slate-400 dark:hover:border-slate-500 shadow-sm"
-                        placeholder={t('dash_enter_city')}
-                        required
+                        placeholder={profileLocation ? `Search any location (default: ${profileLocation.split(',')[0]})` : "Search any city or region..."}
                         autoComplete="off"
                       />
                       
-                      <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                        <button 
-                          type="button"
-                          onClick={() => {
-                            refreshLocation();
-                            addNotification({
-                              type: 'location',
-                              title: 'Finding Location',
-                              message: 'Getting your current location... Please wait.',
-                              priority: 'low'
-                            } as any);
-                          }}
-                          className="p-3 rounded-lg hover:bg-emerald-500/10 text-slate-600 dark:text-gray-400 hover:text-emerald-500 transition-all"
-                          title={t('dash_use_current_loc')}
+                      <div className="absolute inset-y-0 right-0 pr-3 flex items-center gap-2">
+                        {profileLocation && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setArea(profileLocation);
+                              setShowSuggestions(false);
+                            }}
+                            className="p-2 rounded-lg hover:bg-emerald-500/10 text-slate-600 dark:text-gray-400 hover:text-emerald-500 transition-all"
+                            title={`Use profile location: ${profileLocation}`}
+                          >
+                            <CheckCircle2 size={16} />
+                          </button>
+                        )}
+                        <Link 
+                          href="/profile"
+                          className="p-2 rounded-lg hover:bg-blue-500/10 text-slate-600 dark:text-gray-400 hover:text-blue-500 transition-all"
+                          title="Update profile location"
                         >
-                          <MapPin size={18} className={`${!userLocation ? "animate-spin" : ""} transition-transform`} />
-                        </button>
+                          <MapPin size={16} />
+                        </Link>
                       </div>
+                      
+                      {/* Location Status Indicators */}
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {profileLocation && area === profileLocation && (
+                          <div className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-2 px-2 py-1 bg-emerald-50 dark:bg-emerald-500/10 rounded-md border border-emerald-200 dark:border-emerald-500/20">
+                            <CheckCircle2 size={12} />
+                            Using profile location
+                          </div>
+                        )}
+                        {area && area !== profileLocation && (
+                          <div className="text-xs text-blue-600 dark:text-blue-400 font-medium flex items-center gap-2 px-2 py-1 bg-blue-50 dark:bg-blue-500/10 rounded-md border border-blue-200 dark:border-blue-500/20">
+                            <Globe2 size={12} />
+                            Custom search location
+                          </div>
+                        )}
+                        {profileLocation && (
+                          <div className="text-xs text-slate-500 dark:text-gray-500 font-medium">
+                            Profile: {profileLocation.split(',')[0]}
+                          </div>
+                        )}
+                      </div>
+                      
                       {/* Location Suggestions Dropdown */}
                       <AnimatePresence>
                         {showSuggestions && suggestions.length > 0 && (
@@ -515,6 +613,9 @@ function Dashboard() {
                             exit={{ opacity: 0, y: 10 }}
                             className="absolute z-50 w-full mt-3 bg-white dark:bg-[#0a0f25] border-2 border-slate-300 dark:border-slate-600 rounded-xl shadow-xl max-h-80 overflow-y-auto p-2"
                           >
+                            <div className="text-xs font-bold text-slate-500 dark:text-gray-500 uppercase tracking-wider px-3 py-2 border-b border-slate-200 dark:border-slate-600">
+                              Location Suggestions
+                            </div>
                             {suggestions.map((s, i) => (
                               <button
                                 key={i}
@@ -523,9 +624,12 @@ function Dashboard() {
                                   e.preventDefault();
                                   handleSelectSuggestion(s);
                                 }}
-                                className="w-full text-left p-4 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all border border-transparent hover:border-slate-300 dark:hover:border-slate-600"
+                                className="w-full text-left p-4 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all border border-transparent hover:border-slate-300 dark:hover:border-slate-600 group"
                               >
-                                <div className="truncate">{s.display_name}</div>
+                                <div className="flex items-center gap-3">
+                                  <MapPin size={14} className="text-slate-400 group-hover:text-emerald-500 transition-colors" />
+                                  <div className="truncate">{s.display_name}</div>
+                                </div>
                               </button>
                             ))}
                           </motion.div>
@@ -537,7 +641,7 @@ function Dashboard() {
                   {/* Search Button */}
                   <button
                     type="submit"
-                    disabled={loading || !area || hasReachedAnalysisLimit(analysisCount)}
+                    disabled={loading || (!area && !profileLocation) || hasReachedAnalysisLimit(analysisCount)}
                     className={`w-full py-4 sm:py-5 bg-gradient-to-r ${theme.gradient} hover:opacity-90 disabled:bg-slate-300 dark:disabled:bg-slate-700 rounded-xl text-base font-bold text-white disabled:text-slate-500 transition-all shadow-lg disabled:shadow-none hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}
                   >
                     {loading ? (
@@ -547,8 +651,16 @@ function Dashboard() {
                       </div>
                     ) : hasReachedAnalysisLimit(analysisCount) ? (
                       t('dash_limit_reached')
+                    ) : !area && !profileLocation ? (
+                      "Enter Location to Analyze"
+                    ) : area === profileLocation ? (
+                      `Analyze ${area.split(',')[0]} (Profile)`
+                    ) : area ? (
+                      `Analyze ${area.split(',')[0]}`
+                    ) : profileLocation ? (
+                      `Analyze ${profileLocation.split(',')[0]} (Profile Default)`
                     ) : (
-                      t('dash_analyze')
+                      "Enter Location to Analyze"
                     )}
                   </button>
 
@@ -750,6 +862,11 @@ function Dashboard() {
                               Cached Analysis
                             </span>
                           )}
+                          {result.using_profile_location && (
+                            <span className="px-3 py-1 bg-emerald-500/10 text-emerald-500 text-[10px] font-black uppercase tracking-tighter rounded-full border border-emerald-500/20">
+                              Profile Location
+                            </span>
+                          )}
                         </p>
                                              {/* Action Group: Play, Share, Download */}
                         <div className="flex flex-wrap items-center gap-4">
@@ -831,6 +948,254 @@ function Dashboard() {
                         </div>
                       </UniformCard>
                     </div>
+
+                    {/* Detailed Market Intelligence Sections */}
+                    {result.analysis?.detailed_market_data && (
+                      <div className="grid lg:grid-cols-3 gap-8 mb-12">
+                        {/* Economic Indicators */}
+                        <UniformCard 
+                          title="Economic Indicators"
+                          variant="glass"
+                          size="lg"
+                          className="shadow-lg border-2 border-slate-200/50 dark:border-white/10"
+                        >
+                          <div className="space-y-4">
+                            {result.analysis.live_economic_indicators && (
+                              <>
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div className="text-center p-3 bg-green-50 dark:bg-green-500/10 rounded-lg border border-green-200 dark:border-green-500/20">
+                                    <div className="text-xs font-bold text-green-600 dark:text-green-400 uppercase tracking-wider mb-1">GDP Growth</div>
+                                    <div className="text-lg font-black text-green-700 dark:text-green-300">{result.analysis.live_economic_indicators.gdp_growth}</div>
+                                  </div>
+                                  <div className="text-center p-3 bg-blue-50 dark:bg-blue-500/10 rounded-lg border border-blue-200 dark:border-blue-500/20">
+                                    <div className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-1">Investment</div>
+                                    <div className="text-lg font-black text-blue-700 dark:text-blue-300">{result.analysis.live_economic_indicators.investment_inflow}</div>
+                                  </div>
+                                </div>
+                                <div className="space-y-2">
+                                  <div className="flex justify-between items-center p-2 bg-slate-50 dark:bg-white/5 rounded">
+                                    <span className="text-xs font-medium text-slate-600 dark:text-gray-400">Business Registrations</span>
+                                    <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{result.analysis.live_economic_indicators.business_registrations}</span>
+                                  </div>
+                                  <div className="flex justify-between items-center p-2 bg-slate-50 dark:bg-white/5 rounded">
+                                    <span className="text-xs font-medium text-slate-600 dark:text-gray-400">Consumer Confidence</span>
+                                    <span className="text-sm font-bold text-purple-600 dark:text-purple-400">{result.analysis.live_economic_indicators.consumer_confidence}</span>
+                                  </div>
+                                  <div className="flex justify-between items-center p-2 bg-slate-50 dark:bg-white/5 rounded">
+                                    <span className="text-xs font-medium text-slate-600 dark:text-gray-400">Digital Adoption</span>
+                                    <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">{result.analysis.live_economic_indicators.digital_adoption}</span>
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </UniformCard>
+
+                        {/* Market Trends */}
+                        <UniformCard 
+                          title="Market Trends"
+                          variant="glass"
+                          size="lg"
+                          className="shadow-lg border-2 border-slate-200/50 dark:border-white/10"
+                        >
+                          <div className="space-y-4">
+                            {result.analysis.market_trends_analysis?.emerging_sectors && (
+                              <>
+                                <div className="space-y-3">
+                                  {result.analysis.market_trends_analysis.emerging_sectors.slice(0, 3).map((sector: any, i: number) => (
+                                    <div key={i} className="p-3 bg-gradient-to-r from-emerald-50 to-blue-50 dark:from-emerald-500/10 dark:to-blue-500/10 rounded-lg border border-emerald-200 dark:border-emerald-500/20">
+                                      <div className="flex justify-between items-start mb-2">
+                                        <h4 className="text-sm font-bold text-slate-800 dark:text-white">{sector.sector}</h4>
+                                        <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-500/20 px-2 py-1 rounded">{sector.growth_rate}</span>
+                                      </div>
+                                      <div className="flex justify-between text-xs">
+                                        <span className="text-slate-600 dark:text-gray-400">Market Size: {sector.market_size}</span>
+                                        <span className="text-blue-600 dark:text-blue-400 font-medium">{sector.opportunity_level}</span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                                <div className="pt-2 border-t border-slate-200 dark:border-white/10">
+                                  <div className="text-xs font-bold text-slate-500 dark:text-gray-500 uppercase tracking-wider mb-2">Consumer Behavior</div>
+                                  <div className="grid grid-cols-2 gap-2 text-xs">
+                                    <div className="flex justify-between">
+                                      <span className="text-slate-600 dark:text-gray-400">Online</span>
+                                      <span className="font-bold text-blue-600 dark:text-blue-400">{result.analysis.market_trends_analysis.consumer_behavior?.online_adoption}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-slate-600 dark:text-gray-400">Mobile</span>
+                                      <span className="font-bold text-purple-600 dark:text-purple-400">{result.analysis.market_trends_analysis.consumer_behavior?.mobile_first}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </UniformCard>
+
+                        {/* Investment Climate */}
+                        <UniformCard 
+                          title="Investment Climate"
+                          variant="glass"
+                          size="lg"
+                          className="shadow-lg border-2 border-slate-200/50 dark:border-white/10"
+                        >
+                          <div className="space-y-4">
+                            {result.analysis.investment_climate && (
+                              <>
+                                <div className="space-y-3">
+                                  <div className="p-3 bg-yellow-50 dark:bg-yellow-500/10 rounded-lg border border-yellow-200 dark:border-yellow-500/20">
+                                    <div className="text-xs font-bold text-yellow-700 dark:text-yellow-400 uppercase tracking-wider mb-1">Funding Landscape</div>
+                                    <div className="text-sm font-medium text-slate-700 dark:text-gray-300">
+                                      {result.analysis.investment_climate.funding_landscape?.angel_investors} • {result.analysis.investment_climate.funding_landscape?.vc_presence} VC Presence
+                                    </div>
+                                  </div>
+                                  
+                                  {result.analysis.investment_climate.investment_sectors?.slice(0, 2).map((sector: any, i: number) => (
+                                    <div key={i} className="p-3 bg-slate-50 dark:bg-white/5 rounded-lg border border-slate-200 dark:border-white/10">
+                                      <div className="flex justify-between items-center">
+                                        <span className="text-sm font-medium text-slate-700 dark:text-gray-300">{sector.sector}</span>
+                                        <span className="text-xs font-bold text-green-600 dark:text-green-400">{sector.funding_available}</span>
+                                      </div>
+                                      <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">{sector.investor_interest} Interest</div>
+                                    </div>
+                                  ))}
+                                </div>
+                                
+                                <div className="pt-2 border-t border-slate-200 dark:border-white/10">
+                                  <div className="text-xs font-bold text-slate-500 dark:text-gray-500 uppercase tracking-wider mb-2">Success Metrics</div>
+                                  <div className="space-y-1 text-xs">
+                                    <div className="flex justify-between">
+                                      <span className="text-slate-600 dark:text-gray-400">Survival Rate</span>
+                                      <span className="font-bold text-green-600 dark:text-green-400">{result.analysis.investment_climate.success_metrics?.business_survival_rate}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-slate-600 dark:text-gray-400">Avg. Breakeven</span>
+                                      <span className="font-bold text-blue-600 dark:text-blue-400">{result.analysis.investment_climate.success_metrics?.average_breakeven}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </UniformCard>
+                      </div>
+                    )}
+
+                    {/* Competitive Landscape & Consumer Insights */}
+                    {result.analysis?.competitive_landscape && (
+                      <div className="grid lg:grid-cols-2 gap-8 mb-12">
+                        {/* Competitive Landscape */}
+                        <UniformCard 
+                          title="Competitive Landscape"
+                          variant="glass"
+                          size="lg"
+                          className="shadow-lg border-2 border-slate-200/50 dark:border-white/10"
+                        >
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="text-center p-3 bg-red-50 dark:bg-red-500/10 rounded-lg border border-red-200 dark:border-red-500/20">
+                                <div className="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-wider mb-1">Competition</div>
+                                <div className="text-lg font-black text-red-700 dark:text-red-300">{result.analysis.competitive_landscape.competition_intensity?.overall_level}</div>
+                              </div>
+                              <div className="text-center p-3 bg-green-50 dark:bg-green-500/10 rounded-lg border border-green-200 dark:border-green-500/20">
+                                <div className="text-xs font-bold text-green-600 dark:text-green-400 uppercase tracking-wider mb-1">Entry Barrier</div>
+                                <div className="text-lg font-black text-green-700 dark:text-green-300">{result.analysis.competitive_landscape.competition_intensity?.new_entrant_threat}</div>
+                              </div>
+                            </div>
+                            
+                            {result.analysis.competitive_landscape.market_leaders && (
+                              <div className="space-y-2">
+                                <div className="text-xs font-bold text-slate-500 dark:text-gray-500 uppercase tracking-wider">Market Leaders</div>
+                                {result.analysis.competitive_landscape.market_leaders.slice(0, 2).map((leader: any, i: number) => (
+                                  <div key={i} className="p-3 bg-slate-50 dark:bg-white/5 rounded-lg border border-slate-200 dark:border-white/10">
+                                    <div className="flex justify-between items-center mb-1">
+                                      <span className="text-sm font-medium text-slate-700 dark:text-gray-300">{leader.category}</span>
+                                      <span className="text-xs font-bold text-blue-600 dark:text-blue-400">{leader.market_share}</span>
+                                    </div>
+                                    <div className="text-xs text-emerald-600 dark:text-emerald-400">
+                                      {leader.differentiation_opportunity} Differentiation Opportunity
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            
+                            {result.analysis.competitive_landscape.market_gaps && (
+                              <div className="pt-2 border-t border-slate-200 dark:border-white/10">
+                                <div className="text-xs font-bold text-slate-500 dark:text-gray-500 uppercase tracking-wider mb-2">Market Gaps</div>
+                                <div className="flex flex-wrap gap-1">
+                                  {result.analysis.competitive_landscape.market_gaps.slice(0, 3).map((gap: string, i: number) => (
+                                    <span key={i} className="px-2 py-1 bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-medium rounded border border-emerald-200 dark:border-emerald-500/30">
+                                      {gap}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </UniformCard>
+
+                        {/* Consumer Insights */}
+                        <UniformCard 
+                          title="Consumer Insights"
+                          variant="glass"
+                          size="lg"
+                          className="shadow-lg border-2 border-slate-200/50 dark:border-white/10"
+                        >
+                          <div className="space-y-4">
+                            {result.analysis.consumer_insights && (
+                              <>
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div className="text-center p-3 bg-purple-50 dark:bg-purple-500/10 rounded-lg border border-purple-200 dark:border-purple-500/20">
+                                    <div className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider mb-1">Median Age</div>
+                                    <div className="text-lg font-black text-purple-700 dark:text-purple-300">{result.analysis.consumer_insights.demographics?.median_age}</div>
+                                  </div>
+                                  <div className="text-center p-3 bg-indigo-50 dark:bg-indigo-500/10 rounded-lg border border-indigo-200 dark:border-indigo-500/20">
+                                    <div className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider mb-1">Income</div>
+                                    <div className="text-lg font-black text-indigo-700 dark:text-indigo-300">{result.analysis.consumer_insights.demographics?.household_income}</div>
+                                  </div>
+                                </div>
+                                
+                                <div className="space-y-2">
+                                  <div className="text-xs font-bold text-slate-500 dark:text-gray-500 uppercase tracking-wider">Spending Patterns</div>
+                                  <div className="space-y-1">
+                                    <div className="flex justify-between items-center p-2 bg-slate-50 dark:bg-white/5 rounded">
+                                      <span className="text-xs font-medium text-slate-600 dark:text-gray-400">Online Spending</span>
+                                      <span className="text-sm font-bold text-blue-600 dark:text-blue-400">{result.analysis.consumer_insights.spending_patterns?.online_spending}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center p-2 bg-slate-50 dark:bg-white/5 rounded">
+                                      <span className="text-xs font-medium text-slate-600 dark:text-gray-400">Local Preference</span>
+                                      <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{result.analysis.consumer_insights.spending_patterns?.local_business_preference}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center p-2 bg-slate-50 dark:bg-white/5 rounded">
+                                      <span className="text-xs font-medium text-slate-600 dark:text-gray-400">Premium Willingness</span>
+                                      <span className="text-sm font-bold text-purple-600 dark:text-purple-400">{result.analysis.consumer_insights.spending_patterns?.premium_willingness}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                {result.analysis.consumer_insights.behavior_trends && (
+                                  <div className="pt-2 border-t border-slate-200 dark:border-white/10">
+                                    <div className="text-xs font-bold text-slate-500 dark:text-gray-500 uppercase tracking-wider mb-2">Behavior Trends</div>
+                                    <div className="space-y-2">
+                                      {result.analysis.consumer_insights.behavior_trends.slice(0, 2).map((trend: any, i: number) => (
+                                        <div key={i} className="p-2 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-500/10 dark:to-purple-500/10 rounded border border-blue-200 dark:border-blue-500/20">
+                                          <div className="flex justify-between items-center">
+                                            <span className="text-xs font-medium text-slate-700 dark:text-gray-300">{trend.trend}</span>
+                                            <span className="text-xs font-bold text-blue-600 dark:text-blue-400">{trend.adoption_rate}</span>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </UniformCard>
+                      </div>
+                    )}
 
                     {/* Business Opportunities */}
                     <div className="space-y-8">
