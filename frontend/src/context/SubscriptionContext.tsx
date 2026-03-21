@@ -134,6 +134,9 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   const [plan, setPlanState] = useState<SubscriptionPlan>('free');
   const [isLoading, setIsLoading] = useState(true);
 
+  // Ensure plan is always valid
+  const validPlan = plan && ['free', 'professional', 'enterprise'].includes(plan) ? plan : 'free';
+
   // Load subscription plan from API or localStorage
   useEffect(() => {
     const loadUserPlan = async () => {
@@ -187,37 +190,57 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   }, [session?.user?.email]);
 
   const setPlan = (newPlan: SubscriptionPlan) => {
+    // Validate the new plan before proceeding
+    if (!newPlan || !['free', 'professional', 'enterprise'].includes(newPlan)) {
+      console.warn('Invalid plan provided to setPlan:', newPlan);
+      return;
+    }
+
     setPlanState(newPlan);
     if (session?.user?.email) {
       localStorage.setItem(`subscription_${session.user.email}`, newPlan);
     }
     
-    // Update CSS custom properties for theme
+    // Update CSS custom properties for theme with extra safety
     const theme = themes[newPlan];
-    if (theme) {
-      document.documentElement.style.setProperty('--subscription-primary', theme.primary);
-      document.documentElement.style.setProperty('--subscription-secondary', theme.secondary);
-      document.documentElement.style.setProperty('--subscription-accent', theme.accent);
+    if (theme && theme.primary && theme.secondary && theme.accent) {
+      try {
+        document.documentElement.style.setProperty('--subscription-primary', theme.primary);
+        document.documentElement.style.setProperty('--subscription-secondary', theme.secondary);
+        document.documentElement.style.setProperty('--subscription-accent', theme.accent);
+      } catch (error) {
+        console.error('Error setting CSS properties:', error);
+      }
+    } else {
+      console.warn('Theme not found or incomplete for plan:', newPlan, theme);
     }
     
     // Add plan-specific body class for global styling
-    document.body.className = document.body.className.replace(/plan-\w+/g, '');
-    document.body.classList.add(`plan-${newPlan}`);
+    try {
+      document.body.className = document.body.className.replace(/plan-\w+/g, '');
+      document.body.classList.add(`plan-${newPlan}`);
+    } catch (error) {
+      console.error('Error updating body class:', error);
+    }
   };
 
   // Apply theme on mount and plan change
   useEffect(() => {
-    const theme = themes[plan];
-    if (theme) {
-      document.documentElement.style.setProperty('--subscription-primary', theme.primary);
-      document.documentElement.style.setProperty('--subscription-secondary', theme.secondary);
-      document.documentElement.style.setProperty('--subscription-accent', theme.accent);
-      
-      // Add plan-specific body class
-      document.body.className = document.body.className.replace(/plan-\w+/g, '');
-      document.body.classList.add(`plan-${plan}`);
+    const theme = themes[validPlan];
+    if (theme && theme.primary && theme.secondary && theme.accent) {
+      try {
+        document.documentElement.style.setProperty('--subscription-primary', theme.primary);
+        document.documentElement.style.setProperty('--subscription-secondary', theme.secondary);
+        document.documentElement.style.setProperty('--subscription-accent', theme.accent);
+        
+        // Add plan-specific body class
+        document.body.className = document.body.className.replace(/plan-\w+/g, '');
+        document.body.classList.add(`plan-${validPlan}`);
+      } catch (error) {
+        console.error('Error applying theme:', error);
+      }
     }
-  }, [plan]);
+  }, [validPlan]);
 
   const isSubscribed = plan !== 'free';
 
@@ -251,11 +274,11 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
   return (
     <SubscriptionContext.Provider value={{
-      plan,
-      theme: themes[plan] || themes.free, // Fallback to free theme if plan is invalid
+      plan: validPlan,
+      theme: themes[validPlan] || themes.free, // Double fallback safety
       setPlan,
-      isSubscribed,
-      planFeatures: planFeatures[plan] || planFeatures.free, // Fallback to free features
+      isSubscribed: validPlan !== 'free',
+      planFeatures: planFeatures[validPlan] || planFeatures.free, // Double fallback safety
       canAccessFeature,
       getRemainingAnalyses,
       hasReachedAnalysisLimit,
