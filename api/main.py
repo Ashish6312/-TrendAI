@@ -1296,6 +1296,7 @@ def create_sample_payment(user_email: str, db: Session = Depends(get_db)):
     """Create sample payment data for testing"""
     try:
         from datetime import datetime
+        from sqlalchemy import func
         
         email_normalized = user_email.lower().strip()
         
@@ -1304,18 +1305,35 @@ def create_sample_payment(user_email: str, db: Session = Depends(get_db)):
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         
-        # Create sample payment
+        # Get user's current subscription to match payment data
+        subscription = db.query(models.UserSubscription).filter(
+            func.lower(models.UserSubscription.user_email) == email_normalized,
+            models.UserSubscription.status == "active"
+        ).first()
+        
+        # Determine plan details based on subscription
+        if subscription:
+            plan_name = subscription.plan_name
+            amount = subscription.price or (4499.0 if plan_name == 'enterprise' else 1399.0 if plan_name == 'professional' else 0.0)
+            billing_cycle = subscription.billing_cycle or 'yearly'
+        else:
+            # Default to professional if no subscription found
+            plan_name = 'professional'
+            amount = 1399.0
+            billing_cycle = 'yearly'
+        
+        # Create sample payment matching the subscription
         sample_payment = models.PaymentHistory(
             user_id=user.id,
             user_email=email_normalized,
             razorpay_payment_id=f"pay_sample_{datetime.now().strftime('%Y%m%d%H%M%S')}",
             razorpay_order_id=f"order_sample_{datetime.now().strftime('%Y%m%d%H%M%S')}",
-            amount=1399.0,
+            amount=amount,
             currency="INR",
             status="success",
             payment_method="card",
-            plan_name="professional",
-            billing_cycle="yearly",
+            plan_name=plan_name,
+            billing_cycle=billing_cycle,
             payment_date=datetime.now()
         )
         
@@ -1329,7 +1347,8 @@ def create_sample_payment(user_email: str, db: Session = Depends(get_db)):
                 "id": sample_payment.id,
                 "amount": sample_payment.amount,
                 "status": sample_payment.status,
-                "plan_name": sample_payment.plan_name
+                "plan_name": sample_payment.plan_name,
+                "billing_cycle": sample_payment.billing_cycle
             }
         }
     except Exception as e:
