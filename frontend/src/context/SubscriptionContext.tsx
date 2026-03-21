@@ -196,6 +196,12 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       return;
     }
 
+    // Additional safety check for browser environment
+    if (typeof window === 'undefined') {
+      console.warn('setPlan called in non-browser environment');
+      return;
+    }
+
     setPlanState(newPlan);
     if (session?.user?.email) {
       localStorage.setItem(`subscription_${session.user.email}`, newPlan);
@@ -205,9 +211,11 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     const theme = themes[newPlan];
     if (theme && theme.primary && theme.secondary && theme.accent) {
       try {
-        document.documentElement.style.setProperty('--subscription-primary', theme.primary);
-        document.documentElement.style.setProperty('--subscription-secondary', theme.secondary);
-        document.documentElement.style.setProperty('--subscription-accent', theme.accent);
+        if (document?.documentElement?.style) {
+          document.documentElement.style.setProperty('--subscription-primary', theme.primary);
+          document.documentElement.style.setProperty('--subscription-secondary', theme.secondary);
+          document.documentElement.style.setProperty('--subscription-accent', theme.accent);
+        }
       } catch (error) {
         console.error('Error setting CSS properties:', error);
       }
@@ -217,8 +225,10 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     
     // Add plan-specific body class for global styling
     try {
-      document.body.className = document.body.className.replace(/plan-\w+/g, '');
-      document.body.classList.add(`plan-${newPlan}`);
+      if (document?.body) {
+        document.body.className = document.body.className.replace(/plan-\w+/g, '');
+        document.body.classList.add(`plan-${newPlan}`);
+      }
     } catch (error) {
       console.error('Error updating body class:', error);
     }
@@ -226,16 +236,23 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
   // Apply theme on mount and plan change
   useEffect(() => {
+    // Browser environment check
+    if (typeof window === 'undefined') return;
+    
     const theme = themes[validPlan];
     if (theme && theme.primary && theme.secondary && theme.accent) {
       try {
-        document.documentElement.style.setProperty('--subscription-primary', theme.primary);
-        document.documentElement.style.setProperty('--subscription-secondary', theme.secondary);
-        document.documentElement.style.setProperty('--subscription-accent', theme.accent);
+        if (document?.documentElement?.style) {
+          document.documentElement.style.setProperty('--subscription-primary', theme.primary);
+          document.documentElement.style.setProperty('--subscription-secondary', theme.secondary);
+          document.documentElement.style.setProperty('--subscription-accent', theme.accent);
+        }
         
         // Add plan-specific body class
-        document.body.className = document.body.className.replace(/plan-\w+/g, '');
-        document.body.classList.add(`plan-${validPlan}`);
+        if (document?.body) {
+          document.body.className = document.body.className.replace(/plan-\w+/g, '');
+          document.body.classList.add(`plan-${validPlan}`);
+        }
       } catch (error) {
         console.error('Error applying theme:', error);
       }

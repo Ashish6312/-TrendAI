@@ -85,20 +85,20 @@ export default function Navbar() {
             <div 
               className="w-8 h-8 sm:w-10 sm:h-10 lg:w-11 lg:h-11 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-105 transition-all duration-300"
               style={{ 
-                background: `linear-gradient(135deg, ${subscriptionTheme.primary}, ${subscriptionTheme.secondary})`,
-                boxShadow: `0 0 30px -5px ${subscriptionTheme.primary}40`
+                background: `linear-gradient(135deg, ${subscriptionTheme?.primary || '#6b7280'}, ${subscriptionTheme?.secondary || '#9ca3af'})`,
+                boxShadow: `0 0 30px -5px ${subscriptionTheme?.primary || '#6b7280'}40`
               }}
             >
               <Zap className="text-white" size={16} fill="currentColor" />
             </div>
             <div className="flex flex-col">
               <span className="text-base sm:text-xl lg:text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-slate-900 via-slate-700 to-slate-500 dark:from-white dark:via-white dark:to-gray-500 tracking-tight">
-                Trend<span style={{ color: subscriptionTheme.primary }} className="uppercase tracking-widest text-[10px] sm:text-base lg:text-lg ml-0.5 sm:ml-1">AI</span>
+                Trend<span style={{ color: subscriptionTheme?.primary || '#6b7280' }} className="uppercase tracking-widest text-[10px] sm:text-base lg:text-lg ml-0.5 sm:ml-1">AI</span>
               </span>
               {plan !== 'free' && (
                 <span 
                   className="text-[7px] sm:text-[8px] font-black uppercase tracking-widest opacity-80"
-                  style={{ color: subscriptionTheme.primary }}
+                  style={{ color: subscriptionTheme?.primary || '#6b7280' }}
                 >
                   {planFeatures.planName}
                 </span>
@@ -309,7 +309,7 @@ export default function Navbar() {
               >
                 <div className="relative">
                   <img 
-                    src={session.user.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(session.user.name || 'User')}&background=${subscriptionTheme.primary.slice(1)}&color=ffffff&size=200&bold=true`} 
+                    src={session.user.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(session.user.name || 'User')}&background=${subscriptionTheme?.primary?.slice(1) || '6b7280'}&color=ffffff&size=200&bold=true`} 
                     className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl border-2 border-slate-200 dark:border-white/10 shadow-lg object-cover"
                     alt="Profile"
                   />
@@ -337,7 +337,7 @@ export default function Navbar() {
                     <div className="flex items-center gap-3 sm:gap-4 pb-4 border-b border-slate-100 dark:border-white/10">
                       <div className="relative">
                         <img 
-                          src={session.user.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(session.user.name || 'User')}&background=${subscriptionTheme.primary.slice(1)}&color=ffffff&size=200&bold=true`} 
+                          src={session.user.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(session.user.name || 'User')}&background=${subscriptionTheme?.primary?.slice(1) || '6b7280'}&color=ffffff&size=200&bold=true`} 
                           className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl border-2 border-slate-200 dark:border-white/10 object-cover shadow-lg"
                           alt="Profile"
                         />
@@ -363,21 +363,21 @@ export default function Navbar() {
                         className="group relative overflow-hidden p-4 rounded-2xl border transition-all duration-500"
                         style={{ 
                           background: theme === 'dark' 
-                            ? `linear-gradient(135deg, ${subscriptionTheme.primary}15, ${subscriptionTheme.secondary}05)` 
-                            : `linear-gradient(135deg, ${subscriptionTheme.primary}08, ${subscriptionTheme.secondary}03)`,
-                          borderColor: `${subscriptionTheme.primary}30`
+                            ? `linear-gradient(135deg, ${subscriptionTheme?.primary || '#6b7280'}15, ${subscriptionTheme?.secondary || '#9ca3af'}05)` 
+                            : `linear-gradient(135deg, ${subscriptionTheme?.primary || '#6b7280'}08, ${subscriptionTheme?.secondary || '#9ca3af'}03)`,
+                          borderColor: `${subscriptionTheme?.primary || '#6b7280'}30`
                         }}
                       >
                         <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:rotate-12 transition-transform duration-700">
-                          <Zap size={40} style={{ color: subscriptionTheme.primary }} />
+                          <Zap size={40} style={{ color: subscriptionTheme?.primary || '#6b7280' }} />
                         </div>
                         
                         <div className="flex items-center gap-3 relative z-10">
                           <div 
                             className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform duration-500"
                             style={{ 
-                              background: `linear-gradient(135deg, ${subscriptionTheme.primary}, ${subscriptionTheme.secondary})`,
-                              boxShadow: `0 8px 16px -4px ${subscriptionTheme.primary}40`
+                              background: `linear-gradient(135deg, ${subscriptionTheme?.primary || '#6b7280'}, ${subscriptionTheme?.secondary || '#9ca3af'})`,
+                              boxShadow: `0 8px 16px -4px ${subscriptionTheme?.primary || '#6b7280'}40`
                             }}
                           >
                             <Zap size={18} className="text-white" />

@@ -1317,7 +1317,7 @@ function Dashboard() {
                                       }
                                     }}
                                     disabled={loadingPlan === rec.title}
-                                    className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r ${theme.gradient} hover:opacity-90 text-white rounded-xl font-bold text-sm transition-all hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}
+                                    className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r ${theme?.gradient || 'from-gray-600 to-gray-500'} hover:opacity-90 text-white rounded-xl font-bold text-sm transition-all hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}
                                   >
                                     {loadingPlan === rec.title ? (
                                       <>
