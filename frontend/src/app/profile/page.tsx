@@ -19,7 +19,6 @@ import Link from "next/link";
 import { useRef } from "react";
 import ProtectedRoute from "../../components/ProtectedRoute";
 import { getApiUrl } from "@/config/api";
-import LoginHistory from "../../components/LoginHistory";
 import InvoiceModal from "../../components/InvoiceModal";
 
 const getProfessionalPlanName = (name: string): string => {
@@ -68,7 +67,7 @@ function ProfilePageContent() {
   const [joinDate, setJoinDate] = useState<Date | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'profile' | 'billing'>('profile');
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [currentTime, setCurrentTime] = useState(new Date());
+  // currentTime removed - use Date() inline to avoid 1s re-render interval
   const [isOnline, setIsOnline] = useState(true);
   const [autoSave, setAutoSave] = useState(false);
   const [locationDetecting, setLocationDetecting] = useState(false);
@@ -271,10 +270,7 @@ function ProfilePageContent() {
   };
 
   const PlanIcon = planIcons[plan];
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
+  // Removed: 1s clock interval was causing constant re-renders on entire profile page
 
   // Real-time connectivity monitoring
   useEffect(() => {
@@ -290,59 +286,9 @@ function ProfilePageContent() {
     };
   }, []);
 
-  // Auto-save functionality with debouncing
-  useEffect(() => {
-    if (!autoSave || !session?.user?.email) return;
+  // Removed: auto-save was firing API calls every 2s on any form change
 
-    const timeoutId = setTimeout(() => {
-      handleSubmit(new Event('submit') as any, true); // Silent save
-    }, 2000); // Auto-save after 2 seconds of inactivity
-
-    return () => clearTimeout(timeoutId);
-  }, [formData, autoSave, session?.user?.email]);
-
-  // Real-time data refresh
-  useEffect(() => {
-    if (!session?.user?.email) return;
-
-    const fetchProfileSilent = async () => {
-      if (!session?.user?.email) return;
-      
-      try {
-        const apiUrl = getApiUrl();
-        const response = await fetch(`${apiUrl}/api/users/${session.user.email}`);
-        if (response.ok) {
-          const data = await response.json();
-          setFormData(prev => ({
-            ...prev,
-            name: data.name || prev.name || session?.user?.name || "",
-            bio: data.bio !== undefined && data.bio !== null ? data.bio : prev.bio,
-            phone: data.phone !== undefined && data.phone !== null ? data.phone : prev.phone,
-            image_url: data.image_url || data.image || prev.image_url || session?.user?.image || "",
-            company: data.company !== undefined && data.company !== null ? data.company : prev.company,
-            location: data.location !== undefined && data.location !== null ? data.location : prev.location,
-            website: data.website !== undefined && data.website !== null ? data.website : prev.website,
-            industry: data.industry !== undefined && data.industry !== null ? data.industry : prev.industry,
-          }));
-          setLastUpdated(new Date());
-        }
-
-        const historyResponse = await fetch(`${apiUrl}/api/history/${session.user.email}`);
-        if (historyResponse.ok) {
-          const historyData = await historyResponse.json();
-          setAnalysisCount(historyData.length);
-        }
-      } catch (error) {
-        console.error("Silent refresh failed:", error);
-      }
-    };
-
-    const interval = setInterval(() => {
-      fetchProfileSilent(); // Silent refresh
-    }, 60000); // Reduced to refresh every 60 seconds
-
-    return () => clearInterval(interval);
-  }, [session?.user?.email]);
+  // Removed: duplicate silent refresh interval (already handled by main polling interval below)
   // Sync global location to local state
   useEffect(() => {
     if (userLocation) {
@@ -386,9 +332,8 @@ function ProfilePageContent() {
           setJoinDate(parsed.joinDate ? new Date(parsed.joinDate) : null);
           setHasLoaded(true);
           setLoading(false);
-          console.log('📦 AI Terminal: Loaded profile from instant cache');
         } catch (e) {
-          console.error('Cache parse error:', e);
+          // Cache parse error - will load fresh from API
         }
       }
     }
@@ -540,11 +485,8 @@ function ProfilePageContent() {
         body: JSON.stringify(submitData),
       });
 
-      console.log('Profile update response status:', response.status);
-      
       if (response.ok) {
         const updatedUser = await response.json();
-        console.log('Profile updated successfully:', updatedUser);
         setLastUpdated(new Date());
         if (!silent) {
           setMessage("Profile updated successfully!");
@@ -1078,7 +1020,7 @@ function ProfilePageContent() {
                      />
                     
                     <div className="relative z-10">
-                      <div className="flex flex-col lg:flex-row items-center gap-12">
+                      <div className="flex flex-col lg:flex-row items-center gap-10 lg:gap-14">
                         {/* Interactive Progress Ring */}
                         <div className="relative shrink-0 mx-auto lg:mx-0">
                           <svg className="w-32 h-32 md:w-48 md:h-48 transform -rotate-90">
@@ -1179,14 +1121,18 @@ function ProfilePageContent() {
                      </div>
 
                      {analysisHistory.length > 0 ? (
-                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+
                          {analysisHistory.slice(0, 6).map((item, idx) => (
                            <motion.div 
                              key={item.id || idx}
                              initial={{ opacity: 0, scale: 0.95 }}
                              animate={{ opacity: 1, scale: 1 }}
-                             transition={{ delay: idx * 0.1 }}
-                             className="p-5 rounded-2xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 hover:border-blue-500/30 transition-all cursor-pointer group"
+                             whileHover={{ scale: 1.02, translateY: -5 }}
+                             transition={{ delay: idx * 0.1, duration: 0.3 }}
+
+                             className="p-6 rounded-[2rem] bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 hover:border-blue-500/30 hover:shadow-2xl hover:shadow-blue-500/10 transition-all cursor-pointer group"
+
                              onClick={() => router.push(`/dashboard?topic=${encodeURIComponent(item.topic || '')}`)}
                            >
                              <div className="flex items-start justify-between mb-3">
@@ -1209,25 +1155,7 @@ function ProfilePageContent() {
                      )}
                    </div>
 
-                   {/* Login History Section */}
-                   <div 
-                     className="glass-card p-10"
-                     style={{ borderColor: `${theme.primary}20` }}
-                   >
-                     <div className="flex items-center gap-4 mb-8">
-                        <div 
-                          className="p-4 rounded-2xl"
-                          style={{ backgroundColor: `${theme.primary}15` }}
-                        >
-                          <ShieldCheck size={28} style={{ color: theme.primary }} />
-                        </div>
-                        <div>
-                          <h2 className="text-2xl font-black text-slate-900 dark:text-white italic tracking-tighter leading-none mb-1">Grid Security History</h2>
-                          <p className="text-slate-500 dark:text-gray-400 text-sm font-bold opacity-80 uppercase tracking-widest italic">Recent Access Logs</p>
-                        </div>
-                     </div>
-                     <LoginHistory userEmail={session?.user?.email || ""} />
-                   </div>
+
                  </motion.div>
                   {/* Plan Features Overview */}
                   <div 
@@ -1863,6 +1791,7 @@ function ProfilePageContent() {
                         </h3>
                         <div className="flex flex-wrap items-center gap-3">
                           <button
+                            id="refresh-transactions-btn"
                             onClick={async () => {
                               try {
                                 setLoadingPayments(true);
@@ -1871,6 +1800,12 @@ function ProfilePageContent() {
                                 await fetch(`${apiUrl}/api/sync-razorpay-payments?email=${encodeURIComponent(session?.user?.email || '')}`);
                                 // Fetch local records
                                 await fetchPayments();
+                                addNotification({
+                                  type: 'system',
+                                  title: '🔄 Intelligence Sync',
+                                  message: 'Transaction history refreshed from cloud nodes.',
+                                  priority: 'low'
+                                });
                               } catch (e) {
                                 console.error('Cloud Sync failed', e);
                                 fetchPayments();
@@ -1886,8 +1821,9 @@ function ProfilePageContent() {
                             }}
                           >
                             <RefreshCw size={12} className={loadingPayments ? "animate-spin" : ""} />
-                            Refresh Transactions
+                            Refresh History
                           </button>
+
                           
                           <button 
                             onClick={async () => {
@@ -2132,87 +2068,15 @@ function ProfilePageContent() {
                           </p>
                           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                             <motion.button 
-                              onClick={async (event) => {
-                                if (!session?.user?.email) return;
-                                
-                                // Show ripple animation at click position
-                                const button = event.currentTarget as HTMLElement;
-                                const rect = button.getBoundingClientRect();
-                                const ripple = document.createElement('div');
-                                ripple.className = 'update-ripple';
-                                ripple.style.cssText = `
-                                  left: ${rect.left + rect.width/2 - 10}px;
-                                  top: ${rect.top + rect.height/2 - 10}px;
-                                  width: 20px;
-                                  height: 20px;
-                                `;
-                                document.body.appendChild(ripple);
-                                setTimeout(() => ripple.remove(), 1000);
-                                
-                                try {
-                                  const apiUrl = getApiUrl();
-                                  const profileRes = await fetch(`${apiUrl}/api/users/${session.user.email}/profile`);
-                                  if (profileRes.ok) {
-                                    const profileData = await profileRes.json();
-                                    const newCount = profileData.recent_payments?.length || 0;
-                                    
-                                    // Enhanced plan mapping with all variations
-                                    if (profileData.subscription && profileData.subscription.plan_name) {
-                                      const planMapping: Record<string, any> = {
-                                        'enterprise': 'enterprise',
-                                        'territorial dominance': 'enterprise',
-                                        'market dominator': 'enterprise',
-                                        'growth': 'growth',
-                                        'business': 'growth',
-                                        'growth accelerator': 'growth',
-                                        'growth architect': 'growth',
-                                        'professional': 'professional',
-                                        'pro': 'professional',
-                                        'architect': 'professional',
-                                        'starter': 'starter',
-                                        'venture strategist': 'starter',
-                                        'strategist': 'starter',
-                                        'free': 'free',
-                                        'explorer': 'free'
-                                      };
-                                      const mappedPlan = planMapping[profileData.subscription.plan_name.toLowerCase()] || 
-                                                       planMapping[profileData.subscription.plan_display_name?.toLowerCase()] || 'free';
-                                      setPlan(mappedPlan);
-                                    }
-                                    
-                                    // NO ANIMATION - Just silent update
-                                    setPayments(profileData.recent_payments || []);
-                                    
-                                    addNotification({
-                                      type: 'system',
-                                      title: '🔄 Data Refreshed!',
-                                      message: `Found ${newCount} real transaction records. Plan updated!`,
-                                      priority: 'low'
-                                    });
-                                  }
-                                } catch (error) {
-                                  console.error('Failed to refresh transactions:', error);
-                                }
-                              }}
+                              onClick={() => document.getElementById('refresh-transactions-btn')?.click()}
                               whileHover={{ scale: 1.05 }}
                               whileTap={{ scale: 0.95 }}
                               className="px-4 py-2 bg-slate-200 dark:bg-white/10 rounded-lg text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all flex items-center gap-2 relative overflow-hidden"
                             >
-                              <motion.div
-                                animate={{ rotate: 360 }}
-                                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                              >
-                                <RefreshCw size={12} />
-                              </motion.div>
-                              Refresh Transactions
-                              
-                              {/* Animated background */}
-                              <motion.div
-                                className="absolute inset-0 bg-gradient-to-r opacity-0 hover:opacity-20"
-                                style={{ background: `linear-gradient(90deg, ${theme.primary}, ${theme.secondary})` }}
-                                whileHover={{ opacity: 0.2 }}
-                              />
+                              <RefreshCw size={12} className={loadingPayments ? "animate-spin" : ""} />
+                              Sync Transactions
                             </motion.button>
+
                             
                             {plan === 'free' && (
                               <Link 

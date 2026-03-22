@@ -185,33 +185,19 @@ app.add_middleware(
 )
 
 
-# Database dependency with error handling
-def get_db_session():
-    """Get database session with error handling"""
+# Consolidated Database Dependency
+def get_db():
+    """Robust generator to provide database sessions via dependency injection."""
     if not db_available:
         raise HTTPException(status_code=503, detail="Database not available")
+    
+    from database import SessionLocal
+    db = SessionLocal()
     try:
-        from database import SessionLocal
-        db = SessionLocal()
-        try:
-            yield db
-        finally:
-            db.close()
-    except Exception as e:
-        logger.error(f"Database session error: {e}")
-        raise HTTPException(status_code=503, detail="Database connection failed")
+        yield db
+    finally:
+        db.close()
 
-# Use the original get_db but with fallback
-def get_db_with_fallback():
-    """Original get_db function with fallback handling"""
-    if db_available:
-        try:
-            return get_db()
-        except Exception as e:
-            logger.error(f"Database connection failed: {e}")
-            raise HTTPException(status_code=503, detail="Database not available")
-    else:
-        raise HTTPException(status_code=503, detail="Database not available")
 class UserSignUp(BaseModel):
     email: str
     password: str
@@ -226,15 +212,6 @@ class UserSync(BaseModel):
     name: Optional[str] = None
     image_url: Optional[str] = None
 
-class LoginSession(BaseModel):
-    user_email: str
-    session_token: str
-    provider: str = "google"
-    ip_address: Optional[str] = None
-    user_agent: Optional[str] = None
-    device_info: Optional[Dict] = None
-    location_info: Optional[Dict] = None
-    login_method: str = "oauth"
 
 class RecommendationRequest(BaseModel):
     area: str
@@ -443,15 +420,8 @@ async def options_handler(request: Request, full_path: str):
         }
     )
 
-@app.middleware("http")
-async def cors_middleware(request: Request, call_next):
-    """Add CORS headers to all responses"""
-    response = await call_next(request)
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
-    response.headers["Access-Control-Allow-Headers"] = "*"
-    response.headers["Access-Control-Allow-Credentials"] = "true"
-    return response
+# (Redundant CORS middleware removed: app.add_middleware(CORSMiddleware, ...) used instead)
+
 
 # Root endpoint for health checks and deployment verification
 # Essential System Handlers consolidated below
@@ -474,7 +444,8 @@ async def get_system_location(request: Request):
 
     # Check cache first (cache for 1 hour roughly by clearing it occasionally, or just keep it simple)
     if client_ip in LOCATION_CACHE:
-        # print(f"DEBUG: Returning cached location for IP: {client_ip}")
+        pass
+
         return LOCATION_CACHE[client_ip]
 
     apis = [
@@ -716,58 +687,6 @@ def sync_user(user_data: UserSync, db: Session = Depends(get_db)):
     db.refresh(db_user)
     return {"status": "ok", "user_id": db_user.id}
 
-@app.post("/api/users/login-session")
-def create_login_session(session: LoginSession, db: Session = Depends(get_db)):
-    """Create a new login session record"""
-    print(f"Creating login session for user: {session.user_email}")
-    
-    try:
-        # 1. Check if this exact session already exists
-        existing_session = db.query(models.UserSession).filter(
-            models.UserSession.session_token == session.session_token,
-            models.UserSession.user_email == session.user_email
-        ).first()
-        
-        if existing_session:
-            # Update existing session instead of creating a new one
-            existing_session.is_active = True
-            existing_session.updated_at = func.now()
-            db.commit()
-            return {"status": "ok", "message": "Session updated", "session_id": existing_session.id}
-
-        # 2. This is a NEW session. End any existing active sessions for this user ONLY IF they are different
-        # Note: In a production app, we might allow 2-3 concurrent sessions, but here we enforce one primary
-        db.query(models.UserSession).filter(
-            models.UserSession.user_email == session.user_email,
-            models.UserSession.is_active == True,
-            models.UserSession.session_token != session.session_token
-        ).update({
-            "is_active": False,
-            "session_end": func.now()
-        }, synchronize_session=False)
-        
-        # Create new session
-        db_session = models.UserSession(
-            user_email=session.user_email,
-            session_token=session.session_token,
-            provider=session.provider,
-            ip_address=session.ip_address,
-            user_agent=session.user_agent,
-            device_info=session.device_info,
-            location_info=session.location_info,
-            login_method=session.login_method
-        )
-        
-        db.add(db_session)
-        db.commit()
-        db.refresh(db_session)
-        
-        print(f"Created login session: {db_session.id}")
-        return {"status": "ok", "session_id": db_session.id}
-    except Exception as e:
-        print(f"Failed to create login session (ignoring missing table): {e}")
-        db.rollback()
-        return {"status": "ok", "session_id": -1}
 
 @app.post("/api/recommendations")
 def get_recommendations(request: RecommendationRequest, db: Session = Depends(get_db)):
@@ -977,9 +896,23 @@ def get_recommendations(request: RecommendationRequest, db: Session = Depends(ge
         }
 
 @app.get("/api/history/{email}")
-def get_history(email: str, db: Session = Depends(get_db)):
-    history = db.query(models.SearchHistory).filter(models.SearchHistory.user_email == email).order_by(models.SearchHistory.created_at.desc()).all()
-    return history
+def get_user_history(email: str, db: Session = Depends(get_db)):
+    """Fetch search history with explicit serialization to avoid recursive references or JSON errors"""
+    history = db.query(models.SearchHistory).filter(
+        models.SearchHistory.user_email == email.lower().strip()
+    ).order_by(models.SearchHistory.created_at.desc()).all()
+    
+    return [
+        {
+            "id": h.id,
+            "business_title": h.business_title,
+            "area": h.area,
+            "phase": h.phase,
+            "recommendations": h.recommendations,
+            "created_at": h.created_at,
+            "user_email": h.user_email
+        } for h in history
+    ]
 
 @app.post("/api/business-plan")
 def get_business_plan(request: BusinessPlanRequest, db: Session = Depends(get_db)):
@@ -2127,61 +2060,7 @@ async def sync_razorpay_payments(email: str):
     finally:
         db.close()
 
-@app.get("/api/debug-user-data/{email}")
-def debug_user_data(email: str, db: Session = Depends(get_db)):
-    """Debug endpoint to see user's complete data"""
-    email_normalized = email.lower().strip()
-    
-    try:
-        # Get user
-        user = db.query(models.User).filter(func.lower(models.User.email) == email_normalized).first()
-        
-        # Get subscription
-        subscription = db.query(models.UserSubscription).filter(
-            func.lower(models.UserSubscription.user_email) == email_normalized,
-            models.UserSubscription.status == "active"
-        ).first()
-        
-        # Get payments
-        payments = db.query(models.PaymentHistory).filter(
-            func.lower(models.PaymentHistory.user_email) == email_normalized
-        ).order_by(models.PaymentHistory.created_at.desc()).limit(5).all()
-        
-        return {
-            "user": {
-                "id": user.id if user else None,
-                "email": user.email if user else None,
-                "name": user.name if user else None
-            } if user else None,
-            "subscription": {
-                "id": subscription.id if subscription else None,
-                "plan_name": subscription.plan_name if subscription else None,
-                "plan_display_name": subscription.plan_display_name if subscription else None,
-                "status": subscription.status if subscription else None,
-                "max_analyses": subscription.max_analyses if subscription else None,
-                "price": subscription.price if subscription else None
-            } if subscription else None,
-            "payments": [
-                {
-                    "id": p.id,
-                    "amount": p.amount,
-                    "plan_name": p.plan_name,
-                    "status": p.status,
-                    "payment_date": p.created_at.isoformat(),
-                    "razorpay_payment_id": p.razorpay_payment_id
-                }
-                for p in payments
-            ],
-            "debug_info": {
-                "email_normalized": email_normalized,
-                "user_exists": bool(user),
-                "subscription_exists": bool(subscription),
-                "payments_count": len(payments)
-            }
-        }
-        
-    except Exception as e:
-        return {"error": str(e)}
+
 
 @app.post("/api/refresh-user-plan/{email}")
 def refresh_user_plan(email: str, db: Session = Depends(get_db)):
@@ -2284,38 +2163,6 @@ def fix_user_subscription(email: str, db: Session = Depends(get_db)):
         logger.error(f"Failed to fix subscription: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fix subscription: {str(e)}")
 
-@app.get("/api/users/{email}/sessions")
-def get_user_sessions(email: str, limit: int = 10, db: Session = Depends(get_db)):
-    """Get user login sessions"""
-    from sqlalchemy import func
-
-    email_normalized = email.lower().strip()
-
-    try:
-        sessions = db.query(models.UserSession).filter(
-            func.lower(models.UserSession.user_email) == email_normalized
-        ).order_by(models.UserSession.session_start.desc()).limit(limit).all()
-
-        return [
-            {
-                "id": session.id,
-                "session_token": session.session_token[:8] + "..." if session.session_token else "unknown",
-                "provider": session.provider,
-                "ip_address": session.ip_address,
-                "user_agent": session.user_agent,
-                "device_info": session.device_info,
-                "location_info": session.location_info,
-                "login_method": session.login_method,
-                "session_start": session.session_start,
-                "session_end": session.session_end,
-                "is_active": session.is_active
-            }
-            for session in sessions
-        ]
-    except Exception as e:
-        print(f"Failed to fetch sessions (table might not exist): {e}")
-        # Return empty list if sessions table doesn't exist
-        return []
 
 
 # Add missing PUT endpoint for user updates
