@@ -4,6 +4,7 @@ import { ReactNode } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { useSubscription } from '@/context/SubscriptionContext';
 
 interface UniformLayoutProps {
   title: string;
@@ -29,6 +30,7 @@ export default function UniformLayout({
   actions 
 }: UniformLayoutProps) {
   const router = useRouter();
+  const { theme } = useSubscription();
 
 
   return (
@@ -61,9 +63,15 @@ export default function UniformLayout({
                     </p>
                   )}
                   {location && (
-                    <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/5 border border-emerald-500/20">
-                      <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.6)]"></span>
-                      <span className="text-[10px] sm:text-xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">{location}</span>
+                    <div 
+                      className="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-500/5 border"
+                      style={{ borderColor: `${theme.primary}30`, backgroundColor: `${theme.primary}05` }}
+                    >
+                      <span 
+                        className="w-1.5 h-1.5 rounded-full animate-pulse shadow-lg"
+                        style={{ backgroundColor: theme.primary, boxShadow: `0 0 8px ${theme.primary}` }}
+                      ></span>
+                      <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest" style={{ color: theme.primary }}>{location}</span>
                     </div>
                   )}
                 </div>
@@ -88,12 +96,16 @@ export default function UniformLayout({
                   onClick={tab.onClick}
                   className={`flex items-center space-x-2 py-3 sm:py-4 px-1 border-b-2 transition-all whitespace-nowrap ${
                     tab.active
-                      ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
+                      ? 'text-slate-900 dark:text-white'
                       : 'border-transparent text-slate-500 dark:text-gray-500 hover:text-slate-700 dark:hover:text-gray-300 hover:border-slate-300 dark:hover:border-white/20'
                   }`}
+                  style={{ 
+                    borderBottomColor: tab.active ? theme.primary : 'transparent',
+                    color: tab.active ? theme.primary : undefined
+                  }}
                 >
-                  <span className="flex-shrink-0">{tab.icon}</span>
-                  <span className="font-medium text-sm sm:text-base">{tab.label}</span>
+                  <span className="flex-shrink-0" style={{ color: tab.active ? theme.primary : undefined }}>{tab.icon}</span>
+                  <span className="font-black text-[10px] sm:text-xs uppercase tracking-widest">{tab.label}</span>
                 </button>
               ))}
             </div>

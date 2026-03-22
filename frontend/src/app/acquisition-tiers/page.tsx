@@ -10,6 +10,7 @@ import { useState, useEffect } from "react";
 import { useRazorpay } from "@/hooks/useRazorpay";
 import { useSession } from "next-auth/react";
 import { getPricingForCountry, formatPrice, getSavingsPercentage, CountryPricing } from "@/utils/locationPricing";
+import PaymentSuccessModal from "@/components/PaymentSuccessModal";
 
 export default function AcquisitionTiers() {
   const { t } = useLanguage();
@@ -20,6 +21,8 @@ export default function AcquisitionTiers() {
   const [loading, setLoading] = useState<string | null>(null);
   const [currentPricing, setCurrentPricing] = useState<CountryPricing | null>(null);
   const [profileLocation, setProfileLocation] = useState<string | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [paymentDetails, setPaymentDetails] = useState<any>(null);
 
   // 1. Prioritize profile location from session/user record
   useEffect(() => {
@@ -80,6 +83,9 @@ export default function AcquisitionTiers() {
         billingCycle,
         customerName: session.user.name || '',
         customerEmail: session.user.email || '',
+      }, (details) => {
+        setPaymentDetails(details);
+        setShowSuccessModal(true);
       });
     } catch (error) {
       console.error('Payment error:', error);
@@ -91,27 +97,42 @@ export default function AcquisitionTiers() {
 
   const tiers = [
     {
-      id: "starter",
-      name: t('price_starter'),
-      tagline: t('price_starter_desc'),
-      price: pricing.free.price,
+      id: "free",
+      name: t('price_explorer'),
+      tagline: t('price_explorer_desc'),
+      price: pricing.explorer.price,
       originalPrice: null,
-      icon: <Target size={32} />,
+      icon: <Star size={32} />,
       color: "gray",
       popular: false,
       features: [
-        { text: t('price_searches'), available: true },
-        { text: t('price_recs'), available: true },
+        { text: "10 AI Recommendations/day", available: true },
         { text: t('price_google'), available: true },
-        { text: t('price_free'), available: true },
-        { text: t('price_adv_data'), available: false },
-        { text: t('price_sent'), available: false },
-        { text: t('price_comp'), available: false },
-        { text: t('price_export'), available: false }
+        { text: "Limited Location Analysis", available: true },
+        { text: "Community ideas", available: true },
+        { text: "Save up to 3 ideas", available: true }
       ],
-      cta: t('nav_login'),
-      href: "/dashboard",
-      description: t('price_starter_desc')
+      cta: t('price_free'),
+      href: "/dashboard"
+    },
+    {
+      id: "starter",
+      name: t('price_starter'),
+      tagline: t('price_starter_desc'),
+      price: billingCycle === "monthly" ? pricing.starter.monthly : pricing.starter.yearly,
+      originalPrice: billingCycle === "monthly" ? pricing.starter.originalMonthly : pricing.starter.originalYearly,
+      icon: <Target size={32} />,
+      color: "blue",
+      popular: false,
+      features: [
+        { text: "100 Scans / Month", available: true },
+        { text: "City-level insights", available: true },
+        { text: "Basic profit estimation", available: true },
+        { text: "Save unlimited ideas", available: true },
+        { text: "Email reports", available: true }
+      ],
+      cta: t('price_upgrade'),
+      href: "/dashboard"
     },
     {
       id: "professional",
@@ -123,18 +144,36 @@ export default function AcquisitionTiers() {
       color: "emerald",
       popular: true,
       features: [
-        { text: t('price_unlimited'), available: true },
-        { text: t('price_recs'), available: true },
-        { text: t('price_adv_data'), available: true },
-        { text: t('price_sent'), available: true },
-        { text: t('price_comp'), available: true },
+        { text: "Unlimited Recommendations", available: true },
+        { text: "Advanced AI analysis", available: true },
+        { text: t('price_feat_heatmap'), available: true },
+        { text: t('price_feat_custom_search'), available: true },
+        { text: t('price_feat_review_score'), available: true },
         { text: t('price_export'), available: true },
-        { text: t('price_feat_support'), available: true },
-        { text: t('price_feat_api'), available: false }
+        { text: t('price_feat_prediction'), available: true }
       ],
       cta: t('price_upgrade'),
-      href: "/dashboard",
-      description: t('price_pro_desc')
+      href: "/dashboard"
+    },
+    {
+      id: "growth",
+      name: t('price_growth'),
+      tagline: t('price_growth_desc'),
+      price: billingCycle === "monthly" ? pricing.growth.monthly : pricing.growth.yearly,
+      originalPrice: billingCycle === "monthly" ? pricing.growth.originalMonthly : pricing.growth.originalYearly,
+      icon: <Zap size={32} />,
+      color: "amber",
+      popular: false,
+      features: [
+        { text: "Multi-location analysis", available: true },
+        { text: t('price_feat_segment'), available: true },
+        { text: t('price_feat_forecast'), available: true },
+        { text: t('price_feat_api_lite'), available: true },
+        { text: t('price_feat_team'), available: true },
+        { text: "Dashboard analytics", available: true }
+      ],
+      cta: t('price_upgrade'),
+      href: "/dashboard"
     },
     {
       id: "enterprise",
@@ -146,17 +185,15 @@ export default function AcquisitionTiers() {
       color: "purple",
       popular: false,
       features: [
-        { text: t('price_unlimited'), available: true },
-        { text: t('price_feat_api'), available: true },
-        { text: t('price_export'), available: true },
-        { text: t('price_feat_support'), available: true },
-        { text: t('price_feat_multi'), available: true },
-        { text: t('price_custom'), available: true },
-        { text: t('price_contact'), available: true }
+        { text: t('price_feat_api_full'), available: true },
+        { text: "Custom AI models", available: true },
+        { text: t('price_feat_white_label'), available: true },
+        { text: t('price_feat_crm'), available: true },
+        { text: "Dedicated support", available: true },
+        { text: "Bulk data export", available: true }
       ],
       cta: t('price_contact'),
-      href: "/dashboard",
-      description: t('price_enterprise_desc')
+      href: "/dashboard"
     }
   ];
 
@@ -286,8 +323,8 @@ export default function AcquisitionTiers() {
         </div>
  
         {/* Pricing Matrix - Professional Layout */}
-        <div className="responsive-container navbar-aware pb-12 border-t border-slate-200 dark:border-white/5 mt-12 relative overflow-visible">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-[#020617] px-6 text-[9px] font-black uppercase tracking-[0.3em] text-slate-400 dark:text-slate-800 italic border-x border-slate-200 dark:border-white/5">
+        <div className="responsive-container pb-12 border-t border-slate-200 dark:border-white/5 mt-32 relative overflow-visible">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-[#020617] px-6 text-[8px] font-black uppercase tracking-[0.4em] text-slate-400 dark:text-slate-800 italic border-x border-slate-200 dark:border-white/5 z-50">
             Choose Your Plan
           </div>
           
@@ -546,6 +583,14 @@ export default function AcquisitionTiers() {
           </motion.div>
         </div>
       </div>
+      {/* Payment Success Modal */}
+      {paymentDetails && (
+        <PaymentSuccessModal 
+          isOpen={showSuccessModal} 
+          onClose={() => setShowSuccessModal(false)} 
+          paymentData={paymentDetails} 
+        />
+      )}
     </div>
   );
 }

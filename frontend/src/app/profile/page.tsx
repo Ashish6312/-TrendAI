@@ -8,7 +8,7 @@ import {
   ShieldCheck, Crown, Zap, Star, Settings, Calendar, 
   MapPin, Globe, Award, BarChart3, Activity, Clock, Building2, 
   Target, Sparkles, ChevronRight, ChevronDown, Edit3, Camera,
-  CreditCard, X, RefreshCw
+  CreditCard, X, RefreshCw, ChevronUp
 } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
 import { useSubscription } from "@/context/SubscriptionContext";
@@ -24,17 +24,14 @@ import InvoiceModal from "../../components/InvoiceModal";
 
 const getProfessionalPlanName = (name: string): string => {
   const map: { [key: string]: string } = {
-    'free': 'Venture Strategist',
-    'starter': 'Venture Strategist',
+    'free': 'Explorer',
+    'starter': 'Starter',
     'professional': 'Growth Architect',
-    'professional monthly': 'Growth Architect',
-    'professional yearly': 'Growth Architect',
-    'enterprise': 'Territorial Dominance',
-    'enterprise monthly': 'Territorial Dominance',
-    'enterprise yearly': 'Territorial Dominance'
+    'growth': 'Business Accelerator',
+    'enterprise': 'Territorial Dominance'
   };
   
-  const normalized = name.toLowerCase();
+  const normalized = name.toLowerCase().replace(' monthly', '').replace(' yearly', '').trim();
   return map[normalized] || name;
 };
 
@@ -78,7 +75,11 @@ function ProfilePageContent() {
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<any>(null);
   const [showAllPayments, setShowAllPayments] = useState(false);
+  const [payments, setPayments] = useState<any[]>([]);
+  const [analysisHistory, setAnalysisHistory] = useState<any[]>([]);
+  const [subscriptionDetails, setSubscriptionDetails] = useState<any>(null);
   const [detectedLocation, setDetectedLocation] = useState<any>(null);
+  const [loadingPayments, setLoadingPayments] = useState(false);
   const searchParams = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -145,8 +146,30 @@ function ProfilePageContent() {
     }
   }, [searchParams]);
 
-  const [payments, setPayments] = useState<any[]>([]);
-  const [subscriptionDetails, setSubscriptionDetails] = useState<any>(null);
+  const fetchPayments = async () => {
+    if (!session?.user?.email) return;
+    setLoadingPayments(true);
+    try {
+      const apiUrl = getApiUrl();
+      const response = await fetch(`${apiUrl}/api/users/${session.user.email}/profile`);
+      if (response.ok) {
+        const data = await response.json();
+        setPayments(data.recent_payments || []);
+        if (data.subscription) setSubscriptionDetails(data.subscription);
+        
+        addNotification({
+          type: 'system',
+          title: 'History Updated',
+          message: `Fetched ${data.recent_payments?.length || 0} transaction records`,
+          priority: 'low'
+        });
+      }
+    } catch (error) {
+      console.error('Failed to refresh transactions:', error);
+    } finally {
+      setLoadingPayments(false);
+    }
+  };
   
   // Check for payment success from URL params (one-time animation trigger)
   useEffect(() => {
@@ -194,24 +217,27 @@ function ProfilePageContent() {
             setPayments(data.recent_payments);
             setSubscriptionDetails(data.subscription);
             
-            // Enhanced plan mapping with all variations
-            if (data.subscription && data.subscription.plan_name) {
-              const planMapping: Record<string, any> = {
-                'professional': 'professional',
-                'pro': 'professional',
-                'growth accelerator': 'professional',
-                'growth architect': 'professional',
-                'enterprise': 'enterprise',
-                'territorial dominance': 'enterprise',
-                'market dominator': 'enterprise',
-                'free': 'free',
-                'starter': 'free',
-                'venture strategist': 'free'
-              };
-              const mappedPlan = planMapping[data.subscription.plan_name.toLowerCase()] || 
-                               planMapping[data.subscription.plan_display_name?.toLowerCase()] || 'free';
-              if (plan !== mappedPlan) {
-                console.log('🔄 Silently updating plan from subscription data:', mappedPlan);
+            // Only update plan state from a VALID non-free subscription
+            if (data.subscription && data.subscription.plan_name && data.subscription.plan_name !== 'free') {
+              const rawPlan = data.subscription.plan_name.toLowerCase();
+              const rawDisplay = (data.subscription.plan_display_name || '').toLowerCase();
+              
+              let mappedPlan: any = 'free';
+              if (rawPlan.includes('enterprise') || rawDisplay.includes('enterprise') || rawDisplay.includes('dominance')) {
+                mappedPlan = 'enterprise';
+              } else if (rawPlan.includes('growth') || rawDisplay.includes('growth') || rawDisplay.includes('accelerator')) {
+                mappedPlan = 'growth';
+              } else if (rawPlan.includes('professional') || rawPlan.includes('pro') || rawDisplay.includes('professional')) {
+                mappedPlan = 'professional';
+              } else if (rawPlan.includes('starter') || rawDisplay.includes('starter') || rawDisplay.includes('venture')) {
+                mappedPlan = 'starter';
+              }
+              
+              // Only upgrade — never silently downgrade from a paid plan to free
+              const planHierarchy: Record<string, number> = { free: 0, starter: 1, professional: 2, growth: 3, enterprise: 4 };
+              if (mappedPlan !== 'free' && (planHierarchy[mappedPlan] ?? 0) > (planHierarchy[plan] ?? 0)) {
+                setPlan(mappedPlan);
+              } else if (plan === 'free' && mappedPlan !== 'free') {
                 setPlan(mappedPlan);
               }
             }
@@ -223,10 +249,8 @@ function ProfilePageContent() {
     };
     
     if (session?.user?.email) {
-      // Initial load
       checkForUpdates();
-      
-      // Reduced polling frequency to every 60 seconds for silent updates
+      // Poll every 60 seconds
       pollInterval = setInterval(checkForUpdates, 60000);
     }
     
@@ -238,9 +262,11 @@ function ProfilePageContent() {
   // Get location-based pricing
   const locationPricing = getPricingForCountry(userLocation?.country || 'Global');
 
-  const planIcons = {
+  const planIcons: Record<string, any> = {
     free: Star,
+    starter: Zap,
     professional: Zap,
+    growth: Activity,
     enterprise: Crown
   };
 
@@ -356,6 +382,7 @@ function ProfilePageContent() {
           setAnalysisCount(parsed.analysisCount);
           setSubscriptionDetails(parsed.subscriptionDetails);
           setPayments(parsed.payments || []);
+          setAnalysisHistory(parsed.analysisHistory || []);
           setJoinDate(parsed.joinDate ? new Date(parsed.joinDate) : null);
           setHasLoaded(true);
           setLoading(false);
@@ -420,25 +447,21 @@ function ProfilePageContent() {
           setJoinDate(updatedJoinDate);
         }
 
+        let historyData = [];
         if (historyRes.ok) {
-          const historyData = await historyRes.json();
+          historyData = await historyRes.json();
+          setAnalysisHistory(historyData || []);
           updatedAnalysisCount = historyData.length;
           setAnalysisCount(updatedAnalysisCount);
         }
 
         if (profileRes.ok) {
           const profileData = await profileRes.json();
-          console.log('🔍 Profile data received:', profileData);
           
           updatedSubscriptionDetails = profileData.subscription;
           updatedPayments = profileData.recent_payments || [];
           setSubscriptionDetails(updatedSubscriptionDetails);
           setPayments(updatedPayments);
-          
-          console.log('🔍 Updated payments state:', updatedPayments);
-          console.log('🔍 Payments count:', updatedPayments.length);
-        } else {
-          console.error('🔍 Profile API error:', profileRes.status, profileRes.statusText);
         }
 
         // 4. PERSIST TO CACHE FOR NEXT LOAD
@@ -447,6 +470,7 @@ function ProfilePageContent() {
           analysisCount: updatedAnalysisCount,
           subscriptionDetails: updatedSubscriptionDetails,
           payments: updatedPayments,
+          analysisHistory: historyData,
           joinDate: updatedJoinDate
         }));
 
@@ -461,8 +485,11 @@ function ProfilePageContent() {
       }
     };
 
-    if (status === "authenticated" && (!hasLoaded || loading)) {
-      fetchProfile();
+    if (status === "authenticated") {
+      // Always fetch fresh data on mount to ensure synchronization
+      // But only show full loader if we have NO cache yet
+      const isFirstLoad = !hasLoaded;
+      fetchProfile(isFirstLoad ? false : true);
     }
   }, [session?.user?.email, status]);
   const handleSubmit = async (e: React.FormEvent, silent = false) => {
@@ -1002,9 +1029,9 @@ function ProfilePageContent() {
             {/* Tab Navigation */}
             <div className="flex flex-col sm:flex-row space-y-1 sm:space-y-0 sm:space-x-1 mb-6 lg:mb-8 p-1.5 bg-white/50 dark:bg-white/5 rounded-2xl border border-slate-300 dark:border-white/10 backdrop-blur-sm shadow-md">
               {[
-                { id: 'overview', label: 'Overview', icon: BarChart3 },
-                { id: 'profile', label: 'Profile Settings', icon: User },
-                { id: 'billing', label: 'Plan & Billing', icon: Crown }
+                { id: 'overview', label: 'NETWORK', icon: BarChart3 },
+                { id: 'profile', label: 'PROFILE', icon: User },
+                { id: 'billing', label: 'BILLING', icon: Crown }
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -1031,20 +1058,24 @@ function ProfilePageContent() {
             <AnimatePresence mode="wait">
               {activeTab === 'overview' && (
                 <motion.div
-                  key="overview"
-                  variants={tabVariants}
-                  initial="hidden"
-                  animate="visible"
-                  exit="exit"
-                  className="space-y-6"
-                >
-                  {/* Elite Founder Protocol - High Engagement Dashboard */}
-                  <motion.div 
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="glass-card p-10 bg-gradient-to-br from-emerald-500/10 via-white dark:via-slate-900/95 to-white/95 dark:to-slate-900 overflow-hidden relative border-emerald-500/20 shadow-2xl"
-                  >
-                    <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-emerald-500/5 blur-[120px] rounded-full -mr-48 -mt-48" />
+                   key="overview"
+                   variants={tabVariants}
+                   initial="hidden"
+                   animate="visible"
+                   exit="exit"
+                   className="space-y-6"
+                 >
+                   {/* Elite Founder Protocol - High Engagement Dashboard */}
+                   <motion.div 
+                     initial={{ opacity: 0, y: 30 }}
+                     animate={{ opacity: 1, y: 0 }}
+                     className="glass-card p-10 bg-gradient-to-br from-white dark:from-slate-900/40 via-white dark:via-slate-900/95 to-white/95 dark:to-slate-900 overflow-hidden relative shadow-2xl"
+                     style={{ borderColor: `${theme.primary}20` }}
+                   >
+                     <div 
+                       className="absolute top-0 right-0 w-[400px] h-[400px] blur-[120px] rounded-full -mr-48 -mt-48 transition-colors duration-1000" 
+                       style={{ backgroundColor: `${theme.primary}10` }}
+                     />
                     
                     <div className="relative z-10">
                       <div className="flex flex-col lg:flex-row items-center gap-12">
@@ -1055,16 +1086,20 @@ function ProfilePageContent() {
                             <motion.circle
                               cx="50%" cy="50%" r="42%" stroke="currentColor" strokeWidth="8" fill="transparent"
                               strokeDasharray="264%"
-                              initial={{ strokeDashoffset: "264%" }}
-                              animate={{ strokeDashoffset: `${264 - (264 * completionPercentage()) / 100}%` }}
-                              transition={{ duration: 2, ease: "easeOut" }}
-                              className="text-emerald-500 drop-shadow-[0_0_15px_rgba(16,185,129,0.5)]"
-                            />
+                               initial={{ strokeDashoffset: "264%" }}
+                               animate={{ strokeDashoffset: `${264 - (264 * completionPercentage()) / 100}%` }}
+                               transition={{ duration: 2, ease: "easeOut" }}
+                               style={{ color: theme.primary }}
+                               className="drop-shadow-[0_0_15px_rgba(var(--glow-color),0.5)]"
+                             />
                           </svg>
                           <div className="absolute inset-0 flex flex-col items-center justify-center">
-                            <span className="text-3xl md:text-5xl font-black text-slate-900 dark:text-white italic tracking-tighter">{completionPercentage()}%</span>
-                            <span className="text-[8px] md:text-[9px] font-black text-emerald-600 dark:text-emerald-500/50 uppercase tracking-[0.3em] mt-0.5 md:mt-1">Readiness</span>
-                          </div>
+                             <span className="text-3xl md:text-5xl font-black text-slate-900 dark:text-white italic tracking-tighter">{completionPercentage()}%</span>
+                             <span 
+                               className="text-[8px] md:text-[9px] font-black uppercase tracking-[0.3em] mt-0.5 md:mt-1"
+                               style={{ color: theme.primary }}
+                             >Readiness</span>
+                           </div>
                         </div>
 
                         <div className="flex-1 space-y-10 text-center lg:text-left">
@@ -1077,10 +1112,17 @@ function ProfilePageContent() {
 
                           {/* Status Badges - High Engagement */}
                           <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 md:gap-4">
-                             <div className={`px-4 md:px-5 py-2 md:py-2.5 rounded-2xl border flex items-center gap-2 md:gap-3 transition-all duration-500 font-black italic ${completionPercentage() > 80 ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 shadow-xl' : 'bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-400 dark:text-slate-500'}`}>
-                                <Award size={16} className="md:w-[18px]" />
-                                <span className="text-[9px] md:text-[10px] uppercase tracking-widest">{completionPercentage() > 80 ? 'Elite Status' : 'Basic User'}</span>
-                             </div>
+                              <div 
+                                className={`px-4 md:px-5 py-2 md:py-2.5 rounded-2xl border flex items-center gap-2 md:gap-3 transition-all duration-500 font-black italic shadow-xl`}
+                                style={{ 
+                                  backgroundColor: completionPercentage() > 80 ? `${theme.primary}20` : 'transparent',
+                                  borderColor: completionPercentage() > 80 ? `${theme.primary}30` : 'inherit',
+                                  color: completionPercentage() > 80 ? theme.primary : 'inherit'
+                                }}
+                              >
+                                 <Award size={16} className="md:w-[18px]" />
+                                 <span className="text-[9px] md:text-[10px] uppercase tracking-widest">{completionPercentage() > 80 ? 'Elite Status' : 'Basic User'}</span>
+                              </div>
                              <div className={`px-4 md:px-5 py-2 md:py-2.5 rounded-2xl border flex items-center gap-2 md:gap-3 transition-all duration-500 group relative font-black italic ${formData.location ? 'bg-blue-500/20 border-blue-500/30 text-blue-600 dark:text-blue-400 shadow-xl' : 'bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-400 dark:text-slate-500'}`}>
                                 <Globe size={16} className={`md:w-[18px] ${formData.location ? 'animate-pulse' : ''}`} />
                                 <span className="text-[9px] md:text-[10px] uppercase tracking-widest">{formData.location ? `Node: ${formData.location.split(',')[0]}` : 'Grid: Not Set'}</span>
@@ -1095,14 +1137,15 @@ function ProfilePageContent() {
                           <div className="pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center gap-6">
                              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Next Steps:</span>
                              <div className="flex gap-4">
-                                {completionPercentage() < 100 && (
-                                  <button 
-                                    onClick={() => setActiveTab('profile')}
-                                    className="text-[11px] font-bold text-emerald-400 hover:text-white flex items-center gap-2 group transition-colors"
-                                  >
-                                     Finish Profile <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
-                                  </button>
-                                )}
+                                 {completionPercentage() < 100 && (
+                                   <button 
+                                     onClick={() => setActiveTab('profile')}
+                                     className="text-[11px] font-bold hover:text-white flex items-center gap-2 group transition-colors"
+                                     style={{ color: theme.primary }}
+                                   >
+                                      Finish Profile <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                                   </button>
+                                 )}
                                 <button 
                                   onClick={() => router.push('/dashboard')}
                                   className="text-[11px] font-bold text-blue-400 hover:text-white flex items-center gap-2 group transition-colors"
@@ -1114,7 +1157,78 @@ function ProfilePageContent() {
                         </div>
                       </div>
                     </div>
-                  </motion.div>
+
+                   {/* Analysis History Section - This is what the user calls "History" */}
+                   <div 
+                     className="glass-card p-10 relative overflow-hidden"
+                     style={{ borderColor: `${theme.primary}20` }}
+                   >
+                     <div className="flex items-center justify-between mb-10 pb-6 border-b border-slate-200 dark:border-white/5">
+                        <div className="flex items-center gap-4">
+                          <div 
+                            className="p-4 rounded-2xl"
+                            style={{ backgroundColor: `${theme.primary}15` }}
+                          >
+                            <BarChart3 size={28} style={{ color: theme.primary }} />
+                          </div>
+                          <div>
+                            <h2 className="text-2xl font-black text-slate-900 dark:text-white italic tracking-tighter leading-none mb-1">Intelligence History</h2>
+                            <p className="text-slate-500 dark:text-gray-400 text-sm font-bold opacity-80 uppercase tracking-widest italic">Generated Strategic Reports</p>
+                          </div>
+                        </div>
+                     </div>
+
+                     {analysisHistory.length > 0 ? (
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         {analysisHistory.slice(0, 6).map((item, idx) => (
+                           <motion.div 
+                             key={item.id || idx}
+                             initial={{ opacity: 0, scale: 0.95 }}
+                             animate={{ opacity: 1, scale: 1 }}
+                             transition={{ delay: idx * 0.1 }}
+                             className="p-5 rounded-2xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 hover:border-blue-500/30 transition-all cursor-pointer group"
+                             onClick={() => router.push(`/dashboard?topic=${encodeURIComponent(item.topic || '')}`)}
+                           >
+                             <div className="flex items-start justify-between mb-3">
+                               <div className="flex items-center gap-2">
+                                 <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{item.type || 'AI SCAN'}</span>
+                               </div>
+                               <span className="text-[9px] font-black text-slate-500">{new Date(item.created_at).toLocaleDateString()}</span>
+                             </div>
+                             <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase italic tracking-tighter mb-1 line-clamp-1">{item.topic || 'Market Analysis'}</h4>
+                             <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 truncate tracking-wide">{item.location || 'Global Search'}</p>
+                           </motion.div>
+                         ))}
+                       </div>
+                     ) : (
+                       <div className="text-center py-10 opacity-50 grayscale">
+                          <Activity size={48} className="mx-auto mb-4 text-slate-300" />
+                          <p className="text-sm font-black text-slate-500 uppercase tracking-widest">No intelligence assets deployed yet</p>
+                       </div>
+                     )}
+                   </div>
+
+                   {/* Login History Section */}
+                   <div 
+                     className="glass-card p-10"
+                     style={{ borderColor: `${theme.primary}20` }}
+                   >
+                     <div className="flex items-center gap-4 mb-8">
+                        <div 
+                          className="p-4 rounded-2xl"
+                          style={{ backgroundColor: `${theme.primary}15` }}
+                        >
+                          <ShieldCheck size={28} style={{ color: theme.primary }} />
+                        </div>
+                        <div>
+                          <h2 className="text-2xl font-black text-slate-900 dark:text-white italic tracking-tighter leading-none mb-1">Grid Security History</h2>
+                          <p className="text-slate-500 dark:text-gray-400 text-sm font-bold opacity-80 uppercase tracking-widest italic">Recent Access Logs</p>
+                        </div>
+                     </div>
+                     <LoginHistory userEmail={session?.user?.email || ""} />
+                   </div>
+                 </motion.div>
                   {/* Plan Features Overview */}
                   <div 
                     className="glass-card p-8"
@@ -1189,15 +1303,16 @@ function ProfilePageContent() {
                                 <span className="text-[10px] uppercase tracking-widest text-slate-600 dark:text-gray-300">{feature.label}</span>
                               </div>
                               <motion.span 
-                                className={`text-[8px] font-black px-3 py-1 rounded-full uppercase tracking-tighter ${
-                                  planFeatures[feature.key as keyof typeof planFeatures] 
-                                    ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' 
-                                    : 'bg-slate-500/20 text-slate-500 dark:text-gray-500 border border-slate-500/30'
-                                }`}
-                                whileHover={{ scale: 1.05 }}
-                              >
-                                {planFeatures[feature.key as keyof typeof planFeatures] ? '✓ Included' : 'Upgrade'}
-                              </motion.span>
+                                 className={`text-[8px] font-black px-3 py-1 rounded-full uppercase tracking-tighter border shadow-sm`}
+                                 style={{ 
+                                   backgroundColor: planFeatures[feature.key as keyof typeof planFeatures] ? `${theme.primary}20` : 'transparent',
+                                   borderColor: planFeatures[feature.key as keyof typeof planFeatures] ? `${theme.primary}30` : 'inherit',
+                                   color: planFeatures[feature.key as keyof typeof planFeatures] ? theme.primary : 'inherit'
+                                 }}
+                                 whileHover={{ scale: 1.05 }}
+                               >
+                                 {planFeatures[feature.key as keyof typeof planFeatures] ? '✓ Included' : 'Upgrade'}
+                               </motion.span>
                             </motion.div>
                           ))}
                         </div>
@@ -1293,17 +1408,22 @@ function ProfilePageContent() {
                           <span className="text-[8px] font-black text-slate-500 uppercase tracking-tighter">{autoSave ? 'Enabled' : 'Disabled'}</span>
                         </div>
                         <button
+                          type="button"
                           onClick={() => setAutoSave(!autoSave)}
                           className={`relative w-12 h-6.5 rounded-full transition-all duration-300 outline-none p-1 ${
                             autoSave 
-                              ? 'bg-emerald-500/20 border-emerald-500/50' 
-                              : 'bg-slate-200 dark:bg-white/10 border-slate-300 dark:border-white/20'
+                              ? 'bg-slate-200 dark:bg-white/10' 
+                              : 'bg-slate-200 dark:bg-white/10'
                           } border`}
+                          style={{ 
+                            borderColor: autoSave ? `${theme.primary}50` : 'transparent',
+                            background: autoSave ? `${theme.primary}20` : ''
+                          }}
                         >
                           <motion.div
                             animate={{ 
                               x: autoSave ? 22 : 0,
-                              backgroundColor: autoSave ? '#10b981' : '#94a3b8'
+                              backgroundColor: autoSave ? theme.primary : '#94a3b8'
                             }}
                             className="w-4.5 h-4.5 rounded-full shadow-lg"
                           />
@@ -1419,17 +1539,19 @@ function ProfilePageContent() {
                                 type="button"
                                 onClick={handleAutoDetectLocation}
                                 disabled={locationDetecting}
-                                className="absolute right-2 px-3 py-1.5 text-[10px] font-black uppercase tracking-tighter bg-slate-900/5 dark:bg-white/5 rounded-lg border border-slate-200 dark:border-white/10 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 transition-all"
-                                style={{ color: theme.primary }}
+                                className="absolute right-2 px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 transition-all shadow-lg shadow-blue-500/10"
+                                style={{ 
+                                  background: `linear-gradient(135deg, ${theme.primary}, ${theme.secondary})`,
+                                }}
                               >
                                 {locationDetecting ? (
                                   <>
-                                    <Loader2 size={10} className="animate-spin" />
+                                    <Loader2 size={12} className="animate-spin" />
                                     <span>Syncing...</span>
                                   </>
                                 ) : (
                                   <>
-                                    <Globe size={10} />
+                                    <Globe size={12} />
                                     <span>Sync GPS</span>
                                   </>
                                 )}
@@ -1535,9 +1657,12 @@ function ProfilePageContent() {
                           </span>
                         </div>
                         <div className="relative group">
-                          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-indigo-500/5 rounded-2xl blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity" />
+                          <div 
+                            className="absolute inset-0 rounded-2xl blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity" 
+                            style={{ background: `linear-gradient(to r, ${theme.primary}10, ${theme.secondary}10)` }}
+                          />
                           <div className="relative">
-                            <FileText size={18} className="absolute left-4 top-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+                            <FileText size={18} className="absolute left-4 top-4 text-slate-400 group-focus-within:transition-colors" style={{ color: 'var(--focus-color, inherit)' }} />
                             <textarea
                               value={formData.bio}
                               onChange={(e) => {
@@ -1546,7 +1671,18 @@ function ProfilePageContent() {
                                 }
                               }}
                               rows={5}
-                              className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 rounded-2xl text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all resize-none font-bold italic tracking-tight leading-relaxed"
+                              className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 rounded-2xl text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none transition-all resize-none font-bold italic tracking-tight leading-relaxed"
+                              style={{ 
+                                borderColor: 'inherit',
+                              }}
+                              onFocus={(e) => {
+                                e.currentTarget.style.boxShadow = `0 0 0 2px ${theme.primary}50`;
+                                e.currentTarget.style.borderColor = theme.primary;
+                              }}
+                              onBlur={(e) => {
+                                e.currentTarget.style.boxShadow = 'none';
+                                e.currentTarget.style.borderColor = '';
+                              }}
                               placeholder="Describe your professional objectives and mission profile..."
                             />
                           </div>
@@ -1603,9 +1739,14 @@ function ProfilePageContent() {
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10 pb-8 border-b border-slate-200 dark:border-white/5">
                       <div className="flex items-center gap-4">
                         <div 
-                          className="p-4 rounded-2xl bg-gradient-to-br from-blue-500/10 to-indigo-500/10 border border-blue-500/20 shadow-lg shadow-blue-500/5 transition-transform hover:scale-105"
+                          className="p-4 rounded-2xl transition-transform hover:scale-105"
+                          style={{ 
+                            background: `linear-gradient(135deg, ${theme.primary}15, ${theme.secondary}15)`,
+                            border: `1px border ${theme.primary}30`,
+                            boxShadow: `0 8px 20px -5px ${theme.primary}20`
+                          }}
                         >
-                          <Crown size={28} className="text-blue-500 animate-pulse" />
+                          <Crown size={28} className="animate-pulse" style={{ color: theme.primary }} />
                         </div>
                         <div>
                           <h2 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white italic tracking-tighter leading-none mb-1">
@@ -1617,13 +1758,17 @@ function ProfilePageContent() {
                         </div>
                       </div>
                       
-                      <Link 
-                        href="/acquisition-tiers"
-                        className="px-6 py-3.5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:scale-105 transition-all flex items-center justify-center gap-3 shadow-xl shadow-slate-900/10 dark:shadow-white/5 group"
-                      >
-                        <Zap size={16} className="text-amber-400 group-hover:scale-125 transition-transform" />
-                        Intelligence Tiers
-                      </Link>
+                        <Link 
+                          href="/acquisition-tiers"
+                          className="px-6 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-[0.3em] text-white hover:scale-105 transition-all flex items-center justify-center gap-3 shadow-xl group"
+                          style={{ 
+                            background: `linear-gradient(135deg, ${theme.primary}, ${theme.secondary})`,
+                            boxShadow: `0 10px 25px -5px ${theme.primary}50`
+                          }}
+                        >
+                          <Zap size={14} className="text-white group-hover:scale-125 transition-transform" />
+                          Intelligence Tiers
+                        </Link>
                     </div>
 
                     <div className="space-y-10">
@@ -1719,174 +1864,123 @@ function ProfilePageContent() {
                         <div className="flex flex-wrap items-center gap-3">
                           <button
                             onClick={async () => {
-                              if (!session?.user?.email) return;
                               try {
+                                setLoadingPayments(true);
                                 const apiUrl = getApiUrl();
-                                const response = await fetch(`${apiUrl}/api/debug-user-data/${session.user.email}`);
-                                
-                                if (response.ok) {
-                                  const data = await response.json();
-                                  console.log('🔍 DEBUG - User data:', data);
-                                  
-                                  addNotification({
-                                    type: 'system',
-                                    title: '🔍 Debug Data',
-                                    message: `User: ${data.user?.name || 'N/A'}, Plan: ${data.subscription?.plan_name || 'None'}, Payments: ${data.payments?.length || 0}`,
-                                    priority: 'low'
-                                  });
-                                } else {
-                                  throw new Error('Failed to get debug data');
-                                }
-                              } catch (error) {
-                                console.error('Failed to get debug data:', error);
+                                // Trigger Cloud Sync (Caching)
+                                await fetch(`${apiUrl}/api/sync-razorpay-payments?email=${encodeURIComponent(session?.user?.email || '')}`);
+                                // Fetch local records
+                                await fetchPayments();
+                              } catch (e) {
+                                console.error('Cloud Sync failed', e);
+                                fetchPayments();
+                              } finally {
+                                setLoadingPayments(false);
                               }
                             }}
-                            className="px-3 py-1.5 bg-purple-500 text-white rounded-lg text-xs font-bold hover:bg-purple-600 transition-all flex items-center gap-2"
-                          >
-                            <Settings size={12} />
-                            Debug Data
-                          </button>
-                          
-                          <button
-                            onClick={async () => {
-                              if (!session?.user?.email) return;
-                              try {
-                                const apiUrl = getApiUrl();
-                                const response = await fetch(`${apiUrl}/api/refresh-user-plan/${session.user.email}`, {
-                                  method: 'POST'
-                                });
-                                
-                                if (response.ok) {
-                                  const data = await response.json();
-                                  console.log('🔄 Plan refreshed:', data);
-                                  
-                                  // Update plan in context
-                                  if (data.current_plan) {
-                                    setPlan(data.current_plan);
-                                  }
-                                  
-                                  // Refresh profile data
-                                  const profileRes = await fetch(`${apiUrl}/api/users/${session.user.email}/profile`);
-                                  if (profileRes.ok) {
-                                    const profileData = await profileRes.json();
-                                    setPayments(profileData.recent_payments || []);
-                                    setSubscriptionDetails(profileData.subscription);
-                                  }
-                                  
-                                  addNotification({
-                                    type: 'system',
-                                    title: '🔄 Plan Refreshed!',
-                                    message: `Plan updated to ${data.plan_display_name} with ${data.max_analyses === -1 ? 'unlimited' : data.max_analyses} analyses`,
-                                    priority: 'high'
-                                  });
-                                  
-                                  // NO ANIMATION - Just silent refresh
-                                } else {
-                                  throw new Error('Failed to refresh plan');
-                                }
-                              } catch (error) {
-                                console.error('Failed to refresh plan:', error);
-                                addNotification({
-                                  type: 'system',
-                                  title: 'Refresh Failed',
-                                  message: 'Could not refresh plan. Please contact support.',
-                                  priority: 'high'
-                                });
-                              }
+                            disabled={loadingPayments}
+                            className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white rounded-xl flex items-center gap-2 transition-all shadow-xl hover:scale-105 active:scale-95 disabled:opacity-50"
+                            style={{ 
+                              background: `linear-gradient(135deg, ${theme.primary}, ${theme.secondary})`,
+                              boxShadow: `0 8px 15px -4px ${theme.primary}40`
                             }}
-                            className="px-3 py-1.5 bg-green-500 text-white rounded-lg text-xs font-bold hover:bg-green-600 transition-all flex items-center gap-2"
                           >
-                            <RefreshCw size={12} />
-                            Refresh Plan
-                          </button>
-                          
-                          <button
-                            onClick={async () => {
-                              if (!session?.user?.email) return;
-                              try {
-                                const apiUrl = getApiUrl();
-                                const profileRes = await fetch(`${apiUrl}/api/users/${session.user.email}/profile`);
-                                if (profileRes.ok) {
-                                  const profileData = await profileRes.json();
-                                  console.log('🔍 Manual refresh - Profile data:', profileData);
-                                  setPayments(profileData.recent_payments || []);
-                                  
-                                  // Enhanced plan mapping with all variations
-                                  if (profileData.subscription && profileData.subscription.plan_name) {
-                                    const planMapping: Record<string, any> = {
-                                      'professional': 'professional',
-                                      'pro': 'professional',
-                                      'growth accelerator': 'professional',
-                                      'growth architect': 'professional',
-                                      'enterprise': 'enterprise',
-                                      'territorial dominance': 'enterprise',
-                                      'market dominator': 'enterprise',
-                                      'free': 'free',
-                                      'starter': 'free',
-                                      'venture strategist': 'free'
-                                    };
-                                    const mappedPlan = planMapping[profileData.subscription.plan_name.toLowerCase()] || 
-                                                     planMapping[profileData.subscription.plan_display_name?.toLowerCase()] || 'free';
-                                    setPlan(mappedPlan);
-                                  }
-                                  
-                                  addNotification({
-                                    type: 'system',
-                                    title: 'Transactions Refreshed',
-                                    message: `Found ${profileData.recent_payments?.length || 0} real transaction records`,
-                                    priority: 'low'
-                                  });
-                                }
-                              } catch (error) {
-                                console.error('Failed to refresh transactions:', error);
-                              }
-                            }}
-                            className="px-3 py-1.5 bg-slate-200 dark:bg-white/10 rounded-lg text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all flex items-center gap-2"
-                          >
-                            <RefreshCw size={12} />
-                            Refresh
+                            <RefreshCw size={12} className={loadingPayments ? "animate-spin" : ""} />
+                            Refresh Transactions
                           </button>
                           
                           <button 
                             onClick={async () => {
                               if (!session?.user?.email) return;
+                              const element = document.getElementById('billing-report');
+                              if (!element) return;
+                              
                               try {
-                                const apiUrl = getApiUrl();
-                                const response = await fetch(`${apiUrl}/payments/download-all-receipts?email=${session.user.email}`);
-                                if (response.ok) {
-                                  const blob = await response.blob();
-                                  const url = window.URL.createObjectURL(blob);
-                                  const a = document.createElement('a');
-                                  a.href = url;
-                                  a.download = `receipts-${Date.now()}.zip`;
-                                  document.body.appendChild(a);
-                                  a.click();
-                                  a.remove();
-                                }
+                                const { default: html2canvas } = await import('html2canvas');
+                                const { jsPDF } = await import('jspdf');
+                                
+                                const isDark = document.documentElement.classList.contains('dark');
+                                
+                                const canvas = await html2canvas(element, {
+                                  scale: 2,
+                                  useCORS: true,
+                                  backgroundColor: isDark ? "#020617" : "#ffffff",
+                                  onclone: (clonedDoc) => {
+                                    // EXHAUSTIVE SANITIZATION: Prevents 'oklab' crash globally
+                                    const allElements = clonedDoc.querySelectorAll('*');
+                                    allElements.forEach(el => {
+                                      const htmlEl = el as HTMLElement;
+                                      const style = window.getComputedStyle(htmlEl);
+                                      
+                                      const sanitize = (val: string) => {
+                                        if (!val || val === 'none') return val;
+                                        if (val.includes('oklch(') || val.includes('oklab(') || val.includes('lab(') || val.includes('hwb(')) {
+                                          if (val.includes('0.5') || val.includes('50%')) return 'rgba(37, 99, 235, 0.5)';
+                                          if (val.includes('0.1') || val.includes('10%')) return 'rgba(255, 255, 255, 0.05)';
+                                          return isDark ? '#020617' : '#ffffff';
+                                        }
+                                        return val;
+                                      };
+
+                                      htmlEl.style.color = sanitize(style.color);
+                                      htmlEl.style.backgroundColor = sanitize(style.backgroundColor);
+                                      htmlEl.style.borderColor = sanitize(style.borderColor);
+                                      htmlEl.style.boxShadow = sanitize(style.boxShadow);
+                                      
+                                      if (el.tagName.toLowerCase() === 'svg' || el.parentElement?.tagName.toLowerCase() === 'svg') {
+                                        htmlEl.style.fill = sanitize(style.fill);
+                                        htmlEl.style.stroke = sanitize(style.stroke);
+                                      }
+                                    });
+
+                                    const el = clonedDoc.getElementById('billing-report');
+                                    if (el) {
+                                      el.style.padding = '40px';
+                                      el.style.width = '1200px';
+                                      el.style.background = isDark ? "#020617" : "#ffffff";
+                                      el.style.color = isDark ? "white" : "black";
+                                    }
+                                  }
+                                });
+                                
+                                const imgData = canvas.toDataURL('image/png');
+                                const pdf = new jsPDF('p', 'mm', 'a4');
+                                const pdfWidth = pdf.internal.pageSize.getWidth();
+                                const imgWidth = 210; 
+                                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                                
+                                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeight);
+                                pdf.save(`billing-report-${session.user?.email?.split('@')[0] || 'user'}.pdf`);
+                                
                               } catch (err) {
-                                console.error('Failed to download receipts', err);
+                                console.error('Failed to generate billing PDF', err);
                               }
                             }}
-                            className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-900 dark:text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-white/10 transition-all flex items-center gap-2 group italic"
+                            className="px-5 py-2.5 rounded-xl text-white text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 group italic shadow-xl hover:scale-105 active:scale-95"
+                            style={{ 
+                              background: `linear-gradient(135deg, ${theme.primary}, ${theme.secondary})`,
+                              boxShadow: `0 10px 20px -5px ${theme.primary}40`
+                            }}
                           >
-                            <FileText size={12} className="group-hover:scale-110 transition-transform" />
-                            Download All
+                            <FileText size={14} className="group-hover:scale-110 transition-transform" />
+                            Download PDF Report
                           </button>
                         </div>
                       </div>
 
                       {payments.length > 0 ? (
-                        <div className="space-y-4">
-                          <div className="overflow-x-auto -mx-6 px-6">
-                            <table className="w-full text-left min-w-[600px]">
+                        <div id="billing-report" className="space-y-6">
+                          {/* Desktop View Table */}
+                          <div className="hidden md:block overflow-x-auto -mx-6 px-6">
+                            <table className="w-full text-left min-w-[700px]">
                               <thead>
                                 <tr className="border-b border-slate-200 dark:border-white/5">
-                                  <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Invoice ID</th>
-                                  <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Date</th>
-                                  <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Plan</th>
-                                  <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Amount</th>
-                                  <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Status</th>
-                                  <th className="pb-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Action</th>
+                                  <th className="pb-4 text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Invoice ID</th>
+                                  <th className="pb-4 text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Date</th>
+                                  <th className="pb-4 text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Plan</th>
+                                  <th className="pb-4 text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Amount</th>
+                                  <th className="pb-4 text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 text-center">Status</th>
+                                  <th className="pb-4 text-right text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Action</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-slate-100 dark:divide-white/5">
@@ -1900,87 +1994,43 @@ function ProfilePageContent() {
                                     whileHover={{ scale: 1.01 }}
                                   >
                                     <td className="py-4 font-mono text-xs text-slate-600 dark:text-slate-300 italic">
-                                      <motion.span
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        transition={{ delay: index * 0.1 + 0.2 }}
-                                      >
-                                        {payment.razorpay_payment_id?.slice(0, 12)}...
-                                      </motion.span>
+                                      {payment.razorpay_payment_id?.slice(0, 24)}...
                                     </td>
-                                    <td className="py-4 text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-tighter">
-                                      <motion.span
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        transition={{ delay: index * 0.1 + 0.3 }}
-                                      >
-                                        {new Date(payment.payment_date).toLocaleDateString()}
-                                      </motion.span>
+                                    <td className="py-4 text-xs font-black text-slate-600 dark:text-slate-400 uppercase tracking-tighter">
+                                      {new Date(payment.created_at || payment.payment_date).toLocaleDateString()}
                                     </td>
                                     <td className="py-4">
-                                      <motion.div 
-                                        className="flex items-center gap-2"
-                                        initial={{ opacity: 0, x: -20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: index * 0.1 + 0.4 }}
-                                      >
-                                        <span className="text-xs font-black text-slate-900 dark:text-white italic">{getProfessionalPlanName(payment.plan_name)}</span>
-                                        <motion.span 
-                                          className="text-[8px] font-black uppercase tracking-tighter text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700/50 rounded-md px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800/50"
-                                          whileHover={{ scale: 1.1 }}
-                                        >
-                                          {payment.billing_cycle}
-                                        </motion.span>
-                                      </motion.div>
+                                      <span className="text-[10px] font-black text-slate-900 dark:text-white uppercase italic tracking-widest">{payment.plan_id?.split('_').join(' ') || getProfessionalPlanName(payment.plan_name)}</span>
                                     </td>
-                                    <td className="py-4 text-xs font-black text-slate-900 dark:text-white tracking-tight italic">
-                                      <motion.div
-                                        initial={{ opacity: 0, scale: 0.8 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        transition={{ delay: index * 0.1 + 0.5 }}
-                                        className="flex items-center gap-1"
-                                      >
-                                        <span className="text-blue-600 dark:text-blue-400 font-black">{payment.currency === 'INR' ? '₹' : '$'}</span>
-                                        <motion.span
-                                          initial={{ opacity: 0 }}
-                                          animate={{ opacity: 1 }}
-                                          transition={{ delay: index * 0.1 + 0.6 }}
-                                        >
-                                          {parseFloat(payment.amount).toLocaleString('en-IN', { minimumFractionDigits: 0 })}
-                                        </motion.span>
-                                      </motion.div>
-                                    </td>
-                                    <td className="py-4">
-                                      <motion.span 
-                                        className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter ${
-                                          payment.status === 'success' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 
-                                          'bg-red-500/10 text-red-400 border border-red-500/20'
-                                        }`}
-                                        initial={{ opacity: 0, scale: 0.8 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        transition={{ delay: index * 0.1 + 0.7 }}
-                                        whileHover={{ scale: 1.1 }}
-                                      >
+                                    <td className="py-4 text-xs font-black text-slate-900 dark:text-white tracking-widest">₹{payment.amount}</td>
+                                    <td className="py-4 text-center">
+                                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter ${
+                                        payment.status?.toLowerCase() === 'captured' || payment.status?.toLowerCase() === 'success'
+                                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
+                                          : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                                      }`}>
                                         {payment.status}
-                                      </motion.span>
+                                      </span>
                                     </td>
                                     <td className="py-4 text-right">
-                                      <motion.button 
+                                      <button 
                                         onClick={() => {
                                           setSelectedPayment(payment);
                                           setIsInvoiceModalOpen(true);
                                         }}
-                                        className="p-2 rounded-lg bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-white/10 transition-all flex items-center gap-2 shadow-sm italic"
-                                        title="View Professional Invoice"
-                                        initial={{ opacity: 0, x: 20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: index * 0.1 + 0.8 }}
-                                        whileHover={{ scale: 1.05 }}
-                                        whileTap={{ scale: 0.95 }}
+                                        className="p-2 ml-auto rounded-lg bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400 transition-all flex items-center gap-2 group italic shadow-sm"
+                                        onMouseEnter={(e) => {
+                                          e.currentTarget.style.color = theme.primary;
+                                          e.currentTarget.style.backgroundColor = `${theme.primary}10`;
+                                        }}
+                                        onMouseLeave={(e) => {
+                                          e.currentTarget.style.color = '';
+                                          e.currentTarget.style.backgroundColor = '';
+                                        }}
                                       >
-                                        <FileText size={14} />
-                                        <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Receipt</span>
-                                      </motion.button>
+                                        <FileText size={14} className="group-hover:scale-110 transition-transform" />
+                                        <span className="text-[10px] font-black uppercase tracking-widest hidden lg:inline">Receipt</span>
+                                      </button>
                                     </td>
                                   </motion.tr>
                                 ))}
@@ -1988,18 +2038,85 @@ function ProfilePageContent() {
                             </table>
                           </div>
 
+                          {/* Mobile View - Card Layout */}
+                          <div className="md:hidden space-y-4">
+                            {(showAllPayments ? payments : payments.slice(0, 3)).map((payment: any, index: number) => (
+                              <motion.div
+                                key={payment.id}
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: index * 0.1 }}
+                                className="p-4 rounded-2xl bg-white dark:bg-white/[0.02] border border-slate-200 dark:border-white/5 space-y-4 shadow-sm"
+                              >
+                                <div className="flex justify-between items-start">
+                                  <div className="space-y-1">
+                                    <div className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Invoice ID</div>
+                                    <div className="font-mono text-[10px] text-slate-600 dark:text-slate-300">
+                                      {payment.razorpay_payment_id?.slice(0, 16)}...
+                                    </div>
+                                  </div>
+                                  <div className={`px-2 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${
+                                    payment.status?.toLowerCase() === 'captured' || payment.status?.toLowerCase() === 'success'
+                                      ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                                      : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+                                  }`}>
+                                    {payment.status}
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-2 py-3 border-t border-slate-100 dark:border-white/5">
+                                  <div>
+                                    <div className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Plan</div>
+                                    <div className="text-[10px] font-black dark:text-white uppercase italic truncate">{payment.plan_id?.split('_').join(' ') || getProfessionalPlanName(payment.plan_name)}</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Amount</div>
+                                    <div className="text-[10px] font-black dark:text-white">₹{payment.amount}</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Date</div>
+                                    <div className="text-[9px] font-bold text-slate-500 dark:text-slate-400">{new Date(payment.created_at || payment.payment_date).toLocaleDateString()}</div>
+                                  </div>
+                                </div>
+
+                                <button
+                                   onClick={() => {
+                                     setSelectedPayment(payment);
+                                     setIsInvoiceModalOpen(true);
+                                   }}
+                                   className="w-full py-3 rounded-xl text-white text-[10px] font-black uppercase tracking-[0.3em] flex items-center justify-center gap-3 transition-all hover:opacity-90 active:scale-95 shadow-lg group italic"
+                                   style={{ 
+                                     background: `linear-gradient(135deg, ${theme.primary}, ${theme.secondary})`,
+                                     boxShadow: `0 8px 16px -4px ${theme.primary}40`
+                                   }}
+                                 >
+                                   <FileText size={12} className="group-hover:scale-110 transition-transform" />
+                                   View Invoice
+                                 </button>
+                              </motion.div>
+                            ))}
+                          </div>
+
                           {payments.length > 3 && (
                             <div className="mt-8 text-center pt-6 border-t border-slate-100 dark:border-white/5">
-                              <button
-                                onClick={() => setShowAllPayments(!showAllPayments)}
-                                className="px-8 py-3 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[10px] font-black uppercase tracking-[0.2em] hover:scale-105 transition-all flex items-center gap-3 mx-auto shadow-xl"
-                              >
-                                {showAllPayments ? (
-                                  <>Fewer Transactions <ChevronDown size={14} className="rotate-180" /></>
-                                ) : (
-                                  <>+ {payments.length - 3} Historical Records <ChevronDown size={14} /></>
-                                )}
-                              </button>
+                                            <div className="pt-8 border-t border-slate-100 dark:border-white/5">
+                        <button
+                          onClick={() => setShowAllPayments(!showAllPayments)}
+                          className="w-full sm:w-auto px-10 py-3.5 rounded-2xl border text-[10px] font-black uppercase tracking-[0.4em] transition-all flex items-center justify-center gap-4 group shadow-xl hover:scale-105 active:scale-95 italic"
+                          style={{ 
+                            borderColor: `${theme.primary}30`, 
+                            backgroundColor: `${theme.primary}05`,
+                            color: theme.primary,
+                            boxShadow: `0 10px 20px -5px ${theme.primary}10`
+                          }}
+                        >
+                          {showAllPayments ? (
+                            <><ChevronUp size={16} className="group-hover:-translate-y-1 transition-transform" /> Hide History</>
+                          ) : (
+                            <><ChevronDown size={16} className="group-hover:translate-y-1 transition-transform" /> View Full Archive</>
+                          )}
+                        </button>
+                      </div>
                             </div>
                           )}
                         </div>
@@ -2042,16 +2159,21 @@ function ProfilePageContent() {
                                     // Enhanced plan mapping with all variations
                                     if (profileData.subscription && profileData.subscription.plan_name) {
                                       const planMapping: Record<string, any> = {
-                                        'professional': 'professional',
-                                        'pro': 'professional',
-                                        'growth accelerator': 'professional',
-                                        'growth architect': 'professional',
                                         'enterprise': 'enterprise',
                                         'territorial dominance': 'enterprise',
                                         'market dominator': 'enterprise',
+                                        'growth': 'growth',
+                                        'business': 'growth',
+                                        'growth accelerator': 'growth',
+                                        'growth architect': 'growth',
+                                        'professional': 'professional',
+                                        'pro': 'professional',
+                                        'architect': 'professional',
+                                        'starter': 'starter',
+                                        'venture strategist': 'starter',
+                                        'strategist': 'starter',
                                         'free': 'free',
-                                        'starter': 'free',
-                                        'venture strategist': 'free'
+                                        'explorer': 'free'
                                       };
                                       const mappedPlan = planMapping[profileData.subscription.plan_name.toLowerCase()] || 
                                                        planMapping[profileData.subscription.plan_display_name?.toLowerCase()] || 'free';
@@ -2111,23 +2233,6 @@ function ProfilePageContent() {
                       )}
                     </div>
                   </div>
-                </div>
-
-                  {/* Security & Access Quick View */}
-                  <div className="glass-card p-6 lg:p-8 bg-white/50 dark:bg-slate-900/50 border-slate-200 dark:border-white/10 shadow-xl" style={{ borderColor: `${theme.primary}10` }}>
-                    <div className="flex items-center justify-between mb-6">
-                      <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2 italic tracking-tighter">
-                        <ShieldCheck size={18} className="text-blue-500 dark:text-blue-400" />
-                        Login History
-                      </h3>
-                      <button 
-                        onClick={() => router.push('/profile?tab=security')}
-                        className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors italic"
-                      >
-                        Manage All Sessions
-                      </button>
-                    </div>
-                    <LoginHistory userEmail={session?.user?.email || ""} />
                   </div>
                 </motion.div>
               )}

@@ -1,0 +1,20 @@
+{
+  "name": "TrendAI - Business Intelligence",
+  "short_name": "TrendAI",
+  "description": "AI-Powered Global Trend Analysis & Business Strategy",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#10b981",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ],
+  "serviceworker": {
+    "src": "/sw.js",
+    "scope": "/"
+  }
+}

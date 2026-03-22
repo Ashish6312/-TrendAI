@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { Zap, Shield, ChevronRight } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
+import { useSubscription } from "@/context/SubscriptionContext";
 
 export default function Footer() {
   const { t } = useLanguage();
+  const { theme, plan } = useSubscription();
+
   return (
     <footer className="bg-slate-50 dark:bg-gray-950/80 border-t border-slate-200 dark:border-white/5 backdrop-blur-md transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 lg:pt-20 pb-24 lg:pb-20">
@@ -12,18 +15,27 @@ export default function Footer() {
           {/* Company Info - Takes more space */}
           <div className="lg:col-span-2 space-y-6">
             <Link href="/" className="flex items-center gap-3 group">
-              <div className="w-10 h-10 bg-gradient-to-tr from-emerald-600 to-teal-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+              <div 
+                className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300"
+                style={{ 
+                  background: `linear-gradient(135deg, ${theme.primary}, ${theme.secondary})`,
+                  boxShadow: `0 8px 16px -4px ${theme.primary}40`
+                }}
+              >
                  <Zap className="text-white fill-current" size={20} />
               </div>
               <span className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter italic">
-                Trend<span className="text-emerald-600 dark:text-emerald-500">AI</span>
+                Trend<span style={{ color: theme.primary }}>AI</span>
               </span>
             </Link>
             <p className="text-slate-500 dark:text-gray-400 max-w-md text-base font-medium leading-relaxed">
               {t('foot_desc')}
             </p>
             <div className="flex items-center gap-3">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <div 
+                className="w-2 h-2 rounded-full animate-pulse"
+                style={{ backgroundColor: theme.primary, boxShadow: `0 0 8px ${theme.primary}` }}
+              ></div>
               <span className="text-xs font-bold text-slate-400 dark:text-gray-500 uppercase tracking-widest">
                 {t('foot_status')}
               </span>
@@ -33,7 +45,7 @@ export default function Footer() {
           {/* Strategic Links */}
           <div className="space-y-6">
             <h2 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest flex items-center gap-2">
-              <Zap size={14} className="text-emerald-500" />
+              <Zap size={14} style={{ color: theme.primary }} />
               {t('foot_strategic')}
             </h2>
             <ul className="space-y-4">
@@ -45,9 +57,9 @@ export default function Footer() {
                 <li key={link.label}>
                   <Link 
                     href={link.path} 
-                    className="group flex items-center gap-2 text-sm text-slate-500 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-500 transition-all duration-300 font-bold"
+                    className="group flex items-center gap-2 text-sm text-slate-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white transition-all duration-300 font-bold"
                   >
-                    <ChevronRight size={12} className="opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
+                    <ChevronRight size={12} className="opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" style={{ color: theme.primary }} />
                     {link.label}
                   </Link>
                 </li>
@@ -71,9 +83,9 @@ export default function Footer() {
                 <li key={link.label}>
                   <Link 
                     href={link.path} 
-                    className="group flex items-center gap-2 text-sm text-slate-500 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-500 transition-all duration-300 font-bold"
+                    className="group flex items-center gap-2 text-sm text-slate-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white transition-all duration-300 font-bold"
                   >
-                    <ChevronRight size={12} className="opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
+                    <ChevronRight size={12} className="opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" style={{ color: theme.primary }} />
                     {link.label}
                   </Link>
                 </li>
@@ -93,13 +105,16 @@ export default function Footer() {
             
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <div 
+                  className="w-2 h-2 rounded-full animate-pulse"
+                  style={{ backgroundColor: theme.primary, boxShadow: `0 0 8px ${theme.primary}` }}
+                ></div>
                 <span className="text-xs font-bold text-slate-400 dark:text-gray-600 uppercase tracking-wider">
                   Live Status
                 </span>
               </div>
               <div className="h-4 w-px bg-slate-300 dark:bg-gray-600"></div>
-              <span className="text-xs font-bold text-emerald-500 dark:text-emerald-400 uppercase tracking-wider">
+              <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.primary }}>
                 {t('foot_stable')}
               </span>
             </div>

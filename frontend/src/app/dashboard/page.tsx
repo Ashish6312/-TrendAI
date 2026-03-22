@@ -1493,7 +1493,7 @@ function Dashboard() {
         <PaymentSuccessModal 
           isOpen={showSuccessModal} 
           onClose={() => setShowSuccessModal(false)}
-          paymentDetails={paymentDetails}
+          paymentData={paymentDetails}
         />
       </div>
     </ProtectedRoute>

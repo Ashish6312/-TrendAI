@@ -26,6 +26,8 @@ interface LoginTrackingData {
   login_method: string;
 }
 
+import { getApiUrl } from "@/config/api";
+
 // Helper function to detect browser
 function getBrowserInfo() {
   const userAgent = navigator.userAgent;
@@ -66,27 +68,19 @@ function getDeviceType() {
 // Helper function to get location from IP and GPS
 async function getLocationInfo(): Promise<any> {
   // First try to get GPS location if available and user grants permission
-  if (navigator.geolocation) {
+  if (typeof window !== 'undefined' && navigator.geolocation) {
     try {
-      console.log('Attempting GPS location detection...');
       const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(
-          resolve, 
-          reject, 
-          {
-            enableHighAccuracy: true,
-            timeout: 8000, // Reduced timeout
-            maximumAge: 600000 // 10 minutes cache
-          }
-        );
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 8000,
+          maximumAge: 600000
+        });
       });
 
-      // Get location details from coordinates
       const { latitude, longitude } = position.coords;
-      console.log(`GPS coordinates obtained: ${latitude}, ${longitude} (accuracy: ${position.coords.accuracy}m)`);
       
       try {
-        // Try multiple reverse geocoding services
         const geoServices = [
           `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`,
           `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10&addressdetails=1`
@@ -98,9 +92,8 @@ async function getLocationInfo(): Promise<any> {
             if (response.ok) {
               const data = await response.json();
               
-              let locationData;
               if (serviceUrl.includes('bigdatacloud')) {
-                locationData = {
+                return {
                   country: data.countryName || 'Unknown',
                   city: data.city || data.locality || 'Unknown',
                   region: data.principalSubdivision || 'Unknown',
@@ -111,8 +104,7 @@ async function getLocationInfo(): Promise<any> {
                   source: 'GPS + BigDataCloud'
                 };
               } else {
-                // OpenStreetMap Nominatim
-                locationData = {
+                return {
                   country: data.address?.country || 'Unknown',
                   city: data.address?.city || data.address?.town || data.address?.village || 'Unknown',
                   region: data.address?.state || data.address?.region || 'Unknown',
@@ -123,28 +115,15 @@ async function getLocationInfo(): Promise<any> {
                   source: 'GPS + OpenStreetMap'
                 };
               }
-              
-              console.log('GPS location resolved:', locationData);
-              return locationData;
             }
-          } catch (serviceError) {
-            console.log(`Geocoding service failed: ${serviceUrl}`, serviceError);
-            continue;
-          }
+          } catch (e) { continue; }
         }
-      } catch (error) {
-        console.log('Failed to get location from coordinates:', error);
-      }
-    } catch (error) {
-      console.log('GPS location not available or denied:', error instanceof Error ? error.message : 'Unknown error');
-    }
-  } else {
-    console.log('Geolocation API not supported by browser');
+      } catch (e) { /* Silent */ }
+    } catch (e) { /* Silent */ }
   }
 
   // Fallback to IP-based location
-  console.log('Falling back to IP-based location detection...');
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  const apiUrl = 'https://trendai-api.onrender.com';
   const services = [
     `${apiUrl}/api/utils/location`,
     'https://ipapi.co/json/',
@@ -154,76 +133,35 @@ async function getLocationInfo(): Promise<any> {
 
   for (const service of services) {
     try {
-      console.log(`Trying location service: ${service}`);
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
 
       const response = await fetch(service, {
         signal: controller.signal,
-        headers: {
-          'Accept': 'application/json',
-        }
+        headers: { 'Accept': 'application/json' }
       });
       
       clearTimeout(timeoutId);
       
       if (response.ok) {
         const data = await response.json();
-        
-        // Normalize response based on service
         let locationData;
+        
         if (service.includes('ipapi.co')) {
-          locationData = {
-            country: data.country_name,
-            city: data.city,
-            region: data.region,
-            timezone: data.timezone,
-            ip: data.ip,
-            source: 'IP-API'
-          };
+          locationData = { country: data.country_name, city: data.city, region: data.region, timezone: data.timezone, ip: data.ip, source: 'IP-API' };
         } else if (service.includes('ipwho.is')) {
-          locationData = {
-            country: data.country,
-            city: data.city,
-            region: data.region,
-            timezone: data.timezone?.name,
-            ip: data.ip,
-            source: 'IP-WHO'
-          };
+          locationData = { country: data.country, city: data.city, region: data.region, timezone: data.timezone?.name, ip: data.ip, source: 'IP-WHO' };
         } else if (service.includes('ipinfo.io')) {
-          locationData = {
-            country: data.country,
-            city: data.city,
-            region: data.region,
-            timezone: data.timezone,
-            ip: data.ip,
-            source: 'IP-INFO'
-          };
+          locationData = { country: data.country, city: data.city, region: data.region, timezone: data.timezone, ip: data.ip, source: 'IP-INFO' };
         } else {
-          // Backend service
-          locationData = {
-            country: data.country,
-            city: data.city,
-            region: data.region,
-            timezone: data.timezone,
-            ip: data.ip,
-            source: 'Backend'
-          };
+          locationData = { country: data.country, city: data.city, region: data.region, timezone: data.timezone, ip: data.ip, source: 'Backend' };
         }
         
-        if (locationData.country && locationData.country !== 'Unknown') {
-          console.log('IP location resolved:', locationData);
-          return locationData;
-        }
+        if (locationData.country && locationData.country !== 'Unknown') return locationData;
       }
-    } catch (error) {
-      console.log(`Failed to get location from ${service}:`, error instanceof Error ? error.message : 'Unknown error');
-      continue;
-    }
+    } catch (e) { continue; }
   }
   
-  // Ultimate fallback
-  console.log('All location services failed, using fallback');
   return {
     country: 'Unknown',
     city: 'Unknown',
@@ -240,64 +178,53 @@ export function useLoginTracking() {
 
   useEffect(() => {
     const trackLogin = async () => {
-      // Only track once per session and when user is authenticated
-      if (status !== "authenticated" || !session?.user?.email || hasTracked.current) {
-        return;
-      }
-
+      if (status !== "authenticated" || !session?.user?.email || hasTracked.current) return;
       hasTracked.current = true;
 
       try {
-        // Get location info
         const locationInfo = await getLocationInfo();
         
-        // Prepare tracking data
+        // Persistent trackingId logic
+        let trackingId = localStorage.getItem('trendai_tracking_id');
+        if (!trackingId) {
+          trackingId = `tr_${(session as any)?.user?.id || 'usr'}_${Math.random().toString(36).substring(2, 11)}`;
+          localStorage.setItem('trendai_tracking_id', trackingId);
+        }
+
         const trackingData: LoginTrackingData = {
           user_email: session.user.email,
-          session_token: (session as any).sessionId || `client_${Date.now()}`,
-          provider: "google", // Default to google since that's what we're using
+          session_token: trackingId, // Use persistent trackingId as session token
+          provider: (session as any).provider || 'credentials',
           ip_address: locationInfo?.ip,
           user_agent: navigator.userAgent,
           device_info: {
             browser: getBrowserInfo(),
             os: getOSInfo(),
             device: getDeviceType(),
-            screen_resolution: `${screen.width}x${screen.height}`,
+            screen_resolution: `${window.screen.width}x${window.screen.height}`,
             timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
             language: navigator.language
           },
-          location_info: locationInfo ? {
-            country: locationInfo.country,
-            city: locationInfo.city,
-            region: locationInfo.region,
-            timezone: locationInfo.timezone
-          } : undefined,
-          login_method: "oauth"
+          location_info: {
+            country: locationInfo?.country,
+            city: locationInfo?.city,
+            region: locationInfo?.region,
+            timezone: locationInfo?.timezone
+          },
+          login_method: 'auto'
         };
 
-        // Send tracking data to backend
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-        const response = await fetch(`${apiUrl}/api/users/login-session`, {
+        const apiUrl = getApiUrl();
+        await fetch(`${apiUrl}/api/users/login-session`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(trackingData)
         });
-
-        if (response.ok) {
-          console.log('Login tracked successfully');
-        } else {
-          console.error('Failed to track login');
-        }
-
       } catch (error) {
-        console.error('Error tracking login:', error);
+        // Silent
       }
     };
 
     trackLogin();
-  }, [session, status]);
-
-  return { session, status };
+  }, [status, session]);
 }

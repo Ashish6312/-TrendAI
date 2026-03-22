@@ -1,17 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = await request.json();
-
-    // Validate required fields
-    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-      return NextResponse.json(
-        { success: false, message: 'Missing required payment parameters' },
-        { status: 400 }
-      );
+    const bodyText = await request.text();
+    console.log('--- Incoming Payment Verification Request ---');
+    console.log('Body trace:', bodyText);
+    
+    if (!bodyText) {
+       return NextResponse.json({ success: false, message: 'Empty body' }, { status: 400 });
     }
+    
+    const body = JSON.parse(bodyText);
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = body;
 
     const key_secret = process.env.RAZORPAY_KEY_SECRET || '';
     

@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { getApiUrl } from "@/config/api";
 
-export type SubscriptionPlan = 'free' | 'professional' | 'enterprise';
+export type SubscriptionPlan = 'free' | 'starter' | 'professional' | 'growth' | 'enterprise';
 
 export interface SubscriptionTheme {
   primary: string;
@@ -48,34 +48,50 @@ const SubscriptionContext = createContext<SubscriptionContextType | undefined>(u
 
 const themes: Record<SubscriptionPlan, SubscriptionTheme> = {
   free: {
-    primary: '#6b7280', // Gray
-    secondary: '#9ca3af',
-    accent: '#3b82f6', // Blue
-    gradient: 'from-gray-600 to-gray-500',
-    badge: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
-    glow: 'shadow-[0_0_30px_-5px_rgba(107,114,128,0.4)]'
+    primary: '#64748b', // Slate
+    secondary: '#94a3b8',
+    accent: '#475569',
+    gradient: 'from-slate-600 to-slate-500',
+    badge: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20',
+    glow: 'shadow-[0_0_30px_-5px_rgba(100,116,139,0.3)]'
+  },
+  starter: {
+    primary: '#0ea5e9', // Sky Blue
+    secondary: '#38bdf8',
+    accent: '#0284c7',
+    gradient: 'from-sky-600 to-sky-500',
+    badge: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20',
+    glow: 'shadow-[0_0_30px_-5px_rgba(14,165,233,0.4)]'
   },
   professional: {
     primary: '#10b981', // Emerald
     secondary: '#34d399',
     accent: '#059669',
     gradient: 'from-emerald-600 to-emerald-500',
-    badge: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+    badge: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
     glow: 'shadow-[0_0_30px_-5px_rgba(16,185,129,0.4)]'
   },
+  growth: {
+    primary: '#f59e0b', // Amber
+    secondary: '#fbbf24',
+    accent: '#d97706',
+    gradient: 'from-amber-600 to-amber-500',
+    badge: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+    glow: 'shadow-[0_0_30px_-5px_rgba(245,158,11,0.4)]'
+  },
   enterprise: {
-    primary: '#8b5cf6', // Purple
+    primary: '#8b5cf6', // Violet/Purple
     secondary: '#a78bfa',
     accent: '#7c3aed',
-    gradient: 'from-purple-600 to-purple-500',
-    badge: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-    glow: 'shadow-[0_0_30px_-5px_rgba(139,92,246,0.4)]'
+    gradient: 'from-violet-600 to-violet-500',
+    badge: 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20',
+    glow: 'shadow-[0_0_30px_-5px_rgba(139,92,246,0.5)]'
   }
 };
 
 const planFeatures = {
   free: {
-    maxAnalyses: 5,
+    maxAnalyses: 10,
     advancedFeatures: false,
     prioritySupport: false,
     customReports: false,
@@ -89,8 +105,26 @@ const planFeatures = {
     phoneSupport: false,
     advancedDashboard: false,
     customDataSources: false,
-    planName: 'Starter',
+    planName: 'Explorer',
     planDescription: 'Essential AI tools to help you find and explore new business ideas.'
+  },
+  starter: {
+    maxAnalyses: 100,
+    advancedFeatures: true,
+    prioritySupport: false,
+    customReports: false,
+    apiAccess: false,
+    competitorInsights: false,
+    realTimeAlerts: true,
+    exportToPdf: false,
+    customBranding: false,
+    dedicatedManager: false,
+    whiteLabel: false,
+    phoneSupport: false,
+    advancedDashboard: false,
+    customDataSources: false,
+    planName: 'Starter',
+    planDescription: 'Enhanced tools for serious beginners and project validation.'
   },
   professional: {
     maxAnalyses: -1, // Unlimited
@@ -110,6 +144,24 @@ const planFeatures = {
     planName: 'Professional',
     planDescription: 'Unlimited business scans and advanced insights for growing entrepreneurs.'
   },
+  growth: {
+    maxAnalyses: -1, // Unlimited
+    advancedFeatures: true,
+    prioritySupport: true,
+    customReports: true,
+    apiAccess: true,
+    competitorInsights: true,
+    realTimeAlerts: true,
+    exportToPdf: true,
+    customBranding: true,
+    dedicatedManager: false,
+    whiteLabel: false,
+    phoneSupport: true,
+    advancedDashboard: true,
+    customDataSources: true,
+    planName: 'Growth Business',
+    planDescription: 'Multi-location analysis and revenue forecasting for established businesses.'
+  },
   enterprise: {
     maxAnalyses: -1, // Unlimited
     advancedFeatures: true,
@@ -125,7 +177,7 @@ const planFeatures = {
     phoneSupport: true,
     advancedDashboard: true,
     customDataSources: true,
-    planName: 'Territorial Dominance',
+    planName: 'Enterprise Dominance',
     planDescription: 'Complete business solutions with API access and dedicated support for large organizations.'
   }
 };
@@ -136,88 +188,78 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   const [isLoading, setIsLoading] = useState(true);
 
   // Ensure plan is always valid
-  const validPlan = plan && ['free', 'professional', 'enterprise'].includes(plan) ? plan : 'free';
+  const validPlan = plan && ['free', 'starter', 'professional', 'growth', 'enterprise'].includes(plan) ? plan : 'free';
 
-  // Force refresh function
-  const forceRefreshPlan = async () => {
-    if (!session?.user?.email) return;
+  // Fetch subscription plan from the authoritative profile endpoint
+  const fetchSubscriptionPlan = async (): Promise<SubscriptionPlan | null> => {
+    if (!session?.user?.email) return null;
     
     const email = session.user.email.toLowerCase().trim();
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
     
     try {
-      console.log('🔄 Force refreshing subscription plan...');
+      // Use the profile endpoint which reconciles payment history (source of truth)
       const response = await fetch(`${apiUrl}/api/subscriptions/${email}`);
       
       if (response.ok) {
         const data = await response.json();
-        console.log('🔍 Force refresh - Subscription data:', data);
         
         // Enhanced mapping for plan names with fuzzy matching
-        const rawPlanName = data.plan_name?.toLowerCase() || '';
-        const rawDisplayName = data.plan_display_name?.toLowerCase() || '';
+        const rawPlanName = (data.plan_name || '').toLowerCase();
+        const rawDisplayName = (data.plan_display_name || '').toLowerCase();
         
         let planToSet: SubscriptionPlan = 'free';
         
-        // Check for enterprise plans with fuzzy matching
         if (rawPlanName.includes('enterprise') || 
             rawDisplayName.includes('enterprise') ||
             rawDisplayName.includes('territorial') ||
             rawDisplayName.includes('dominance') ||
             rawDisplayName.includes('dominator')) {
           planToSet = 'enterprise';
-        }
-        // Check for professional plans with fuzzy matching
-        else if (rawPlanName.includes('professional') || 
-                 rawPlanName.includes('pro') || 
-                 rawDisplayName.includes('professional') ||
-                 rawDisplayName.includes('growth') ||
-                 rawDisplayName.includes('architect') ||
-                 rawDisplayName.includes('accelerator') ||
-                 rawDisplayName.includes('pro')) {
+        } else if (rawPlanName.includes('growth') || 
+                   rawDisplayName.includes('growth') ||
+                   rawDisplayName.includes('accelerator')) {
+          planToSet = 'growth';
+        } else if (rawPlanName.includes('professional') || 
+                   rawPlanName.includes('pro') || 
+                   rawDisplayName.includes('professional') ||
+                   rawDisplayName.includes('architect') ||
+                   rawDisplayName.includes('pro')) {
           planToSet = 'professional';
-        }
-        // Default to free for anything else
-        else {
+        } else if (rawPlanName.includes('starter') || 
+                   rawDisplayName.includes('starter') ||
+                   rawDisplayName.includes('venture') ||
+                   rawDisplayName.includes('strategist')) {
+          planToSet = 'starter';
+        } else {
           planToSet = 'free';
         }
 
-        console.log('🔄 Force refresh - Plan mapped to:', planToSet, 'from:', rawPlanName, rawDisplayName);
         setPlanState(planToSet);
         localStorage.setItem(`subscription_${email}`, planToSet);
-        
         return planToSet;
       }
     } catch (error) {
-      console.error('❌ Force refresh failed:', error);
+      console.error('❌ Subscription fetch error:', error);
     }
     
     return null;
   };
 
-  // Load subscription plan from API or localStorage
+  // Load subscription plan from API (payment history is source of truth)
   useEffect(() => {
     const loadUserPlan = async () => {
       if (session?.user?.email) {
         const email = session.user.email.toLowerCase().trim();
         
-        // 1. Check local cache FIRST
+        // Show cached plan immediately (instant UI, no flicker)
         const cachedPlan = localStorage.getItem(`subscription_${email}`);
-        if (cachedPlan && ['free', 'professional', 'enterprise'].includes(cachedPlan)) {
+        if (cachedPlan && ['free', 'starter', 'professional', 'growth', 'enterprise'].includes(cachedPlan)) {
           setPlanState(cachedPlan as SubscriptionPlan);
-          setIsLoading(false);
         }
-
+        // Always re-fetch from backend (always overrides with truth)
         try {
-          // 2. Refresh from API
-          const refreshedPlan = await forceRefreshPlan();
-          
-          // 3. SAFETY: If API says 'free' but we JUST upgraded locally to something else,
-          // trust the local state for 1 minute to allow for backend propagation
-          if (refreshedPlan === 'free' && cachedPlan && cachedPlan !== 'free') {
-             console.log('⚠️ API says free, but local cache says', cachedPlan, '- keeping local state for sync');
-             setPlanState(cachedPlan as SubscriptionPlan);
-          }
+          await fetchSubscriptionPlan();
         } catch (err) {
           console.error('❌ AI Terminal: Subscription fetch error:', err);
         } finally {
@@ -233,7 +275,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
   const setPlan = (newPlan: SubscriptionPlan) => {
     // Validate the new plan before proceeding
-    if (!newPlan || !['free', 'professional', 'enterprise'].includes(newPlan)) {
+    if (!newPlan || !['free', 'starter', 'professional', 'growth', 'enterprise'].includes(newPlan)) {
       console.warn('Invalid plan provided to setPlan:', newPlan);
       return;
     }
@@ -305,19 +347,19 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
   // Plan enforcement functions
   const canAccessFeature = (feature: keyof typeof planFeatures.free): boolean => {
-    const currentPlanFeatures = planFeatures[plan as SubscriptionPlan];
+    const currentPlanFeatures = planFeatures[validPlan as SubscriptionPlan];
     return !!currentPlanFeatures[feature as keyof typeof currentPlanFeatures];
   };
 
   const getRemainingAnalyses = (currentCount: number): number => {
-    const currentPlanFeatures = planFeatures[plan as SubscriptionPlan];
+    const currentPlanFeatures = planFeatures[validPlan as SubscriptionPlan];
     const maxAnalyses = currentPlanFeatures.maxAnalyses;
     if (maxAnalyses === -1) return -1; // Unlimited
     return Math.max(0, maxAnalyses - currentCount);
   };
 
   const hasReachedAnalysisLimit = (currentCount: number): boolean => {
-    const currentPlanFeatures = planFeatures[plan as SubscriptionPlan];
+    const currentPlanFeatures = planFeatures[validPlan as SubscriptionPlan];
     const maxAnalyses = currentPlanFeatures.maxAnalyses;
     if (maxAnalyses === -1) return false; // Unlimited
     return currentCount >= maxAnalyses;

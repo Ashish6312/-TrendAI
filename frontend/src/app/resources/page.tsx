@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Download, FileText, Calculator, CheckSquare, ArrowLeft, Star, Crown, Zap } from "lucide-react";
+import { Download, FileText, Calculator, CheckSquare, ArrowLeft, Star, Crown, Zap, Target, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
@@ -71,20 +71,24 @@ export default function ResourcesPage() {
     }
   ];
 
-  const planIcons = {
+  const planIcons: Record<string, any> = {
     free: Star,
+    starter: Target,
     professional: Zap,
+    growth: TrendingUp,
     enterprise: Crown
   };
 
-  const planColors = {
+  const planColors: Record<string, string> = {
     free: "#10b981",
-    professional: "#3b82f6", 
-    enterprise: "#8b5cf6"
+    starter: "#3b82f6",
+    professional: "#8b5cf6", 
+    growth: "#eab308",
+    enterprise: "#c026d3"
   };
 
   const canAccessResource = (requiredPlan: string) => {
-    const planHierarchy = { free: 0, professional: 1, enterprise: 2 };
+    const planHierarchy: Record<string, number> = { free: 0, starter: 1, professional: 2, growth: 3, enterprise: 4 };
     return planHierarchy[plan as keyof typeof planHierarchy] >= planHierarchy[requiredPlan as keyof typeof planHierarchy];
   };
 

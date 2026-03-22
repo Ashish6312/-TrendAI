@@ -1,0 +1,11 @@
+{
+  "payments": {
+    "error": "no such table: payment_history"
+  },
+  "subscriptions": {
+    "error": "no such table: user_subscriptions"
+  },
+  "users": {
+    "error": "no such table: users"
+  }
+}

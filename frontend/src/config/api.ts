@@ -8,7 +8,7 @@ export const API_CONFIG = {
 
 export const getApiUrl = () => {
   // For development, check if we're on localhost
-  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
     return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
   }
   

@@ -38,7 +38,7 @@ export const useRazorpay = () => {
     });
   }, []);
 
-  const initiatePayment = useCallback(async (options: PaymentOptions) => {
+  const initiatePayment = useCallback(async (options: PaymentOptions, onSuccess?: (data: any) => void) => {
     const scriptLoaded = await loadRazorpayScript();
     
     if (!scriptLoaded) {
@@ -96,17 +96,22 @@ export const useRazorpay = () => {
             const verifyData = await verifyResponse.json();
 
             if (verifyData.success) {
-              // Payment successful - pass currency and amount info
-              const params = new URLSearchParams({
-                payment_success: 'true',
+              const paymentDetails = {
                 payment_id: response.razorpay_payment_id,
                 order_id: response.razorpay_order_id,
                 plan: options.planName,
                 amount: options.amount.toString(),
                 currency: options.currency || 'INR',
                 billing: options.billingCycle
-              });
-              window.location.href = `/payment-success?${params.toString()}`;
+              };
+
+              if (onSuccess) {
+                onSuccess(paymentDetails);
+              } else {
+                // Payment successful - pass currency and amount info
+                const params = new URLSearchParams(paymentDetails as any);
+                window.location.href = `/payment-success?${params.toString()}`;
+              }
             } else {
               throw new Error('Payment verification failed');
             }

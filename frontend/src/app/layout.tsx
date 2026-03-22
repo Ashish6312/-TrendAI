@@ -12,6 +12,7 @@ const outfit = Outfit({ subsets: ["latin"], weight: ["300", "400", "500", "600",
 export const metadata: Metadata = {
   title: "TrendAI | AI-Powered Business Intelligence",
   description: "Using AI to analyze global trends and community feedback to help you build successful businesses.",
+  manifest: "/manifest.json"
 };
 
 import GlobalErrorBoundary from "@/components/GlobalErrorBoundary";

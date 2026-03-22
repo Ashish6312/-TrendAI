@@ -297,24 +297,33 @@ class PaymentCreate(BaseModel):
     payment_method: Optional[str] = None
     plan_name: str
     billing_cycle: str
+    currency: Optional[str] = "INR"
 
 def normalize_plan_name(plan_name: str) -> str:
-    """Consolidated logic to map various plan names to internal plan slugs"""
+    """Enhanced mapping for 5-tier growth strategy"""
     if not plan_name:
         return "free"
         
     p = plan_name.lower().strip()
     
     # Enterprise mapping
-    if any(x in p for x in ['enterprise', 'territorial', 'dominance', 'dominator', 'market dominator']):
+    if any(x in p for x in ['enterprise', 'dominance', 'dominator']):
         return "enterprise"
         
+    # Growth mapping
+    if any(x in p for x in ['growth', 'business', 'accelerator']):
+        return "growth"
+        
     # Professional mapping
-    if any(x in p for x in ['pro', 'growth', 'architect', 'accelerator', 'market explorer', 'growth accelerator']):
+    if any(x in p for x in ['pro', 'professional', 'architect']):
         return "professional"
         
-    # Free/Starter mapping
-    if any(x in p for x in ['free', 'starter', 'venture', 'strategist', 'explorer', 'venture strategist']):
+    # Starter mapping
+    if any(x in p for x in ['starter', 'venture', 'strategist']):
+        return "starter"
+        
+    # Free/Explorer mapping
+    if any(x in p for x in ['free', 'explorer']):
         return "free"
         
     return "free"
@@ -327,17 +336,27 @@ def get_synced_subscription(db: Session, email: str):
     email_normalized = email.lower().strip()
     now = datetime.now()
     
-    # 1. Get latest successful payment
-    latest_payment = db.query(models.PaymentHistory).filter(
-        func.lower(models.PaymentHistory.user_email) == email_normalized,
-        models.PaymentHistory.status == "success"
-    ).order_by(models.PaymentHistory.created_at.desc()).first()
+    # 1. Get latest successful payment (Search by both email and user_id for robustness)
+    logger.info(f"🔄 Reconciling subscription for {email_normalized}...")
+    user = db.query(models.User).filter(func.lower(models.User.email) == email_normalized).first()
+    
+    query = db.query(models.PaymentHistory).filter(models.PaymentHistory.status == "success")
+    if user:
+        query = query.filter((func.lower(models.PaymentHistory.user_email) == email_normalized) | (models.PaymentHistory.user_id == user.id))
+    else:
+        query = query.filter(func.lower(models.PaymentHistory.user_email) == email_normalized)
+        
+    latest_payment = query.order_by(models.PaymentHistory.created_at.desc()).first()
+    if latest_payment:
+        logger.info(f"✅ Found latest payment: {latest_payment.razorpay_payment_id} (Plan: {latest_payment.plan_name})")
+    else:
+        logger.info(f"ℹ️ No payment history found for {email_normalized}")
     
     # 2. Get current supposedly active subscription
     subscription = db.query(models.UserSubscription).filter(
         func.lower(models.UserSubscription.user_email) == email_normalized,
         models.UserSubscription.status == "active"
-    ).first()
+    ).order_by(models.UserSubscription.created_at.desc()).first()
     
     # 3. If no payment history, fallback to subscription's own expiry
     if not latest_payment:
@@ -379,7 +398,7 @@ def get_synced_subscription(db: Session, email: str):
                 billing_cycle=latest_payment.billing_cycle or 'yearly',
                 price=latest_payment.amount,
                 currency=latest_payment.currency or 'INR',
-                max_analyses=-1 if mapped_plan in ['professional', 'enterprise'] else 5,
+                max_analyses=-1 if mapped_plan in ['professional', 'growth', 'enterprise'] else (100 if mapped_plan == 'starter' else 10),
                 features={},
                 subscription_end=expiry_date,
                 status='active'
@@ -401,7 +420,7 @@ def get_synced_subscription(db: Session, email: str):
             needs_update = True
             
         if needs_update:
-            subscription.max_analyses = -1 if mapped_plan in ['professional', 'enterprise'] else 5
+            subscription.max_analyses = -1 if mapped_plan in ['professional', 'growth', 'enterprise'] else (100 if mapped_plan == 'starter' else 10)
             subscription.status = "active"
             db.commit()
             db.refresh(subscription)
@@ -703,15 +722,29 @@ def create_login_session(session: LoginSession, db: Session = Depends(get_db)):
     print(f"Creating login session for user: {session.user_email}")
     
     try:
-        # End any existing active sessions for this user
-        existing_sessions = db.query(models.UserSession).filter(
-            models.UserSession.user_email == session.user_email,
-            models.UserSession.is_active == True
-        ).all()
+        # 1. Check if this exact session already exists
+        existing_session = db.query(models.UserSession).filter(
+            models.UserSession.session_token == session.session_token,
+            models.UserSession.user_email == session.user_email
+        ).first()
         
-        for existing_session in existing_sessions:
-            existing_session.is_active = False
-            existing_session.session_end = func.now()
+        if existing_session:
+            # Update existing session instead of creating a new one
+            existing_session.is_active = True
+            existing_session.updated_at = func.now()
+            db.commit()
+            return {"status": "ok", "message": "Session updated", "session_id": existing_session.id}
+
+        # 2. This is a NEW session. End any existing active sessions for this user ONLY IF they are different
+        # Note: In a production app, we might allow 2-3 concurrent sessions, but here we enforce one primary
+        db.query(models.UserSession).filter(
+            models.UserSession.user_email == session.user_email,
+            models.UserSession.is_active == True,
+            models.UserSession.session_token != session.session_token
+        ).update({
+            "is_active": False,
+            "session_end": func.now()
+        }, synchronize_session=False)
         
         # Create new session
         db_session = models.UserSession(
@@ -1382,15 +1415,54 @@ def get_user_subscription(user_email: str, db: Session = Depends(get_db)):
             db.commit()
             db.refresh(user_exists)
         
+        # Default features mapping (v2.0 - 5 Tiers)
+        plan_defaults = {
+            "free": {
+                "name": "Explorer (Free)",
+                "max": 10,
+                "features": ["10 analysis/day", "Basic insights", "Limited locations"]
+            },
+            "starter": {
+                "name": "Starter",
+                "max": 100,
+                "features": ["100 scans/month", "City-level insights", "Basic profit estimation"]
+            },
+            "professional": {
+                "name": "Professional (Pro)",
+                "max": -1,
+                "features": ["Unlimited scans", "Advanced AI", "Competitor Heatmaps", "AI Search"]
+            },
+            "growth": {
+                "name": "Growth / Business",
+                "max": -1,
+                "features": ["Multi-location", "Customer segments", "Revenue forecasting", "API Lite"]
+            },
+            "enterprise": {
+                "name": "Enterprise Dominance",
+                "max": -1,
+                "features": ["Full API access", "White-label", "Custom AI models", "CRM Sync"]
+            }
+        }
+        
+        # Determine the plan name for the default subscription. If no subscription, it's 'free'.
+        # The get_synced_subscription function should ideally return a subscription object,
+        # or None if not found. If it's None, we default to 'free'.
+        # The plan_name here refers to the plan that get_synced_subscription *would* have returned
+        # if it found one, or 'free' if it didn't.
+        # Since we are in the `if not subscription:` block, we know no active subscription was found.
+        # So, we are creating a *default* free subscription.
+        plan_name_for_default = "free" 
+        defaults = plan_defaults.get(plan_name_for_default, plan_defaults["free"])
+        
         # Return a "free" subscription structure as default instead of 404
         return {
             "id": 0,
             "user_email": email_normalized,
-            "plan_name": "free",
-            "plan_display_name": "Venture Strategist",
+            "plan_name": plan_name_for_default,
+            "plan_display_name": defaults["name"],
             "status": "active",
-            "max_analyses": 5,
-            "features": {}
+            "max_analyses": defaults["max"],
+            "features": defaults["features"] # Return as list for JSON serialization
         }
     
     # Return as dict to ensure serialization
@@ -1548,7 +1620,20 @@ def get_payment_history(user_email: str, limit: int = 50, db: Session = Depends(
         func.lower(models.PaymentHistory.user_email) == email_normalized
     ).order_by(models.PaymentHistory.created_at.desc()).limit(limit).all()
     
-    return payments
+    return [
+        {
+            "id": p.id,
+            "amount": p.amount,
+            "currency": p.currency or "INR",
+            "razorpay_payment_id": p.razorpay_payment_id,
+            "status": p.status,
+            "plan_name": p.plan_name,
+            "billing_cycle": p.billing_cycle,
+            "payment_date": p.payment_date.isoformat() if p.payment_date else p.created_at.isoformat(),
+            "payment_method": p.payment_method
+        }
+        for p in payments
+    ]
 
 
 # Missing user profile and session endpoints
@@ -1587,15 +1672,34 @@ def download_all_receipts(email: str, db: Session = Depends(get_db)):
         from sqlalchemy import func
         
         email_normalized = email.lower().strip()
-        payments = db.query(models.PaymentHistory).filter(
-            func.lower(models.PaymentHistory.user_email) == email_normalized,
-            models.PaymentHistory.status == "success"
-        ).order_by(models.PaymentHistory.created_at.desc()).all()
+        user = db.query(models.User).filter(func.lower(models.User.email) == email_normalized).first()
+        
+        query = db.query(models.PaymentHistory).filter(models.PaymentHistory.status == "success")
+        if user:
+            query = query.filter((func.lower(models.PaymentHistory.user_email) == email_normalized) | (models.PaymentHistory.user_id == user.id))
+        else:
+            query = query.filter(func.lower(models.PaymentHistory.user_email) == email_normalized)
+            
+        payments = query.order_by(models.PaymentHistory.created_at.desc()).all()
         
         if not payments:
-            raise HTTPException(status_code=404, detail="No receipts found")
+            return {"status": "info", "message": "No receipts available for download", "count": 0}
         
-        # For now, return a simple response - in production you'd generate a ZIP file
+        # Simple JSON response for now
+        return {
+            "status": "success",
+            "message": f"Successfully found {len(payments)} receipts",
+            "count": len(payments),
+            "payments": [{
+                "id": p.id,
+                "date": p.created_at.isoformat(),
+                "amount": p.amount,
+                "plan": p.plan_name
+            } for p in payments]
+        }
+    except Exception as e:
+        logger.error(f"Error in download_all_receipts: {e}")
+        return {"status": "error", "message": str(e)}
         return {
             "message": f"Found {len(payments)} receipts",
             "receipts": [
@@ -1827,17 +1931,23 @@ async def process_payment_immediately(request: Request, db: Session = Depends(ge
         return {
             "status": "success",
             "message": "Payment processed successfully",
-            "payment_id": payment_id,
-            "plan_name": mapped_plan,
-            "plan_display_name": plan_name,
+            "payment_id": str(payment_id),
+            "plan_name": str(mapped_plan),
+            "plan_display_name": str(plan_name),
             "subscription_active": True,
             "max_analyses": -1 if mapped_plan in ['professional', 'enterprise'] else 5,
             "timestamp": datetime.now().isoformat()
         }
         
     except Exception as e:
-        logger.error(f"Process payment error: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to process payment: {str(e)}")
+        db.rollback()
+        logger.error(f"❌ Process payment error: {e}")
+        logger.error(f"❌ Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail={
+            "error": "Failed to process payment",
+            "message": str(e),
+            "traceback": traceback.format_exc()
+        })
 
 @app.get("/api/users/{email}/profile")
 def get_user_profile(email: str, db: Session = Depends(get_db)):
@@ -1859,15 +1969,44 @@ def get_user_profile(email: str, db: Session = Depends(get_db)):
         func.lower(models.SearchHistory.user_email) == email_normalized
     ).count()
 
-    # Get real payment history
-    recent_payments = db.query(models.PaymentHistory).filter(
-        func.lower(models.PaymentHistory.user_email) == email_normalized
-    ).order_by(models.PaymentHistory.created_at.desc()).limit(10).all()
+    # Get real payment history (Robust lookup)
+    logger.info(f"📊 Fetching transactions for {email_normalized} (User ID: {user.id})...")
+    payments_query = db.query(models.PaymentHistory).filter(
+        (func.lower(models.PaymentHistory.user_email) == email_normalized) |
+        (models.PaymentHistory.user_id == user.id)
+    )
+    recent_payments = payments_query.order_by(models.PaymentHistory.created_at.desc()).limit(15).all()
+    logger.info(f"✅ Found {len(recent_payments)} records in payment_history table")
 
     return {
-        "user": user,
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "bio": user.bio,
+            "phone": user.phone,
+            "image_url": user.image_url,
+            "company": user.company,
+            "location": user.location,
+            "website": user.website,
+            "industry": user.industry,
+            "auth_provider": user.auth_provider,
+            "login_count": user.login_count,
+            "last_login": user.last_login.isoformat() if user.last_login else None
+        },
         "analysis_count": search_count,
-        "subscription": subscription,
+        "subscription": {
+            "id": subscription.id,
+            "plan_name": subscription.plan_name,
+            "plan_display_name": subscription.plan_display_name,
+            "billing_cycle": subscription.billing_cycle,
+            "price": float(subscription.price) if subscription.price else 0.0,
+            "currency": subscription.currency,
+            "status": subscription.status,
+            "max_analyses": subscription.max_analyses,
+            "features": subscription.features,
+            "subscription_end": subscription.subscription_end.isoformat() if subscription.subscription_end else None
+        } if subscription else None,
         "recent_payments": [
             {
                 "id": payment.id,
@@ -1877,13 +2016,114 @@ def get_user_profile(email: str, db: Session = Depends(get_db)):
                 "status": payment.status,
                 "plan_name": payment.plan_name,
                 "billing_cycle": payment.billing_cycle,
-                "payment_date": payment.created_at,
+                "payment_date": payment.payment_date.isoformat() if payment.payment_date else payment.created_at.isoformat(),
                 "payment_method": payment.payment_method
             }
             for payment in recent_payments
         ]
     }
 
+
+@app.get("/api/system/all-payments-debug")
+def debug_all_payments(db: Session = Depends(get_db)):
+    """TEMPORARY DEBUG - List all payments in DB to find mismatches"""
+    payments = db.query(models.PaymentHistory).all()
+    return [{
+        "id": p.id,
+        "user_email": p.user_email,
+        "plan_name": p.plan_name,
+        "amount": p.amount,
+        "status": p.status,
+        "created_at": p.created_at
+    } for p in payments]
+
+@app.get("/api/sync-razorpay-payments")
+async def sync_razorpay_payments(email: str, db: Session = Depends(get_db)):
+    """Fetch recent payments from Razorpay and ensure they are in our DB"""
+    import httpx
+    import base64
+    
+    email_normalized = email.lower().strip()
+    key_id = os.getenv("RAZORPAY_KEY_ID")
+    key_secret = os.getenv("RAZORPAY_KEY_SECRET")
+    
+    if not key_id or not key_secret:
+        return {"status": "error", "message": "Razorpay credentials not configured"}
+        
+    try:
+        # Razorpay uses Basic Auth
+        auth_str = f"{key_id}:{key_secret}"
+        encoded_auth = base64.b64encode(auth_str.encode()).decode()
+        
+        async with httpx.AsyncClient() as client:
+            # We fetch recent payments. 
+            # Note: Razorpay API doesn't support easy filtering by notes in the list call, 
+            # so we fetch recent ones and filter.
+            response = await client.get(
+                "https://api.razorpay.com/v1/payments?count=50",
+                headers={"Authorization": f"Basic {encoded_auth}"}
+            )
+            
+            if response.status_code != 200:
+                logger.error(f"Razorpay API error: {response.text}")
+                return {"status": "error", "message": "Failed to fetch from Razorpay"}
+                
+            data = response.json()
+            items = data.get('items', [])
+            
+            synced_count = 0
+            for item in items:
+                # Check if this payment belongs to this user
+                # Razorpay stores metadata in 'notes'
+                notes = item.get('notes', {})
+                payment_email = notes.get('email', '').lower().strip()
+                
+                # Also check common field names if 'email' note is missing
+                if not payment_email:
+                    payment_email = item.get('email', '').lower().strip()
+                
+                if payment_email == email_normalized and item.get('status') == 'captured':
+                    # This is a successful payment for our user!
+                    # Check if it's already in our DB
+                    p_id = item.get('id')
+                    existing = db.query(models.PaymentHistory).filter(
+                        models.PaymentHistory.razorpay_payment_id == p_id
+                    ).first()
+                    
+                    if not existing:
+                        logger.info(f"🔄 Syncing missing payment for {email_normalized}: {p_id}")
+                        
+                        # Create record
+                        plan_name = notes.get('plan', 'Starter')
+                        billing_cycle = notes.get('billing', 'monthly')
+                        
+                        payment_data = PaymentCreate(
+                            user_email=email_normalized,
+                            amount=float(item.get('amount', 0)) / 100, # Razorpay amounts are in paise
+                            razorpay_payment_id=p_id,
+                            razorpay_order_id=item.get('order_id', f"order_{p_id}"),
+                            status="success",
+                            plan_name=plan_name,
+                            billing_cycle=billing_cycle,
+                            payment_method=item.get('method', 'razorpay')
+                        )
+                        
+                        create_payment_record(payment_data, db)
+                        synced_count += 1
+            
+            # Also ensure subscription is up to date if we found new payments
+            if synced_count > 0:
+                invalidate_user_cache(email_normalized)
+                
+            return {
+                "status": "success", 
+                "message": f"Synchronized {synced_count} missing payments",
+                "synced_count": synced_count
+            }
+            
+    except Exception as e:
+        logger.error(f"Sync error: {e}")
+        return {"status": "error", "message": str(e)}
 
 @app.get("/api/debug-user-data/{email}")
 def debug_user_data(email: str, db: Session = Depends(get_db)):
@@ -1968,8 +2208,52 @@ def refresh_user_plan(email: str, db: Session = Depends(get_db)):
 
 @app.get("/api/subscriptions/{user_email}")
 def get_user_subscription(user_email: str, db: Session = Depends(get_db)):
-    """Get refined user subscription status with caching"""
-    return get_cached_subscription(user_email, db)
+    """Get user subscription status with payment-based reconciliation
+    
+    This is the primary endpoint the frontend SubscriptionContext calls.
+    It MUST return accurate data based on payment history, not just the subscription table.
+    """
+    email_normalized = user_email.lower().strip()
+    logger.info(f"📋 Subscription check for: {email_normalized}")
+    
+    try:
+        # Always reconcile against payment history (source of truth)
+        subscription = get_synced_subscription(db, email_normalized)
+        
+        if subscription and subscription.plan_name and subscription.plan_name != 'free':
+            plan = normalize_plan_name(subscription.plan_name)
+            logger.info(f"✅ Subscription found: {plan} (display: {subscription.plan_display_name})")
+            return {
+                "plan_name": plan,
+                "plan_display_name": subscription.plan_display_name or plan.capitalize(),
+                "status": subscription.status,
+                "max_analyses": subscription.max_analyses,
+                "subscription_end": subscription.subscription_end.isoformat() if subscription.subscription_end else None,
+                "billing_cycle": subscription.billing_cycle,
+            }
+        
+        # No paid subscription - return free tier
+        logger.info(f"ℹ️ No paid subscription for {email_normalized}, returning free")
+        return {
+            "plan_name": "free",
+            "plan_display_name": "Explorer",
+            "status": "active",
+            "max_analyses": 10,
+            "subscription_end": None,
+            "billing_cycle": None,
+        }
+    
+    except Exception as e:
+        logger.error(f"❌ Error fetching subscription for {email_normalized}: {e}")
+        # Return free gracefully on errors (don't crash the UI)
+        return {
+            "plan_name": "free",
+            "plan_display_name": "Explorer",
+            "status": "active",
+            "max_analyses": 10,
+            "subscription_end": None,
+            "billing_cycle": None,
+        }
 
 @app.post("/api/fix-subscription/{email}")
 def fix_user_subscription(email: str, db: Session = Depends(get_db)):

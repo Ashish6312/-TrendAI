@@ -3,11 +3,23 @@ export interface CountryPricing {
   country: string;
   currency: string;
   symbol: string;
-  free: {
+  explorer: {
     price: number;
     originalPrice?: number;
   };
+  starter: {
+    monthly: number;
+    yearly: number;
+    originalMonthly?: number;
+    originalYearly?: number;
+  };
   professional: {
+    monthly: number;
+    yearly: number;
+    originalMonthly?: number;
+    originalYearly?: number;
+  };
+  growth: {
     monthly: number;
     yearly: number;
     originalMonthly?: number;
@@ -27,9 +39,11 @@ export const IndiaPricing: CountryPricing = {
   country: 'India',
   currency: 'INR',
   symbol: '₹',
-  free: { price: 0 },
-  professional: { monthly: 1999, yearly: 1399, originalMonthly: 2999, originalYearly: 1999 },
-  enterprise: { monthly: 5999, yearly: 4499, originalMonthly: 8999, originalYearly: 5999 },
+  explorer: { price: 0 },
+  starter: { monthly: 499, yearly: 299, originalMonthly: 699, originalYearly: 499 },
+  professional: { monthly: 1499, yearly: 999, originalMonthly: 1999, originalYearly: 1499 },
+  growth: { monthly: 3499, yearly: 2499, originalMonthly: 4999, originalYearly: 3499 },
+  enterprise: { monthly: 9999, yearly: 6999, originalMonthly: 14999, originalYearly: 9999 },
   purchasingPower: 1.0
 };
 
