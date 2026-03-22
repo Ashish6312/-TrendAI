@@ -18,10 +18,16 @@ from typing import Dict, List, Any, Optional
 # Initialize FastAPI app EARLY for health checks
 app = FastAPI(title="TrendAI Business Intelligence API", version="2.0")
 
-# API metadata
+# API metadata and health aliases
 @app.get("/api/info")
 async def api_info():
     return {"title": "TrendAI API", "version": "2.0", "status": "operational"}
+
+@app.get("/api/health")
+@app.get("/api/v1/health")
+def api_health_alias():
+    """Alias for standard health checks to resolve 404/405 errors"""
+    return {"status": "healthy", "timestamp": str(datetime.now())}
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -576,10 +582,22 @@ def sign_in(user_data: UserSignIn, db: Session = Depends(get_db)):
             logger.warning(f"⚠️ Sign in failed: User {email_normalized} has no password (social login)")
             raise HTTPException(status_code=401, detail="This account uses social login. Please sign in with Google.")
         
-        # Verify password (pre-hash with SHA256 to match the sign-up logic)
-        password_to_verify = hashlib.sha256(user_data.password.encode('utf-8')).hexdigest()
-        if not pwd_context.verify(password_to_verify, db_user.password_hash):
-            logger.warning(f"⚠️ Sign in failed: Incorrect password for {email_normalized}")
+        # Verify password with robustness for length and scheme mismatches
+        try:
+            # Pre-hash to hex (64 chars) to safely bypass 72-byte bcrypt limit
+            password_to_verify = hashlib.sha256(user_data.password.encode('utf-8')).hexdigest()
+            is_valid = pwd_context.verify(password_to_verify, db_user.password_hash)
+        except Exception as verify_err:
+            logger.error(f"⚠️ Password verification error for {email_normalized}: {verify_err}")
+            # Robust fallback for users created before SHA256 pre-hashing (if any)
+            try:
+                # Try verifying raw password as fallback if hash doesn't look like pre-hashed hex
+                is_valid = pwd_context.verify(user_data.password, db_user.password_hash)
+            except:
+                is_valid = False
+
+        if not is_valid:
+            logger.warning(f"⚠️ Sign in failed: Invalid credentials for {email_normalized}")
             raise HTTPException(status_code=401, detail="Invalid email or password")
         
         # Update login info
