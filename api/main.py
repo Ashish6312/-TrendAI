@@ -2038,68 +2038,70 @@ def debug_all_payments(db: Session = Depends(get_db)):
     } for p in payments]
 
 @app.get("/api/sync-razorpay-payments")
-async def sync_razorpay_payments(email: str, db: Session = Depends(get_db)):
-    """Fetch recent payments from Razorpay and ensure they are in our DB"""
+async def sync_razorpay_payments(email: str):
+    """Fetch recent payments from Razorpay and ensure they are in our DB.
+    Opens its own DB session to avoid Depends(get_db) failure when DB isn't loaded."""
     import httpx
     import base64
+    
+    if not db_available:
+        return {"status": "error", "message": "Database not available", "synced_count": 0}
     
     email_normalized = email.lower().strip()
     key_id = os.getenv("RAZORPAY_KEY_ID")
     key_secret = os.getenv("RAZORPAY_KEY_SECRET")
     
     if not key_id or not key_secret:
-        return {"status": "error", "message": "Razorpay credentials not configured"}
-        
+        return {"status": "error", "message": "Razorpay credentials not configured", "synced_count": 0}
+    
+    # Open our own DB session
+    from database import SessionLocal
+    db = SessionLocal()
+    synced_count = 0
+    
     try:
-        # Razorpay uses Basic Auth
         auth_str = f"{key_id}:{key_secret}"
         encoded_auth = base64.b64encode(auth_str.encode()).decode()
         
-        async with httpx.AsyncClient() as client:
-            # We fetch recent payments. 
-            # Note: Razorpay API doesn't support easy filtering by notes in the list call, 
-            # so we fetch recent ones and filter.
+        async with httpx.AsyncClient(timeout=15.0) as client:
             response = await client.get(
                 "https://api.razorpay.com/v1/payments?count=50",
                 headers={"Authorization": f"Basic {encoded_auth}"}
             )
             
             if response.status_code != 200:
-                logger.error(f"Razorpay API error: {response.text}")
-                return {"status": "error", "message": "Failed to fetch from Razorpay"}
-                
+                logger.error(f"Razorpay API error: {response.status_code} {response.text[:200]}")
+                return {"status": "error", "message": f"Razorpay API returned {response.status_code}", "synced_count": 0}
+            
             data = response.json()
             items = data.get('items', [])
+            logger.info(f"📡 Razorpay returned {len(items)} payments to check for {email_normalized}")
             
-            synced_count = 0
             for item in items:
-                # Check if this payment belongs to this user
-                # Razorpay stores metadata in 'notes'
                 notes = item.get('notes', {})
-                payment_email = notes.get('email', '').lower().strip()
+                if isinstance(notes, list):
+                    notes = {}  # Razorpay occasionally returns [] instead of {}
                 
-                # Also check common field names if 'email' note is missing
+                payment_email = notes.get('email', '').lower().strip()
                 if not payment_email:
                     payment_email = item.get('email', '').lower().strip()
                 
                 if payment_email == email_normalized and item.get('status') == 'captured':
-                    # This is a successful payment for our user!
-                    # Check if it's already in our DB
                     p_id = item.get('id')
                     existing = db.query(models.PaymentHistory).filter(
                         models.PaymentHistory.razorpay_payment_id == p_id
                     ).first()
                     
                     if not existing:
-                        logger.info(f"🔄 Syncing missing payment for {email_normalized}: {p_id}")
-                        
-                        # Create record
-                        plan_name = notes.get('plan', 'Starter')
-                        billing_cycle = notes.get('billing', 'monthly')
+                        logger.info(f"🔄 Backfilling payment {p_id} for {email_normalized}")
+                        plan_name = notes.get('plan', notes.get('plan_name', 'Starter'))
+                        billing_cycle = notes.get('billing', notes.get('billing_cycle', 'monthly'))
+                        amount_paise = item.get('amount', 0)
+                        amount_inr = float(amount_paise) / 100
                         
                         payment_data = PaymentCreate(
                             user_email=email_normalized,
-                            amount=float(item.get('amount', 0)) / 100, # Razorpay amounts are in paise
+                            amount=amount_inr,
                             razorpay_payment_id=p_id,
                             razorpay_order_id=item.get('order_id', f"order_{p_id}"),
                             status="success",
@@ -2107,23 +2109,23 @@ async def sync_razorpay_payments(email: str, db: Session = Depends(get_db)):
                             billing_cycle=billing_cycle,
                             payment_method=item.get('method', 'razorpay')
                         )
-                        
                         create_payment_record(payment_data, db)
                         synced_count += 1
             
-            # Also ensure subscription is up to date if we found new payments
             if synced_count > 0:
                 invalidate_user_cache(email_normalized)
-                
+            
             return {
-                "status": "success", 
-                "message": f"Synchronized {synced_count} missing payments",
+                "status": "success",
+                "message": f"Checked {len(items)} payments, synchronized {synced_count} missing records",
                 "synced_count": synced_count
             }
             
     except Exception as e:
-        logger.error(f"Sync error: {e}")
-        return {"status": "error", "message": str(e)}
+        logger.error(f"Sync error for {email_normalized}: {e}\n{traceback.format_exc()}")
+        return {"status": "error", "message": str(e), "synced_count": 0}
+    finally:
+        db.close()
 
 @app.get("/api/debug-user-data/{email}")
 def debug_user_data(email: str, db: Session = Depends(get_db)):
