@@ -11,6 +11,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 import os
 import logging
 import traceback
+import hashlib
 import json
 from typing import Dict, List, Any, Optional
 
@@ -548,8 +549,8 @@ def sign_up(user_data: UserSignUp, db: Session = Depends(get_db)):
             logger.warning(f"⚠️ Sign up failed: Password missing special char for {email_normalized}")
             raise HTTPException(status_code=400, detail="Password must contain at least one special character")
         
-        # Hash password (truncate to 72 chars for bcrypt compatibility)
-        password_to_hash = user_data.password[:72]
+        # Hash password (pre-hash with SHA256 to bypass bcrypt's 72-byte limit)
+        password_to_hash = hashlib.sha256(user_data.password.encode('utf-8')).hexdigest()
         password_hash = pwd_context.hash(password_to_hash)
         
         # Create new user
@@ -601,8 +602,8 @@ def sign_in(user_data: UserSignIn, db: Session = Depends(get_db)):
             logger.warning(f"⚠️ Sign in failed: User {email_normalized} has no password (social login)")
             raise HTTPException(status_code=401, detail="This account uses social login. Please sign in with Google.")
         
-        # Verify password (truncate to 72 chars for bcrypt compatibility)
-        password_to_verify = user_data.password[:72]
+        # Verify password (pre-hash with SHA256 to match the sign-up logic)
+        password_to_verify = hashlib.sha256(user_data.password.encode('utf-8')).hexdigest()
         if not pwd_context.verify(password_to_verify, db_user.password_hash):
             logger.warning(f"⚠️ Sign in failed: Incorrect password for {email_normalized}")
             raise HTTPException(status_code=401, detail="Invalid email or password")
