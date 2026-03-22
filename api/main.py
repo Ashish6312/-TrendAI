@@ -7,7 +7,13 @@ from sqlalchemy import func
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 from passlib.context import CryptContext
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__truncate_error=False)
+# Migration to PBKDF2 to natively support long passwords without 72-byte bcrypt limit
+pwd_context = CryptContext(
+    schemes=["pbkdf2_sha256", "bcrypt"], 
+    deprecated="auto",
+    bcrypt__truncate_error=False,
+    bcrypt__truncate=True
+)
 import os
 import logging
 import traceback
@@ -539,15 +545,8 @@ def sign_up(user_data: UserSignUp, db: Session = Depends(get_db)):
             logger.warning(f"⚠️ Sign up failed: Password missing special char for {email_normalized}")
             raise HTTPException(status_code=400, detail="Password must contain at least one special character")
         
-        # Hash password with robustness for length
-        try:
-            # Pre-hash to hex (64 chars) to safely bypass 72-byte bcrypt limit
-            password_to_hash = hashlib.sha256(user_data.password.encode('utf-8')).hexdigest()
-            password_hash = pwd_context.hash(password_to_hash)
-        except Exception as hash_err:
-            logger.error(f"⚠️ Password hash error for {email_normalized}: {hash_err}")
-            # Fallback (passlib will truncate automatically now thanks to config)
-            password_hash = pwd_context.hash(user_data.password)
+        # Secure password hashing (pbkdf2 natively supports long passwords)
+        password_hash = pwd_context.hash(user_data.password)
         
         # Create new user
         db_user = models.User(
@@ -598,17 +597,15 @@ def sign_in(user_data: UserSignIn, db: Session = Depends(get_db)):
             logger.warning(f"⚠️ Sign in failed: User {email_normalized} has no password (social login)")
             raise HTTPException(status_code=401, detail="This account uses social login. Please sign in with Google.")
         
-        # Verify password with robustness for length and scheme mismatches
+        # Verify password with support for both legacy bcrypt and new pbkdf2
         try:
-            # Pre-hash to hex (64 chars) to safely bypass 72-byte bcrypt limit
-            password_to_verify = hashlib.sha256(user_data.password.encode('utf-8')).hexdigest()
-            is_valid = pwd_context.verify(password_to_verify, db_user.password_hash)
-        except Exception as verify_err:
-            logger.error(f"⚠️ Password verification error for {email_normalized}: {verify_err}")
-            # Robust fallback for users created before SHA256 pre-hashing (if any)
+            is_valid = pwd_context.verify(user_data.password, db_user.password_hash)
+        except Exception as e:
+            logger.warning(f"⚠️ Low-level verification failed for {email_normalized}, attempting legacy hex-hash fallback: {e}")
+            # Final fallback for users created during the brief v2.0 pre-hashing experiment
             try:
-                # Try verifying raw password as fallback if hash doesn't look like pre-hashed hex
-                is_valid = pwd_context.verify(user_data.password, db_user.password_hash)
+                legacy_hex = hashlib.sha256(user_data.password.encode('utf-8')).hexdigest()
+                is_valid = pwd_context.verify(legacy_hex, db_user.password_hash)
             except:
                 is_valid = False
 
