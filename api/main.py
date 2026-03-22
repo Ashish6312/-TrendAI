@@ -520,28 +520,26 @@ def health_check():
 
 @app.post("/api/auth/signup")
 def sign_up(user_data: UserSignUp, db: Session = Depends(get_db)):
-    """Sign up with email and password"""
-    logger.info(f"📝 Sign up attempt for: {user_data.email}")
+    """Sign up with email and password with normalization"""
+    from sqlalchemy import func
+    
+    email_normalized = user_data.email.lower().strip()
+    logger.info(f"📝 Sign up attempt for: {email_normalized}")
     
     try:
-        # Check if user already exists
-        existing_user = db.query(models.User).filter(models.User.email == user_data.email).first()
+        # Check if user already exists (case-insensitive)
+        existing_user = db.query(models.User).filter(func.lower(models.User.email) == email_normalized).first()
         if existing_user:
-            logger.warning(f"⚠️ Sign up failed: User {user_data.email} already exists")
+            logger.warning(f"⚠️ Sign up failed: User {email_normalized} already exists")
             raise HTTPException(status_code=400, detail="User with this email already exists")
-        
-        # Validate password strength
-        if len(user_data.password) < 6:
-            logger.warning(f"⚠️ Sign up failed: Password too short for {user_data.email}")
-            raise HTTPException(status_code=400, detail="Password must be at least 6 characters long")
         
         # Hash password
         password_hash = pwd_context.hash(user_data.password)
         
         # Create new user
         db_user = models.User(
-            email=user_data.email,
-            name=user_data.name,
+            email=email_normalized,
+            name=user_data.name.strip(),
             password_hash=password_hash,
             auth_provider="email",
             login_count=1,
@@ -552,7 +550,7 @@ def sign_up(user_data: UserSignUp, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(db_user)
         
-        logger.info(f"✅ User created successfully: {user_data.email}")
+        logger.info(f"✅ User created successfully: {email_normalized}")
         return {
             "id": db_user.id,
             "email": db_user.email,
@@ -568,24 +566,27 @@ def sign_up(user_data: UserSignUp, db: Session = Depends(get_db)):
 
 @app.post("/api/auth/signin")
 def sign_in(user_data: UserSignIn, db: Session = Depends(get_db)):
-    """Sign in with email and password"""
-    logger.info(f"🔑 Sign in attempt for: {user_data.email}")
+    """Sign in with email and password with normalization"""
+    from sqlalchemy import func
+    
+    email_normalized = user_data.email.lower().strip()
+    logger.info(f"🔑 Sign in attempt for: {email_normalized}")
     
     try:
-        # Find user
-        db_user = db.query(models.User).filter(models.User.email == user_data.email).first()
+        # Find user (case-insensitive)
+        db_user = db.query(models.User).filter(func.lower(models.User.email) == email_normalized).first()
         if not db_user:
-            logger.warning(f"⚠️ Sign in failed: User {user_data.email} not found")
+            logger.warning(f"⚠️ Sign in failed: User {email_normalized} not found")
             raise HTTPException(status_code=401, detail="Invalid email or password")
         
         # Check if user has a password (might be OAuth only)
         if not db_user.password_hash:
-            logger.warning(f"⚠️ Sign in failed: User {user_data.email} exists but has no password (social login)")
+            logger.warning(f"⚠️ Sign in failed: User {email_normalized} has no password (social login)")
             raise HTTPException(status_code=401, detail="This account uses social login. Please sign in with Google.")
         
         # Verify password
         if not pwd_context.verify(user_data.password, db_user.password_hash):
-            logger.warning(f"⚠️ Sign in failed: Incorrect password for {user_data.email}")
+            logger.warning(f"⚠️ Sign in failed: Incorrect password for {email_normalized}")
             raise HTTPException(status_code=401, detail="Invalid email or password")
         
         # Update login info
@@ -593,7 +594,7 @@ def sign_in(user_data: UserSignIn, db: Session = Depends(get_db)):
         db_user.last_login = func.now()
         db.commit()
         
-        logger.info(f"✅ User signed in successfully: {user_data.email}")
+        logger.info(f"✅ User signed in successfully: {email_normalized}")
         return {
             "id": db_user.id,
             "email": db_user.email,
