@@ -2708,10 +2708,12 @@ class RazorpayVerifyRequest(BaseModel):
 
 @app.post("/api/payments/razorpay/order")
 async def create_razorpay_order(request: RazorpayOrderRequest, db: Session = Depends(get_db)):
-    """Create a new Razorpay order for subscription"""
-    if not razorpay_available:
-        logger.error("Razorpay not available at checkout attempt")
-        raise HTTPException(status_code=503, detail="Razorpay integration is currently offline")
+    # Dynamically re-read keys to avoid stale placeholder issues in server environments
+    curr_key_id = os.getenv("RAZORPAY_KEY_ID", "rzp_test_placeholder")
+    curr_key_secret = os.getenv("RAZORPAY_KEY_SECRET", "rzp_test_secret")
+    
+    # Initialize a clean client for this request to ensure correct auth
+    temp_client = razorpay.Client(auth=(curr_key_id, curr_key_secret))
     
     # Unified Pricing Source of Truth (Must match frontend)
     prices = {
@@ -2744,13 +2746,13 @@ async def create_razorpay_order(request: RazorpayOrderRequest, db: Session = Dep
         masked_id = f"{RAZORPAY_KEY_ID[:8]}...{RAZORPAY_KEY_ID[-4:]}"
         logger.info(f"🔍 Initializing Razorpay Checkout with Key ID: {masked_id}")
         
-        order = razor_client.order.create(data=order_data)
+        order = temp_client.order.create(data=order_data)
         logger.info(f"✅ Created Razorpay Order {order['id']} for {request.user_email}")
         return {
             "order_id": order["id"],
             "amount": amount,
             "currency": order["currency"],
-            "key_id": RAZORPAY_KEY_ID
+            "key_id": curr_key_id
         }
     except Exception as e:
         error_msg = str(e)
@@ -2767,6 +2769,11 @@ async def verify_razorpay_payment(request: RazorpayVerifyRequest, db: Session = 
         raise HTTPException(status_code=503, detail="Razorpay integration is currently offline")
     
     try:
+        # Dynamically re-read keys for verification
+        curr_key_id = os.getenv("RAZORPAY_KEY_ID", "rzp_test_placeholder")
+        curr_key_secret = os.getenv("RAZORPAY_KEY_SECRET", "rzp_test_secret")
+        temp_client = razorpay.Client(auth=(curr_key_id, curr_key_secret))
+
         # Verify signature with SDK
         params_dict = {
             'razorpay_order_id': request.razorpay_order_id,
@@ -2774,7 +2781,7 @@ async def verify_razorpay_payment(request: RazorpayVerifyRequest, db: Session = 
             'razorpay_signature': request.razorpay_signature
         }
         
-        razor_client.utility.verify_payment_signature(params_dict)
+        temp_client.utility.verify_payment_signature(params_dict)
         
         # Identity reconciliation
         email = request.user_email.lower().strip()
