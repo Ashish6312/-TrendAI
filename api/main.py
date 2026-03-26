@@ -2709,8 +2709,8 @@ class RazorpayVerifyRequest(BaseModel):
 @app.post("/api/payments/razorpay/order")
 async def create_razorpay_order(request: RazorpayOrderRequest, db: Session = Depends(get_db)):
     # Dynamically re-read keys to avoid stale placeholder issues in server environments
-    curr_key_id = os.getenv("RAZORPAY_KEY_ID", "rzp_test_placeholder")
-    curr_key_secret = os.getenv("RAZORPAY_KEY_SECRET", "rzp_test_secret")
+    curr_key_id = os.getenv("RAZORPAY_KEY_ID", "rzp_test_placeholder").strip()
+    curr_key_secret = os.getenv("RAZORPAY_KEY_SECRET", "rzp_test_secret").strip()
     
     # Initialize a clean client for this request to ensure correct auth
     temp_client = razorpay.Client(auth=(curr_key_id, curr_key_secret))
@@ -2742,9 +2742,9 @@ async def create_razorpay_order(request: RazorpayOrderRequest, db: Session = Dep
     }
     
     try:
-        # Debugging: Masked keys to verify reload
-        masked_id = f"{RAZORPAY_KEY_ID[:8]}...{RAZORPAY_KEY_ID[-4:]}"
-        logger.info(f"🔍 Initializing Razorpay Checkout with Key ID: {masked_id}")
+        # Robust Logging: Masked keys to verify reload
+        masked_id = f"{curr_key_id[:6]}...{curr_key_id[-4:]}" if len(curr_key_id) > 10 else "INVALID_ID"
+        logger.info(f"🔍 Initializing Razorpay Checkout with Key ID: {masked_id} (len: {len(curr_key_id)})")
         
         order = temp_client.order.create(data=order_data)
         logger.info(f"✅ Created Razorpay Order {order['id']} for {request.user_email}")
@@ -2756,7 +2756,7 @@ async def create_razorpay_order(request: RazorpayOrderRequest, db: Session = Dep
         }
     except Exception as e:
         error_msg = str(e)
-        logger.error(f"❌ Razorpay Order Generation Failed: {error_msg}")
+        logger.error(f"❌ Razorpay Order Generation Failed using Key ID {masked_id}: {error_msg}")
         raise HTTPException(
             status_code=500, 
             detail=f"Payment gateway communication failed: {error_msg}. Verify your Razorpay Key ID/Secret in .env."
