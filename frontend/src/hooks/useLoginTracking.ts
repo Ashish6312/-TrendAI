@@ -123,7 +123,7 @@ async function getLocationInfo(): Promise<any> {
   }
 
   // Fallback to IP-based location
-  const apiUrl = 'https://trendai-api.onrender.com';
+  const apiUrl = 'https://starterscope-api.onrender.com';
   const services = [
     `${apiUrl}/api/utils/location`,
     'https://ipapi.co/json/',
@@ -185,10 +185,10 @@ export function useLoginTracking() {
         const locationInfo = await getLocationInfo();
         
         // Persistent trackingId logic
-        let trackingId = localStorage.getItem('trendai_tracking_id');
+        let trackingId = localStorage.getItem('starterscope_tracking_id');
         if (!trackingId) {
           trackingId = `tr_${(session as any)?.user?.id || 'usr'}_${Math.random().toString(36).substring(2, 11)}`;
-          localStorage.setItem('trendai_tracking_id', trackingId);
+          localStorage.setItem('starterscope_tracking_id', trackingId);
         }
 
         const trackingData: LoginTrackingData = {

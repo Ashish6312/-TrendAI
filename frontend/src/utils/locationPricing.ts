@@ -40,12 +40,13 @@ export const IndiaPricing: CountryPricing = {
   currency: 'INR',
   symbol: '₹',
   explorer: { price: 0 },
-  starter: { monthly: 499, yearly: 299, originalMonthly: 699, originalYearly: 499 },
-  professional: { monthly: 1499, yearly: 999, originalMonthly: 1999, originalYearly: 1499 },
-  growth: { monthly: 3499, yearly: 2499, originalMonthly: 4999, originalYearly: 3499 },
-  enterprise: { monthly: 9999, yearly: 6999, originalMonthly: 14999, originalYearly: 9999 },
+  starter: { monthly: 299, yearly: 2999, originalMonthly: 399, originalYearly: 3999 },
+  professional: { monthly: 999, yearly: 9999, originalMonthly: 1499, originalYearly: 14999 },
+  growth: { monthly: 3499, yearly: 29999, originalMonthly: 4999, originalYearly: 49999 },
+  enterprise: { monthly: 9999, yearly: 99999, originalMonthly: 14999, originalYearly: 149999 },
   purchasingPower: 1.0
 };
+
 
 // Comprehensive location-based pricing data - Simplified to India only
 export const locationPricing: Record<string, CountryPricing> = {

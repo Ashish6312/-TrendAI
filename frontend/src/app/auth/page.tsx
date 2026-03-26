@@ -43,7 +43,7 @@ export default function AuthPage() {
     
     // Check backend health
     const checkBackend = async () => {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://trendai-api.onrender.com';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://starterscope-api.onrender.com';
       try {
         const res = await fetch(`${apiUrl}/api/health`, { signal: AbortSignal.timeout(5000) });
         if (res.ok) {
@@ -208,12 +208,12 @@ export default function AuthPage() {
 
             <div className="text-center mb-8">
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="inline-flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center shadow-xl shadow-emerald-500/30 border border-emerald-400/30 relative">
-                  <Zap className="text-white" size={20} fill="currentColor" />
+                <div className="w-12 h-12 rounded-2xl bg-white/10 dark:bg-white/5 flex items-center justify-center shadow-xl border border-white/10 relative overflow-hidden">
+                  <img src="/brand-logo-v3.png" className="w-full h-full object-contain" alt="StarterScope" />
                 </div>
                 <div className="text-left">
-                  <span className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Trend<span className="text-emerald-600 dark:text-emerald-400">AI</span></span>
-                  <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Smart Systems</div>
+                  <span className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Starter<span className="text-teal-500 dark:text-teal-400">Scope</span></span>
+                  <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider italic">Strategic Intelligence</div>
                 </div>
               </motion.div>
 

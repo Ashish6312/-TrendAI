@@ -1,95 +1,76 @@
 "use client";
 
-import React from "react";
-import { Check, X, Crown, Zap, Building2, ArrowRight, Star, TrendingUp, Shield, Users, Target, Rocket, MapPin, Globe, RefreshCw } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Check, X, Crown, Zap, Rocket, Star, Shield, ArrowRight, ShieldCheck, CreditCard, Sparkles, Users } from "lucide-react";
 import Link from "next/link";
 import { useLanguage } from "@/context/LanguageContext";
 import { useNotifications } from "@/context/NotificationContext";
-import { motion } from "framer-motion";
-import { useState, useEffect } from "react";
-import { useRazorpay } from "@/hooks/useRazorpay";
+import { motion, AnimatePresence } from "framer-motion";
 import { useSession } from "next-auth/react";
-import { getPricingForCountry, formatPrice, getSavingsPercentage, CountryPricing } from "@/utils/locationPricing";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useTheme } from "next-themes";
 import PaymentSuccessModal from "@/components/PaymentSuccessModal";
+import Script from "next/script";
+import { getApiUrl } from "@/config/api";
 
 export default function AcquisitionTiers() {
   const { t } = useLanguage();
   const { data: session } = useSession();
-  const { initiatePayment } = useRazorpay();
-  const { userLocation } = useNotifications();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { resolvedTheme } = useTheme();
+  
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("yearly");
   const [loading, setLoading] = useState<string | null>(null);
-  const [currentPricing, setCurrentPricing] = useState<CountryPricing | null>(null);
-  const [profileLocation, setProfileLocation] = useState<string | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [paymentDetails, setPaymentDetails] = useState<any>(null);
-
-  // 1. Prioritize profile location from session/user record
-  useEffect(() => {
-    const fetchProfile = async () => {
-      if (!session?.user?.email) return;
-      try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-        const response = await fetch(`${apiUrl}/api/users/${session.user.email}`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.location) {
-            setProfileLocation(data.location);
-          }
-        }
-      } catch (e) {
-        console.error("Profile sync failed:", e);
-      }
-    };
-    fetchProfile();
-  }, [session]);
-
-  // 2. Update pricing based on prioritized location
-  useEffect(() => {
-    // Priority: 
-    // 1. Manually filled profile location
-    // 2. IP-detected userLocation
-    const effectiveLocation = profileLocation || userLocation?.country;
-    
-    if (effectiveLocation) {
-      const pricing = getPricingForCountry(effectiveLocation);
-      setCurrentPricing(pricing);
-    }
-  }, [userLocation, profileLocation]);
-
-  // Use default pricing if location not available
-  const pricing = currentPricing || getPricingForCountry('Global');
+  const isDark = resolvedTheme !== 'light';
 
   const handlePayment = async (tier: any) => {
-    if (tier.price === 0) {
-      // Free tier - redirect to dashboard
-      window.location.href = '/dashboard';
-      return;
-    }
-
     if (!session?.user) {
-      // Redirect to login
-      window.location.href = '/api/auth/signin';
+      router.push('/api/auth/signin');
       return;
     }
 
     setLoading(tier.id);
-
     try {
-      await initiatePayment({
-        amount: tier.price,
-        currency: pricing.currency,
-        planName: tier.name,
-        billingCycle,
-        customerName: session.user.name || '',
-        customerEmail: session.user.email || '',
-      }, (details) => {
-        setPaymentDetails(details);
-        setShowSuccessModal(true);
+      const apiUrl = getApiUrl();
+      
+      // 1. Create Dodo Checkout Session
+      const resSession = await fetch(`${apiUrl}/api/dodo/create-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          product_id: tier.id === 'professional' ? (billingCycle === 'yearly' ? 'p_5' : 'p_4') : (billingCycle === 'yearly' ? 'p_2' : 'p_1'), // Placeholder IDs - User to replace in Dodo Dashboard
+          quantity: 1,
+          email: session?.user?.email,
+          name: session?.user?.name || email.split('@')[0],
+          return_url: `${window.location.origin}/dashboard?payment=success&plan=${tier.id}`
+        })
       });
-    } catch (error) {
-      console.error('Payment error:', error);
-      alert('Payment failed. Please try again.');
+
+      if (!resSession.ok) {
+        const errorData = await resSession.json();
+        throw new Error(errorData.detail || 'Failed to create payment session');
+      }
+
+      const sessionData = await resSession.json();
+      
+      // 2. Redirect to Dodo Checkout
+      if (sessionData.data?.checkout_url) {
+        window.location.href = sessionData.data.checkout_url;
+      } else {
+        throw new Error('Dodo Checkout URL not found in response');
+      }
+
+    } catch (error: any) {
+      console.error('Dodo Payment error:', error);
+      addNotification({
+        type: 'error',
+        title: 'Payment Error',
+        message: error.message || 'Payment initialization failed. Please try again.',
+        priority: 'high'
+      });
     } finally {
       setLoading(null);
     }
@@ -97,500 +78,294 @@ export default function AcquisitionTiers() {
 
   const tiers = [
     {
-      id: "free",
-      name: t('price_explorer'),
-      tagline: t('price_explorer_desc'),
-      price: pricing.explorer.price,
-      originalPrice: null,
-      icon: <Star size={32} />,
-      color: "gray",
-      popular: false,
-      features: [
-        { text: "10 AI Recommendations/day", available: true },
-        { text: t('price_google'), available: true },
-        { text: "Limited Location Analysis", available: true },
-        { text: "Community ideas", available: true },
-        { text: "Save up to 3 ideas", available: true }
-      ],
-      cta: t('price_free'),
-      href: "/dashboard"
-    },
-    {
       id: "starter",
-      name: t('price_starter'),
-      tagline: t('price_starter_desc'),
-      price: billingCycle === "monthly" ? pricing.starter.monthly : pricing.starter.yearly,
-      originalPrice: billingCycle === "monthly" ? pricing.starter.originalMonthly : pricing.starter.originalYearly,
-      icon: <Target size={32} />,
-      color: "blue",
+      name: "Starter",
+      tagline: "Basic analytics for beginners",
+      monthPrice: 199,
+      yearPrice: 1799,
+      originalMonth: 299,
+      originalYear: 2999,
+      dailyLabel: "Only ₹6/day",
+      icon: <Zap className="w-6 h-6" />,
+      color: "from-blue-500 to-cyan-400",
       popular: false,
       features: [
-        { text: "100 Scans / Month", available: true },
-        { text: "City-level insights", available: true },
-        { text: "Basic profit estimation", available: true },
-        { text: "Save unlimited ideas", available: true },
-        { text: "Email reports", available: true }
+        { text: "100 recommendations/month", active: true },
+        { text: "City-level insights", active: true },
+        { text: "Basic profit estimation", active: true },
+        { text: "Alpha Vault (5 Saves)", active: true },
+        { text: "Standard AI processing", active: true, sub: true },
+        { text: "No competitor heatmaps", active: false },
+        { text: "No custom AI search", active: false }
       ],
-      cta: t('price_upgrade'),
-      href: "/dashboard"
+      cta: "Get Started"
     },
     {
       id: "professional",
-      name: t('price_pro'),
-      tagline: t('price_pro_desc'),
-      price: billingCycle === "monthly" ? pricing.professional.monthly : pricing.professional.yearly,
-      originalPrice: billingCycle === "monthly" ? pricing.professional.originalMonthly : pricing.professional.originalYearly,
-      icon: <Rocket size={32} />,
-      color: "emerald",
+      name: "Professional",
+      tagline: "Built for serious entrepreneurs",
+      monthPrice: 499,
+      yearPrice: 4499,
+      originalMonth: 699,
+      originalYear: 6999,
+      dailyLabel: "Only ₹15/day",
+      icon: <Rocket className="w-6 h-6" />,
+      color: "from-indigo-600 to-emerald-500",
       popular: true,
+      badge: "🔥 MOST POPULAR",
+      bestValue: "Best Value",
+      comparison: "Everything in Starter, plus:",
       features: [
-        { text: "Unlimited Recommendations", available: true },
-        { text: "Advanced AI analysis", available: true },
-        { text: t('price_feat_heatmap'), available: true },
-        { text: t('price_feat_custom_search'), available: true },
-        { text: t('price_feat_review_score'), available: true },
-        { text: t('price_export'), available: true },
-        { text: t('price_feat_prediction'), available: true }
+        { text: "Unlimited recommendations", active: true, bold: true },
+        { text: "Neural Profit Engine (AI)", active: true },
+        { text: "Competitor Neural Heatmaps", active: true },
+        { text: "Elite Alpha Vault (Unlimited)", active: true },
+        { text: "6-Month Strategic Roadmaps", active: true },
+        { text: "Real-time Demand Scoring", active: true },
+        { text: "Priority Support Concierge", active: true }
       ],
-      cta: t('price_upgrade'),
-      href: "/dashboard"
-    },
-    {
-      id: "growth",
-      name: t('price_growth'),
-      tagline: t('price_growth_desc'),
-      price: billingCycle === "monthly" ? pricing.growth.monthly : pricing.growth.yearly,
-      originalPrice: billingCycle === "monthly" ? pricing.growth.originalMonthly : pricing.growth.originalYearly,
-      icon: <Zap size={32} />,
-      color: "amber",
-      popular: false,
-      features: [
-        { text: "Multi-location analysis", available: true },
-        { text: t('price_feat_segment'), available: true },
-        { text: t('price_feat_forecast'), available: true },
-        { text: t('price_feat_api_lite'), available: true },
-        { text: t('price_feat_team'), available: true },
-        { text: "Dashboard analytics", available: true }
-      ],
-      cta: t('price_upgrade'),
-      href: "/dashboard"
-    },
-    {
-      id: "enterprise",
-      name: t('price_enterprise'),
-      tagline: t('price_enterprise_desc'),
-      price: billingCycle === "monthly" ? pricing.enterprise.monthly : pricing.enterprise.yearly,
-      originalPrice: billingCycle === "monthly" ? pricing.enterprise.originalMonthly : pricing.enterprise.originalYearly,
-      icon: <Crown size={32} />,
-      color: "purple",
-      popular: false,
-      features: [
-        { text: t('price_feat_api_full'), available: true },
-        { text: "Custom AI models", available: true },
-        { text: t('price_feat_white_label'), available: true },
-        { text: t('price_feat_crm'), available: true },
-        { text: "Dedicated support", available: true },
-        { text: "Bulk data export", available: true }
-      ],
-      cta: t('price_contact'),
-      href: "/dashboard"
+      cta: "Upgrade Now →",
+      triggers: ["Make smarter business decisions", "Maximize your profits"]
     }
   ];
 
-  const savingsAmount = billingCycle === "yearly" && pricing.professional.monthly && pricing.professional.yearly 
-    ? getSavingsPercentage(pricing.professional.monthly, pricing.professional.yearly)
-    : 0;
-
-  const savings = savingsAmount > 0 ? `${savingsAmount}%` : "";
-
   return (
-    <div className="min-h-screen bg-white dark:bg-[#020617] relative selection:bg-emerald-500/30 overflow-x-hidden transition-colors duration-500">
-      {/* Immersive Background Architecture */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-emerald-500/10 dark:bg-emerald-500/5 rounded-full blur-[120px] animate-pulse-slow" />
-        <div className="absolute bottom-1/4 right-0 w-[600px] h-[600px] bg-purple-600/10 dark:bg-purple-600/5 rounded-full blur-[150px] animate-pulse-slow" style={{ animationDelay: '2s' }} />
-        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.05] dark:opacity-[0.02] mix-blend-overlay" />
-        
-        {/* Animated Grid Path */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#00000005_1px,transparent_1px),linear-gradient(to_bottom,#00000005_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:60px_60px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
+    <div className={`min-h-screen selection:bg-emerald-500/30 ${isDark ? 'bg-[#020617] text-white' : 'bg-slate-50 text-slate-900'}`}>
+      <Script
+        id="razorpay-checkout-js"
+        src="https://checkout.razorpay.com/v1/checkout.js"
+        strategy="lazyOnload"
+      />
+      {/* Background Elements */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] rounded-full blur-[120px] opacity-20 ${isDark ? 'bg-indigo-500/30' : 'bg-indigo-500/10'}`} />
+        <div className={`absolute bottom-0 right-0 w-[500px] h-[500px] rounded-full blur-[100px] opacity-10 ${isDark ? 'bg-emerald-500/20' : 'bg-emerald-500/5'}`} />
       </div>
 
-      <div className="relative z-10">
-        {/* Hero Section - Compact */}
-        <div className="responsive-container navbar-aware pb-16">
-          <motion.div 
-            initial={{ opacity: 0, y: 30 }}
+      <div className="relative z-10 max-w-7xl mx-auto px-4 pt-20 pb-24">
+        {/* Header Section */}
+        <div className="text-center mb-16 space-y-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-center space-y-8 md:space-y-12"
+            className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/5"
           >
-            <div className="flex flex-col items-center gap-8">
-              <motion.div 
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="inline-flex items-center gap-4 px-6 py-3 rounded-full bg-white dark:bg-white/5 border border-slate-300 dark:border-white/10 backdrop-blur-xl shadow-xl hover:shadow-2xl transition-all duration-300"
+            <Sparkles size={12} /> Transform Your Business with AI
+          </motion.div>
+          
+          <motion.h1 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="text-4xl md:text-6xl font-black tracking-tight leading-[1.1]"
+          >
+            Precision Pricing for <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-emerald-400 to-cyan-400">
+              Maximum Growth.
+            </span>
+          </motion.h1>
+
+          <motion.p 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="text-slate-400 text-base max-w-xl mx-auto font-medium"
+          >
+            Make smarter business decisions with our high-performance recommendation ecosystem. Choose the plan that fits your ambition.
+          </motion.p>
+
+          {/* Toggle */}
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.3 }}
+            className="flex flex-col items-center gap-4 pt-8"
+          >
+            <div className={`inline-flex items-center p-1 rounded-2xl border backdrop-blur-3xl shadow-2xl ${isDark ? 'bg-white/5 border-white/10' : 'bg-slate-200/50 border-slate-300'}`}>
+              <button 
+                onClick={() => setBillingCycle('monthly')}
+                className={`relative px-8 py-3 rounded-xl text-xs font-black transition-all uppercase tracking-widest ${
+                  billingCycle === 'monthly' 
+                    ? (isDark ? 'text-white bg-white/10' : 'text-slate-900 bg-white shadow-xl') 
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
               >
-                <div className="flex -space-x-3">
-                  {[1,2,3,4].map(i => (
-                    <div key={i} className="w-8 h-8 rounded-full border-2 border-[var(--background)] bg-slate-800 flex items-center justify-center overflow-hidden shadow-lg">
-                      <img src={`https://i.pravatar.cc/100?u=${i}`} alt="User" />
+                Monthly
+              </button>
+              <div className="relative">
+                <button 
+                  onClick={() => setBillingCycle('yearly')}
+                  className={`relative px-8 py-3 rounded-xl text-xs font-black transition-all uppercase tracking-widest ${
+                    billingCycle === 'yearly' ? 'text-white bg-gradient-to-r from-indigo-600 to-emerald-500 shadow-xl' : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  Yearly
+                </button>
+                <div className="absolute -top-3 -right-4 translate-x-1/2">
+                  <span className="bg-emerald-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-lg shadow-emerald-500/40 animate-pulse">
+                    Save 20%
+                  </span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+              <span className="flex items-center gap-1.5"><ShieldCheck size={14} className="text-emerald-500" /> Cancel anytime</span>
+              <span className="flex items-center gap-1.5"><CreditCard size={14} className="text-emerald-500" /> Secure payment</span>
+              <span className="flex items-center gap-1.5 font-black text-emerald-400">Trusted by 5,000+ Entrepreneurs</span>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Pricing Cards */}
+        <div className="flex flex-col md:flex-row items-center justify-center gap-6 max-w-4xl mx-auto">
+          {tiers.map((tier, idx) => {
+            const currentPrice = billingCycle === 'monthly' ? tier.monthPrice : Math.floor(tier.yearPrice / 12);
+            const originalPrice = billingCycle === 'monthly' ? tier.originalMonth : Math.floor(tier.originalYear / 12);
+            
+            return (
+              <motion.div
+                key={tier.id}
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 + idx * 0.1 }}
+                whileHover={{ y: -8, transition: { duration: 0.3 } }}
+                className={`relative group w-full max-w-[310px] rounded-[1.25rem] p-4 transition-all duration-300 border ${
+                  tier.popular 
+                    ? `z-20 ${isDark ? 'bg-slate-900/90 border-emerald-500 shadow-2xl shadow-emerald-500/10' : 'bg-white border-emerald-500 shadow-2xl shadow-emerald-500/20 scale-[1.03]'}` 
+                    : `${isDark ? 'bg-slate-900/40 border-white/5' : 'bg-white border-slate-200'} shadow-xl hover:border-emerald-500/30`
+                }`}
+              >
+                {/* Popular Accents */}
+                {tier.popular && (
+                  <div className="absolute inset-0 rounded-[2rem] bg-gradient-to-br from-indigo-500/5 via-transparent to-emerald-500/5 pointer-events-none" />
+                )}
+                
+                <div className="flex items-center justify-between mb-4">
+                  <div className={`p-2.5 rounded-2xl bg-gradient-to-br ${tier.color} text-white shadow-lg`}>
+                    {tier.icon}
+                  </div>
+                  {tier.popular && (
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="bg-indigo-600 text-white text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-tighter">
+                        {tier.badge}
+                      </span>
+                      <span className="text-emerald-500 text-[10px] font-black uppercase italic">
+                        {tier.bestValue}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <h3 className="text-lg font-black mb-0">{tier.name}</h3>
+                <p className="text-slate-500 text-[8px] font-bold leading-relaxed mb-2">{tier.tagline}</p>
+
+                <div className="mb-6 space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-400 line-through text-xs font-bold tracking-tighter">₹{originalPrice}</span>
+                    <span className="bg-emerald-500/10 text-emerald-500 text-[9px] font-black px-2 py-0.5 rounded-lg">
+                      Save ₹{originalPrice - currentPrice}
+                    </span>
+                  </div>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-2xl font-black tracking-tighter">₹{currentPrice}</span>
+                    <span className="text-slate-500 font-bold text-[10px] tracking-tighter">/mo</span>
+                  </div>
+                  <div className="flex flex-col gap-1 pt-1">
+                    {billingCycle === 'yearly' && (
+                       <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest italic">
+                         ₹{tier.yearPrice} Paid At Once
+                       </p>
+                    )}
+                    <p className="text-emerald-500 font-black text-sm italic tracking-tight">{tier.dailyLabel}</p>
+                    <p className="text-slate-500 text-[8px] font-black uppercase tracking-widest leading-none">
+                      Inclusive of 18% GST • No hidden charges
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 mb-4 min-h-[140px]">
+                  {tier.comparison && (
+                    <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest border-b border-white/5 pb-1.5 mb-2">
+                      {tier.comparison}
+                    </div>
+                  )}
+                  {tier.features.map((f: any, i) => (
+                    <div key={i} className={`flex items-start gap-3 ${!f.active ? 'opacity-30' : ''}`}>
+                      <div className={`mt-0.5 p-0.5 rounded-full ${f.active ? 'bg-emerald-500 text-white' : 'bg-slate-700 text-slate-400'}`}>
+                        {f.active ? <Check size={7} strokeWidth={4} /> : <X size={7} strokeWidth={2} />}
+                      </div>
+                      <span className={`text-[11px] ${f.bold ? 'font-black' : 'font-medium'} ${isDark ? 'text-slate-300' : 'text-slate-600'} ${f.sub ? 'italic text-[9px]' : ''}`}>
+                        {f.text}
+                      </span>
                     </div>
                   ))}
                 </div>
-                <div className="flex flex-col items-start leading-none">
-                  <span className="text-[11px] font-black uppercase tracking-[0.2em] text-emerald-400">{t('price_trusted')}</span>
-                  <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">{t('price_partnerships')}</span>
-                </div>
-              </motion.div>
- 
-              <h1 className="responsive-text-5xl md:responsive-text-6xl lg:text-7xl font-black text-slate-900 dark:text-white tracking-tighter leading-tight italic">
-                {t('price_title')}
-              </h1>
- 
-              <p className="responsive-text-base md:responsive-text-lg text-slate-500 dark:text-slate-400 max-w-2xl mx-auto font-medium leading-relaxed tracking-tight px-4 opacity-80 dark:opacity-60">
-                {t('price_subtitle')}
-              </p>
-            </div>
-            
-            {/* Precision Stats - Compact Layout */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-0 max-w-4xl mx-auto w-full items-center divide-y md:divide-y-0 md:divide-x divide-slate-200 dark:divide-white/5">
-              {[
-                { label: t('price_stat_capital'), value: "₹2,300Cr+", color: "text-emerald-600 dark:text-emerald-400", sub: "India Flow" },
-                { label: t('price_stat_market'), value: "94%", color: "text-blue-600 dark:text-blue-400", sub: "AI Accuracy" },
-                { label: t('price_stat_precision'), value: "99.9%", color: "text-purple-600 dark:text-purple-400", sub: "Reliability" }
-              ].map((stat, i) => (
-                <div key={i} className="px-6 py-4 md:py-0 text-center group cursor-default transition-all">
-                  <div className={`responsive-text-2xl md:responsive-text-3xl font-black ${stat.color} tracking-tighter group-hover:scale-110 transition-transform duration-700 mb-1`}>{stat.value}</div>
-                  <div className="text-[9px] text-slate-900 dark:text-slate-200 font-black uppercase tracking-[0.2em] italic">{stat.label}</div>
-                  <div className="text-[7px] text-slate-400 dark:text-slate-600 font-bold uppercase tracking-[0.1em] mt-1">{stat.sub}</div>
-                </div>
-              ))}
-            </div>
- 
-            {/* Billing Switcher - Compact */}
-            <div className="relative flex flex-col items-center gap-8 pt-6">
-              <div className="relative group">
-                {savings && (
-                  <motion.div 
-                    initial={{ opacity: 0, scale: 0.8, y: 10 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    className="absolute left-[72%] -top-12 -translate-x-1/2 z-20 pointer-events-none flex flex-col items-center"
-                  >
-                    <div className="bg-emerald-500 text-white text-[9px] font-black px-4 py-2 rounded-full shadow-[0_15px_30px_-5px_rgba(16,185,129,0.4)] border border-white/20 whitespace-nowrap flex items-center gap-1">
-                      <Zap size={10} fill="currentColor" /> SAVE {savings}
-                    </div>
-                    <div className="w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[8px] border-t-emerald-500 -mt-0.5" />
-                  </motion.div>
-                )}
- 
-                <div className="inline-flex items-center p-1.5 rounded-2xl bg-slate-100 dark:bg-white/[0.03] border border-slate-300 dark:border-white/10 backdrop-blur-3xl shadow-xl relative">
-                  <button 
-                    onClick={() => setBillingCycle('monthly')}
-                    className={`relative z-10 px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-500 ${billingCycle === 'monthly' ? 'text-slate-900' : 'text-slate-400 hover:text-white'}`}
-                  >
-                    {billingCycle === 'monthly' && (
-                      <motion.div layoutId="activeTab" className="absolute inset-0 bg-white rounded-xl shadow-lg" />
-                    )}
-                    <span className="relative z-20">{t('price_bill_monthly')}</span>
-                  </button>
-                  <button 
-                    onClick={() => setBillingCycle('yearly')}
-                    className={`relative z-10 px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-500 ${billingCycle === 'yearly' ? 'text-white' : 'text-slate-400 hover:text-white'}`}
-                  >
-                    {billingCycle === 'yearly' && (
-                      <motion.div layoutId="activeTab" className="absolute inset-0 bg-emerald-500 rounded-xl shadow-[0_10px_20px_rgba(16,185,129,0.3)]" />
-                    )}
-                    <span className="relative z-20">{t('price_bill_yearly')}</span>
-                  </button>
-                </div>
-              </div>
- 
-              {userLocation?.country && (
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400 bg-slate-900/5 dark:bg-white/[0.02] px-6 py-3 rounded-2xl border border-slate-900/10 dark:border-white/5 italic shadow-lg backdrop-blur-3xl"
-                >
-                  <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-500">
-                    <Globe size={14} className="animate-pulse" /> 
-                  </div>
-                  <span className="flex items-center gap-2">
-                    Region: <span className="text-slate-900 dark:text-slate-200">{profileLocation || userLocation?.country || 'India'}</span>
-                  </span>
-                </motion.div>
-              )}
-            </div>
-          </motion.div>
-        </div>
- 
-        {/* Pricing Matrix - Professional Layout */}
-        <div className="responsive-container pb-12 border-t border-slate-200 dark:border-white/5 mt-32 relative overflow-visible">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-[#020617] px-6 text-[8px] font-black uppercase tracking-[0.4em] text-slate-400 dark:text-slate-800 italic border-x border-slate-200 dark:border-white/5 z-50">
-            Choose Your Plan
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch max-w-5xl mx-auto">
-            {tiers.map((tier, index) => (
-              <motion.div
-                key={tier.id}
-                initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                whileHover={{ y: -4, transition: { duration: 0.2, ease: "easeOut" } }}
-                transition={{ delay: index * 0.05 }}
-                className={`group relative flex flex-col rounded-xl backdrop-blur-3xl border transition-all duration-300 h-full ${
-                  tier.popular 
-                    ? 'bg-gradient-to-b from-emerald-500/10 via-white/80 to-white/95 dark:from-emerald-500/10 dark:via-slate-900/90 dark:to-slate-900/95 border-emerald-500/30 shadow-[0_10px_25px_-5px_rgba(16,185,129,0.2)] z-20' 
-                    : 'bg-white/80 dark:bg-slate-900/60 border-slate-300 dark:border-white/5 hover:border-slate-400 dark:hover:border-white/10 shadow-lg'
-                }`}
-              >
-                {/* Popular Badge */}
-                {tier.popular && (
-                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-40">
-                    <div className="bg-gradient-to-r from-emerald-600 to-emerald-400 text-white px-4 py-1.5 rounded-full text-[8px] font-black uppercase tracking-[0.1em] shadow-lg border border-white/20 whitespace-nowrap">
-                      {t('price_most_popular')}
-                    </div>
-                  </div>
-                )}
 
-                {/* Card Content */}
-                <div className="flex-1 flex flex-col p-4 relative z-20">
-                  
-                  {/* Header Section */}
-                  <div className="text-center mb-4">
-                    <div className={`inline-flex items-center justify-center w-12 h-12 rounded-lg mb-3 transition-all duration-200 ${
-                      tier.id === 'professional' ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' :
-                      tier.id === 'enterprise' ? 'bg-purple-500/20 text-purple-600 dark:text-purple-400' :
-                      'bg-slate-200 dark:bg-slate-800/80 text-slate-500 dark:text-slate-500'
-                    }`}>
-                      {React.cloneElement(tier.icon, { size: 20 })}
-                    </div>
-                    <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tight italic mb-1">{tier.name}</h3>
-                    <p className="text-slate-400 dark:text-slate-500 text-[8px] font-bold uppercase tracking-wide">{tier.tagline}</p>
-                  </div>
-
-                  {/* Pricing Section */}
-                  <div className="text-center mb-4">
-                    <div className="bg-slate-100 dark:bg-white/[0.02] rounded-lg p-3 border border-slate-200 dark:border-white/5">
-                      {tier.originalPrice && (
-                        <div className="text-slate-400 dark:text-slate-600 text-[10px] font-bold line-through mb-1 opacity-60">
-                          {formatPrice(tier.originalPrice, pricing)}
-                        </div>
-                      )}
-                      <div className="flex items-baseline justify-center gap-1 mb-1">
-                        <span className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-                          {typeof tier.price === 'number' ? formatPrice(tier.price, pricing).split('.')[0] : tier.price}
-                        </span>
-                        {typeof tier.price === 'number' && tier.price > 0 && (
-                          <span className="text-slate-500 dark:text-slate-400 font-bold text-[8px] uppercase">/mo</span>
-                        )}
-                      </div>
-                      {billingCycle === 'yearly' && typeof tier.price === 'number' && tier.price > 0 && (
-                        <div className="text-[7px] font-bold text-slate-400 dark:text-slate-600 uppercase">{t('price_bill_annually')}</div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* CTA Button */}
-                  <div className="mb-4">
-                    <button
-                      onClick={() => handlePayment(tier)}
-                      disabled={loading === tier.id}
-                      className={`w-full group relative overflow-hidden px-4 py-2.5 rounded-lg font-black text-[8px] uppercase tracking-[0.1em] transition-all duration-300 active:scale-95 ${
-                        tier.popular
-                          ? 'bg-emerald-600 dark:bg-emerald-500 text-white shadow-emerald-500/20'
-                          : 'bg-white dark:bg-white/5 text-slate-900 dark:text-white border border-slate-300 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/10 shadow-sm'
-                      }`}
-                    >
-                      <span className="relative z-20 flex items-center justify-center gap-1.5 group-hover:gap-2 transition-all">
-                        {loading === tier.id ? (
-                          <RefreshCw size={12} className="animate-spin" />
-                        ) : (
-                          <>
-                            {tier.cta}
-                            <ArrowRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
-                          </>
-                        )}
-                      </span>
-                    </button>
-                  </div>
-
-                  {/* Features List */}
-                  <div className="flex-1">
-                    <div className="space-y-2">
-                      {tier.features.slice(0, 6).map((feature, idx) => (
-                        <div key={idx} className="flex items-start gap-2 group/item">
-                          <div className={`mt-0.5 flex-shrink-0 w-3 h-3 rounded flex items-center justify-center transition-all duration-150 ${
-                            feature.available 
-                              ? tier.id === 'professional' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' :
-                                tier.id === 'enterprise' ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400' :
-                                'bg-slate-200 dark:bg-slate-600/20 text-slate-600 dark:text-slate-400'
-                              : 'bg-slate-100 dark:bg-slate-800/50 text-slate-400 dark:text-slate-700'
-                          }`}>
-                            {feature.available ? <Check size={6} strokeWidth={3} /> : <X size={6} strokeWidth={3} />}
-                          </div>
-                           <span className={`text-[9px] font-medium tracking-tight leading-tight transition-all ${
-                            feature.available 
-                              ? 'text-slate-600 dark:text-slate-300' 
-                              : 'text-slate-300 dark:text-slate-700 line-through opacity-40'
-                          }`}>
-                            {feature.text}
-                          </span>
+                <div className="space-y-4">
+                  {tier.triggers && (
+                    <div className="flex flex-col gap-2 mb-4">
+                      {tier.triggers.map((t, i) => (
+                        <div key={i} className="flex items-center gap-2 text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em] italic">
+                          <Check size={12} strokeWidth={3} /> {t}
                         </div>
                       ))}
-                      {tier.features.length > 6 && (
-                        <div className="text-[8px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wide text-center pt-1 border-t border-slate-200/50 dark:border-white/5 mt-2">
-                          +{tier.features.length - 6} More Features
-                        </div>
-                      )}
                     </div>
-                  </div>
-
-                  {/* Trust Footer */}
-                  <div className="pt-3 mt-auto flex items-center justify-center gap-1.5 opacity-50 group-hover:opacity-100 transition-opacity">
-                     <Shield size={8} className="text-emerald-600 dark:text-emerald-500" />
-                     <span className="text-[7px] font-black uppercase tracking-wide text-slate-400 dark:text-slate-500">Secure</span>
-                  </div>
+                  )}
+                  
+                  <button
+                    onClick={() => handlePayment(tier)}
+                    disabled={loading === tier.id}
+                    className={`w-full py-2.5 rounded-xl font-black text-[9px] uppercase tracking-[0.2em] transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3 ${
+                      tier.popular 
+                        ? 'bg-gradient-to-r from-indigo-600 to-emerald-500 text-white shadow-lg' 
+                        : (isDark ? 'bg-white/5 text-white border border-white/10' : 'bg-slate-900 text-white shadow-md')
+                    }`}
+                  >
+                    {loading === tier.id ? (
+                      <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      tier.cta
+                    )}
+                  </button>
                 </div>
               </motion.div>
-            ))}
-          </div>
+            );
+          })}
         </div>
-      </div>
 
-      {/* Strategic Advantage Section - High Engagement Utility */}
-      <div className="bg-slate-50 dark:bg-slate-900/40 border-y border-slate-200 dark:border-white/5 py-32 backdrop-blur-3xl relative overflow-hidden transition-colors duration-500">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(16,185,129,0.05),transparent_50%)]" />
-        
-        <div className="max-w-7xl mx-auto px-6 relative z-10">
-          <div className="text-center mb-24 space-y-4">
-            <div className="text-[10px] font-black uppercase tracking-[0.4em] text-emerald-600 dark:text-emerald-500 italic">Competitive Edge</div>
-            <h2 className="text-4xl md:text-6xl font-black text-slate-900 dark:text-white italic tracking-tighter">Why Settle for Average?</h2>
-            <p className="text-slate-500 dark:text-slate-400 font-medium max-w-xl mx-auto">Deploy the most advanced market acquisition tools in the industry.</p>
-          </div>
- 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-            {[
-              {
-                icon: <TrendingUp size={40} />,
-                title: "Capital Capture Engine",
-                description: "Our neural algorithms identified ₹2,340Cr in high-conviction market opportunities last fiscal quarter alone.",
-                color: "emerald"
-              },
-              {
-                icon: <Shield size={40} />,
-                title: "Risk Mitigation Shield",
-                description: "Sovereign performance guarantee. If our tactical insights don't clarify your path, we reset your capital flow.",
-                color: "blue"
-              },
-              {
-                icon: <Users size={40} />,
-                title: "Global Node Network",
-                description: "Distributed neural processing across 50+ regional sub-sectors with real-time institutional synchronization.",
-                color: "purple"
-              }
-            ].map((benefit, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                  className="group p-10 rounded-[2.5rem] bg-slate-900/5 dark:bg-white/[0.02] border border-slate-900/10 dark:border-white/5 hover:bg-slate-900/10 dark:hover:bg-white/[0.04] hover:border-slate-900/20 dark:hover:border-white/10 transition-all duration-500"
-                >
-                  <div className={`mb-8 inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-${benefit.color}-500/10 text-${benefit.color}-600 dark:text-${benefit.color}-400 group-hover:scale-110 group-hover:rotate-6 transition-all`}>
-                    {benefit.icon}
-                  </div>
-                  <h3 className="text-2xl font-black text-slate-900 dark:text-white italic tracking-tighter mb-4">{benefit.title}</h3>
-                  <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed font-medium opacity-90 dark:opacity-80">{benefit.description}</p>
-                </motion.div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Intelligence FAQ - Professional Interaction */}
-      <div className="py-32 relative">
-        <div className="max-w-4xl mx-auto px-6">
-          <div className="text-center mb-24 space-y-4">
-            <div className="text-[10px] font-black uppercase tracking-[0.4em] text-purple-600 dark:text-purple-500 italic">Common Questions</div>
-            <h2 className="text-4xl md:text-5xl font-black text-slate-900 dark:text-white italic tracking-tighter">Clarify Your Path</h2>
-          </div>
- 
-          <div className="space-y-4">
-            {[
-              {
-                question: "Can I change my plan later?",
-                answer: "Yes. You can upgrade, downgrade, or cancel your subscription at any time from your account settings."
-              },
-              {
-                question: "Is there a free plan?",
-                answer: "The Starter plan is completely free forever. It's the perfect way to explore basic features."
-              },
-              {
-                question: "Which institutional payment gateways are active?",
-                answer: "We support Tier-1 sovereign credit networks, encrypted PayPal tunnels, and direct institutional wire transfers for absolute dominance."
-              }
-            ].map((faq, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, x: -20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                className="group bg-slate-900/5 dark:bg-white/[0.01] hover:bg-slate-900/10 dark:hover:bg-white/[0.03] rounded-3xl p-8 border border-slate-900/10 dark:border-white/5 hover:border-slate-900/20 dark:hover:border-white/10 transition-all duration-300"
-              >
-                <h3 className="text-lg font-black text-slate-900 dark:text-white italic tracking-tighter mb-3 group-hover:text-emerald-600 dark:group-hover:text-emerald-500 transition-colors flex items-center justify-between">
-                  {faq.question}
-                  <ArrowRight size={16} className="opacity-0 group-hover:opacity-100 transition-all -translate-x-4 group-hover:translate-x-0" />
-                </h3>
-                <p className="text-slate-500 dark:text-slate-400 text-sm font-medium leading-relaxed opacity-90 dark:opacity-70">{faq.answer}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Final Launch Sequence - Dramatic Engagement */}
-      <div className="relative py-40 border-t border-slate-200 dark:border-white/5 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/5 via-transparent to-purple-500/5" />
-        <div className="absolute -bottom-1/2 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-emerald-500/20 blur-[120px] rounded-full" />
-        
-        <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            className="space-y-12"
-          >
-            <div className="space-y-6">
-              <h2 className="text-5xl md:text-7xl font-black text-slate-900 dark:text-white italic tracking-tighter leading-none">Execute Your <br /> Vision Now.</h2>
-              <p className="text-slate-500 dark:text-slate-400 font-medium max-w-lg mx-auto leading-relaxed">
-                Terminal ready for launch. Join 10k+ founders already dominating their regional sectors.
-              </p>
+        {/* Footer info */}
+        <div className="mt-24 text-center space-y-6">
+          <p className="text-slate-500 text-sm font-bold uppercase tracking-[0.3em]">
+            Need custom solutions? <Link href="/contact" className="text-indigo-400 hover:text-emerald-400 underline decoration-indigo-400/30 underline-offset-8 transition-all">Contact Enterprise Sales</Link>
+          </p>
+          <div className="flex items-center justify-center gap-12 opacity-40 grayscale hover:grayscale-0 transition-all duration-700">
+            {/* Trust symbols */}
+            <div className="flex flex-col items-center gap-1">
+              <Shield size={24} />
+              <span className="text-[8px] font-black uppercase">Secure SSL</span>
             </div>
-
-            <button
-              onClick={() => window.location.href = '/dashboard'}
-              className="group relative inline-flex items-center gap-6 px-12 py-6 bg-slate-900 dark:bg-white text-white dark:text-slate-950 font-black text-xs uppercase tracking-[0.4em] rounded-[2rem] hover:scale-110 active:scale-95 transition-all shadow-[0_20px_60px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_60px_rgba(255,255,255,0.2)]"
-            >
-              <div className="absolute inset-0 rounded-[2rem] bg-gradient-to-r from-emerald-400 to-blue-500 opacity-0 group-hover:opacity-10 transition-opacity" />
-              Start Your Journey
-              <ArrowRight size={20} className="group-hover:translate-x-3 transition-transform" />
-            </button>
-            
-            <div className="pt-8 flex items-center justify-center gap-3 text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-600 italic">
-               <Shield size={12} fill="currentColor" /> Encrypted Deployment Tunnel: Active
+            <div className="flex flex-col items-center gap-1">
+              <Sparkles size={24} />
+              <span className="text-[8px] font-black uppercase">AI Certified</span>
             </div>
-          </motion.div>
+            <div className="flex flex-col items-center gap-1">
+              <Users size={24} />
+              <span className="text-[8px] font-black uppercase">Community Verified</span>
+            </div>
+          </div>
         </div>
       </div>
-      {/* Payment Success Modal */}
-      {paymentDetails && (
-        <PaymentSuccessModal 
-          isOpen={showSuccessModal} 
-          onClose={() => setShowSuccessModal(false)} 
-          paymentData={paymentDetails} 
-        />
-      )}
+
+      <AnimatePresence>
+        {showSuccessModal && (
+          <PaymentSuccessModal 
+            isOpen={showSuccessModal} 
+            onClose={() => setShowSuccessModal(false)} 
+            paymentData={paymentDetails} 
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

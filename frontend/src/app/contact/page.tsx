@@ -23,7 +23,7 @@ export default function ContactPage() {
   };
 
   const contactItems = [
-    { icon: <Mail />, title: t('contact_mail_title'), detail: "ops@trendai.com", subtext: t('contact_mail_sub') },
+    { icon: <Mail />, title: t('contact_mail_title'), detail: "ops@starterscope.ai", subtext: t('contact_mail_sub') },
     { icon: <MapPin />, title: t('contact_loc_title'), detail: "Global Command Center", subtext: t('contact_loc_sub') },
     { icon: <Headset />, title: t('contact_support_title'), detail: "Priority Support", subtext: t('contact_support_sub') }
   ];
@@ -32,7 +32,8 @@ export default function ContactPage() {
     { label: "Global Status", val: "Operational", color: "text-emerald-500" },
     { label: "AI Latency", val: "14ms", color: "text-blue-500" },
     { label: "AI Core Speed", val: "99.8 TFLOPS", color: "text-purple-500" },
-    { label: "Secured Nodes", val: "1,240+", color: "text-amber-500" }
+    { label: "Secured Nodes", val: "1,240+", color: "text-emerald-500" }
+
   ];
 
   return (

@@ -252,10 +252,10 @@ export default function ResourcesPage() {
               Need more resources? Contact our support team for custom templates and guides.
             </p>
             <Link 
-              href="mailto:support@trendai.com"
+              href="mailto:support@starterscope.ai"
               className="text-blue-400 hover:text-blue-300 font-semibold transition-colors responsive-text-sm"
             >
-              support@trendai.com
+              support@starterscope.ai
             </Link>
           </motion.div>
         </div>

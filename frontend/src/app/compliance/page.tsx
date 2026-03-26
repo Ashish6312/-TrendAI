@@ -12,7 +12,8 @@ export default function CompliancePage() {
   const standards = [
     { title: t('comp_section_1'), desc: t('comp_content_1'), icon: <Shield className="text-emerald-500" /> },
     { title: t('comp_section_2'), desc: t('comp_content_2'), icon: <Lock className="text-blue-500" /> },
-    { title: t('comp_section_3'), desc: t('comp_content_3'), icon: <Zap className="text-amber-500" /> },
+    { title: t('comp_section_3'), desc: t('comp_content_3'), icon: <Zap className="text-blue-500" /> },
+
     { title: t('comp_section_4'), desc: t('comp_content_4'), icon: <FileText className="text-purple-500" /> }
   ];
 
@@ -67,7 +68,7 @@ export default function CompliancePage() {
 
           <div className="pt-8 border-t border-slate-200 dark:border-white/5 text-center">
             <p className="text-sm text-slate-500 dark:text-gray-500 font-medium">
-              Need more info? Contact us at <span className="text-emerald-600 dark:text-emerald-400 font-bold">legal@trendai.com</span>
+              Need more info? Contact us at <span className="text-emerald-600 dark:text-emerald-400 font-bold">legal@starterscope.ai</span>
             </p>
           </div>
         </motion.div>

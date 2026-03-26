@@ -42,18 +42,18 @@ export default function PaymentSuccessModal({ isOpen, onClose, paymentData, isPa
     'Market Explorer': 'free',
     'Professional': 'professional',
     'Growth Architect': 'professional',
-    'Growth Accelerator': 'growth',
-    'Business Accelerator': 'growth',
-    'Enterprise': 'enterprise',
-    'Market Dominator': 'enterprise',
-    'Territorial Dominance': 'enterprise',
-    'Enterprise Dominance': 'enterprise',
+    'Growth Accelerator': 'professional',
+    'Business Accelerator': 'professional',
+    'Enterprise': 'professional',
+    'Market Dominator': 'professional',
+    'Territorial Dominance': 'professional',
+    'Enterprise Dominance': 'professional',
     'free': 'free',
     'starter': 'starter',
-    'growth': 'growth',
+    'growth': 'professional',
     'pro': 'professional',
     'professional': 'professional',
-    'enterprise': 'enterprise'
+    'enterprise': 'professional'
   };
   
   const currentPlan = planMapping[planParam] || 'free';
@@ -110,8 +110,10 @@ export default function PaymentSuccessModal({ isOpen, onClose, paymentData, isPa
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
         const payload = {
           user_email: session?.user?.email || "",
-          razorpay_payment_id: payment_id,
-          razorpay_order_id: order_id,
+          payment_id: payment_id,
+          dodo_payment_id: payment_id.startsWith('p_') ? payment_id : null,
+          razorpay_payment_id: !payment_id.startsWith('p_') ? payment_id : null,
+          order_id: order_id,
           amount: parseFloat(amount),
           plan_name: planParam,
           billing_cycle: billingCycle
@@ -199,7 +201,8 @@ export default function PaymentSuccessModal({ isOpen, onClose, paymentData, isPa
                   delay: Math.random() * 2,
                 }}
               >
-                {i % 3 === 0 ? <Star size={12} className="text-yellow-400" /> : 
+                {i % 3 === 0 ? <Star size={12} className="text-emerald-400" /> : 
+
                  i % 3 === 1 ? <Zap size={10} className="text-blue-400" /> : 
                  <div className="w-2 h-2 rounded-full" style={{ background: theme.primary }} />}
               </motion.div>
@@ -217,7 +220,7 @@ export default function PaymentSuccessModal({ isOpen, onClose, paymentData, isPa
         {/* Background Accents */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-1/2 bg-gradient-to-b from-blue-500/10 dark:from-emerald-500/10 to-transparent blur-3xl opacity-50 dark:opacity-100" />
-          <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03] dark:opacity-10 mix-blend-overlay" />
+          <div className="absolute inset-0 bg-noise opacity-[0.03] dark:opacity-10" />
         </div>
 
         {!isPage && (
@@ -330,7 +333,7 @@ export default function PaymentSuccessModal({ isOpen, onClose, paymentData, isPa
                <Shield size={12} className="text-emerald-500" />
                <span>Institutional Encryption Active</span>
              </div>
-             <p>Support: support@trendai.com</p>
+             <p>Support: support@starterscope.ai</p>
           </div>
         </div>
       </motion.div>

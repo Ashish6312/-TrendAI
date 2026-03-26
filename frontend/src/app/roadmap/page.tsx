@@ -631,9 +631,10 @@ function RoadmapContent() {
                             className={`flex items-center gap-3 px-5 py-2.5 rounded-xl transition-all cursor-pointer shadow-lg active:scale-95 group/btn ${
                               isProcessingStep === index 
                                 || activeStep > index // Visual feedback for completed
-                                ? 'bg-amber-500/20 border-amber-500/50 scale-105 select-none opacity-50' 
-                                : 'bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 shadow-amber-500/5'
-                            } text-[9px] font-black text-amber-600 dark:text-amber-500 uppercase tracking-widest`}
+                                ? 'bg-indigo-500/20 border-indigo-500/50 scale-105 select-none opacity-50' 
+                                : 'bg-indigo-500/10 border border-indigo-500/30 hover:bg-indigo-500/20 shadow-indigo-500/5'
+                            } text-[9px] font-black text-indigo-600 dark:text-indigo-500 uppercase tracking-widest`}
+
                           >
                              {isProcessingStep === index ? (
                                <>
@@ -693,7 +694,8 @@ function RoadmapContent() {
               initial={{ opacity: 0, scale: 0.95 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
-              className="glass-card p-16 md:p-24 bg-white/80 dark:bg-gradient-to-br dark:from-emerald-600/15 dark:via-transparent dark:to-amber-600/15 border border-slate-200 dark:border-emerald-500/30 flex flex-col items-center text-center relative overflow-hidden shadow-3xl group mb-24"
+              className="glass-card p-16 md:p-24 bg-white/80 dark:bg-gradient-to-br dark:from-emerald-600/15 dark:via-transparent dark:to-indigo-600/15 border border-slate-200 dark:border-emerald-500/30 flex flex-col items-center text-center relative overflow-hidden shadow-3xl group mb-24"
+
             >
               <div className="absolute inset-0 bg-grid-white/[0.01] pointer-events-none" />
               <div className="absolute -top-24 -left-24 w-96 h-96 bg-emerald-600/10 rounded-full blur-[100px] group-hover:opacity-100 transition-opacity" />
@@ -716,7 +718,7 @@ function RoadmapContent() {
                         priority: 'low'
                      });
                      await generateRoadmapPDF(area || "Target Area", title || "Business Venture", steps, {
-                        name: sessionData?.user?.name || 'TrendAI Entrepreneur',
+                        name: sessionData?.user?.name || 'StarterScope Entrepreneur',
                         email: sessionData?.user?.email || ''
                      });
                      addNotification({

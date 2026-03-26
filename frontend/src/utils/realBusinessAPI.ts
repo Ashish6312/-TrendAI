@@ -14,7 +14,12 @@ interface RealBusiness {
   established?: string;
   category?: string;
   coordinates?: { lat: number; lng: number };
+  social_media?: any[];
+  opening_hours?: any[];
+  price_level?: string;
+  source?: string;
 }
+
 
 interface BusinessSearchParams {
   businessType: string;
@@ -24,64 +29,229 @@ interface BusinessSearchParams {
 }
 
 class RealBusinessAPI {
-  // Using Overpass API (OpenStreetMap) for real business data
+  // Overpass mirror servers — race them for fastest response
+  private readonly OVERPASS_MIRRORS = [
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
+    'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+  ];
+
   async searchBusinesses(params: BusinessSearchParams): Promise<RealBusiness[]> {
-    const { businessType, location, coordinates, radius = 5 } = params;
+    // For city-wide results like Bhopal, use a wider radius (15-20km) 
+    // instead of a 3km neighborhood search.
+    const { location, coordinates, radius = 15 } = params;
     
     if (!coordinates) {
       console.warn('No coordinates provided for business search');
       return [];
     }
 
+    console.log(`🌐 Searching broad area (${radius}km) for '${params.businessType}' in ${location}...`);
+    
+    // Extract city name for Nominatim
+    const cityName = location.split(',')[0].trim();
+
     try {
-      // Search for businesses using Overpass API (OpenStreetMap data)
-      const businesses = await this.searchOverpassAPI(coordinates, businessType, radius);
-      
-      // If no results from Overpass, try alternative sources
-      if (businesses.length === 0) {
-        return await this.searchAlternativeSources(params);
+      // Race Overpass (map data) vs Nominatim (search API)
+      const [overpassResult, nominatimResult] = await Promise.allSettled([
+        this.searchOverpassFast(coordinates, params.businessType, radius),
+        this.searchNominatim(cityName, params.businessType, coordinates),
+      ]);
+
+      const overpassData = overpassResult.status === 'fulfilled' ? overpassResult.value : [];
+      const nominatimData = nominatimResult.status === 'fulfilled' ? nominatimResult.value : [];
+
+      // Merge, deduplicate by name, prefer Overpass (richer data)
+      const combined = [...overpassData];
+      for (const n of nominatimData) {
+        if (!combined.some(b => b.name.toLowerCase() === n.name.toLowerCase())) {
+          combined.push(n);
+        }
       }
-      
-      return businesses;
-    } catch (error) {
-      console.error('Error fetching real business data:', error);
-      return await this.searchAlternativeSources(params);
+
+      if (combined.length > 0) {
+        console.log(`✅ Got ${overpassData.length} from Overpass + ${nominatimData.length} from Nominatim = ${combined.length} real businesses`);
+        return combined;
+      }
+    } catch {
+      // Both sources failed — fall through to AI
     }
+
+    console.log(`🤖 Live sources unavailable, generating AI businesses for ${location}...`);
+    return await this.searchAlternativeSources(params);
   }
 
-  private async searchOverpassAPI(
-    coordinates: { lat: number; lng: number }, 
-    businessType: string, 
-    radius: number
-  ): Promise<RealBusiness[]> {
+  /** 🔥 NEW: Deep extract contacts, social profiles and reviews via Apify (PRO feature) */
+  async deepScrapeBusinesses(query: string, location: string, email?: string): Promise<RealBusiness[]> {
+    console.log(`🚀 Deep scraping for '${query}' in ${location}...`);
     try {
-      // Convert business type to OSM tags
-      const osmTags = this.getOSMTags(businessType);
-      
-      // Build Overpass query
-      const query = this.buildOverpassQuery(coordinates, radius, osmTags);
-      
-      const response = await fetch('https://overpass-api.de/api/interpreter', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const res = await fetch(`${apiUrl}/api/businesses/scrape`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Type': 'application/json',
         },
-        body: `data=${encodeURIComponent(query)}`
+        body: JSON.stringify({
+          query,
+          location,
+          max_results: 50,
+          email
+        }),
       });
 
-      if (!response.ok) {
-        throw new Error(`Overpass API error: ${response.status}`);
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Scraping failed');
       }
 
-      const data = await response.json();
-      return this.parseOverpassResults(data, coordinates);
+      const responseData = await res.json();
+      if (responseData.success) {
+        console.log(`✅ Deep scrape successful! Got ${responseData.data.length} enriched results.`);
+        return responseData.data.map((b: any) => ({
+          ...b,
+          // Add distance calculation if we have center coordinates later, or just return as is
+        }));
+      }
+      return [];
     } catch (error) {
-      console.error('Overpass API error:', error);
+      console.error('Deep scrape failed:', error);
       return [];
     }
   }
+
+
+  /** Nominatim free-text search — returns real OSM POIs by business type + city */
+  private async searchNominatim(
+    city: string,
+    businessType: string,
+    centerCoords: { lat: number; lng: number }
+  ): Promise<RealBusiness[]> {
+    // Simplify business type to a short, highly-searchable OSM keyword
+    let cleanType = businessType.toLowerCase()
+      .replace(/\s+for\s+.+/gi, '') // Remove everything after "for"
+      .replace(/\s+in\s+.+/gi, '')  // Remove everything after "in"
+      .replace(/business/gi, '')
+      .replace(/agency/gi, '')
+      .replace(/company/gi, '')
+      .replace(/services/gi, '')
+      .trim();
+      
+    // Nominatim works best with single strong keywords
+    const typeWords = cleanType.split(' ').filter(Boolean);
+    if (typeWords.length > 0) {
+      if (cleanType.includes('renewable') || cleanType.includes('energy') || cleanType.includes('solar')) cleanType = 'solar';
+      else if (cleanType.includes('tech') || cleanType.includes('software')) cleanType = 'software';
+      else if (cleanType.includes('food') || cleanType.includes('restaurant')) cleanType = 'restaurant';
+      else if (cleanType.includes('health') || cleanType.includes('medical')) cleanType = 'clinic';
+      else cleanType = typeWords[0]; // fallback to first major word
+    }
+
+    const query = encodeURIComponent(`${cleanType} ${city}`);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6000);
+
+    try {
+      // 🚀 Point to our secure backend proxy to bypass browser CORS & rate limits
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const res = await fetch(
+        `${apiUrl}/api/businesses/search?q=${query}`,
+        { signal: controller.signal }
+      );
+      
+      clearTimeout(timeout);
+
+      if (!res.ok) return [];
+      const jsonResponse = await res.json();
+      const data: any[] = jsonResponse.data || [];
+
+      return data
+        .filter(item => item.display_name && item.lat && item.lon)
+        .map(item => {
+          const itemCoords = { lat: parseFloat(item.lat), lng: parseFloat(item.lon) };
+          const addr = item.address || {};
+          const addressParts = [
+            addr.house_number,
+            addr.road,
+            addr.suburb,
+            addr.city || addr.town || addr.village || city,
+          ].filter(Boolean).join(', ');
+
+          return {
+            name: item.display_name.split(',')[0] || item.display_name,
+            address: addressParts || item.display_name.split(',').slice(0, 3).join(',').trim(),
+            status: 'active' as const,
+            distance: this.calculateDistance(centerCoords, itemCoords),
+            category: item.type || cleanType,
+            coordinates: itemCoords,
+          } as RealBusiness;
+        });
+    } catch {
+      clearTimeout(timeout);
+      return [];
+    }
+  }
+
+  /** Fetch Overpass API via the secure Backend Proxy to bypass browser 403s & rate limits */
+  private async searchOverpassFast(
+    coordinates: { lat: number; lng: number },
+    businessType: string,
+    radius: number
+  ): Promise<RealBusiness[]> {
+    const osmTags = this.getOSMTags(businessType);
+    // Lighter query: max 8 seconds, limit 25
+    const query = this.buildLightOverpassQuery(coordinates, radius, osmTags);
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000); // 8 s hard cap
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const res = await fetch(`${apiUrl}/api/businesses/overpass`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query }),
+        signal: controller.signal,
+      });
+
+      const data = await res.json();
+      clearTimeout(timeout);
+
+      if (!res.ok || data.elements?.length === 0) {
+        return [];
+      }
+
+      return this.parseOverpassResults(data, coordinates);
+    } catch (error: any) {
+      clearTimeout(timeout);
+      return [];
+    }
+  }
+
+  /** Lightweight Overpass query: short server timeout, named nodes only */
+  private buildLightOverpassQuery(
+    coordinates: { lat: number; lng: number },
+    radius: number,
+    tags: string[]
+  ): string {
+    const { lat, lng } = coordinates;
+    const radiusMeters = radius * 1000;
+    // Use up to 4 tags for specificity
+    const tagQueries = tags.slice(0, 4)
+      .map(tag => `node["${tag.replace('=', '"="')}"](around:${radiusMeters},${lat},${lng});`)
+      .join('\n  ');
+
+    return `[out:json][timeout:15];(\n  ${tagQueries}\n);out 25;`;
+  }
+
+
   private getOSMTags(businessType: string): string[] {
     const typeMap: Record<string, string[]> = {
+      'renewable': ['office=energy', 'industrial=energy', 'shop=solar', 'power=plant'],
+      'energy': ['office=energy', 'shop=solar', 'amenity=fuel'],
+      'solar': ['shop=solar', 'industrial=energy', 'office=energy'],
+      'wind': ['power=plant', 'industrial=energy'],
       'restaurant': ['amenity=restaurant', 'amenity=fast_food', 'amenity=cafe'],
       'hotel': ['tourism=hotel', 'tourism=motel', 'tourism=guest_house'],
       'shop': ['shop=*', 'amenity=marketplace'],
@@ -112,24 +282,7 @@ class RealBusinessAPI {
     return ['office=*', 'shop=*', 'amenity=*'];
   }
 
-  private buildOverpassQuery(
-    coordinates: { lat: number; lng: number }, 
-    radius: number, 
-    tags: string[]
-  ): string {
-    const { lat, lng } = coordinates;
-    const radiusMeters = radius * 1000;
 
-    const tagQueries = tags.map(tag => `node["${tag.replace('=', '"="')}"](around:${radiusMeters},${lat},${lng});`).join('\n  ');
-
-    return `
-      [out:json][timeout:25];
-      (
-        ${tagQueries}
-      );
-      out center meta;
-    `;
-  }
 
   private parseOverpassResults(data: any, centerCoords: { lat: number; lng: number }): RealBusiness[] {
     if (!data.elements || !Array.isArray(data.elements)) {
@@ -253,25 +406,32 @@ class RealBusinessAPI {
     const country = locationDetails?.address?.country || 'Unknown';
     const state = locationDetails?.address?.state || locationDetails?.address?.region || '';
 
+    // Clean the business type string - strip any embedded "for X in Y" location suffix
+    const cleanedBusinessType = businessType
+      .replace(/\s+for\s+\S+(\s+in\s+\S+)*/gi, '') // remove "for Bhopal in Bhopal" etc.
+      .replace(/\s+in\s+\S+/gi, '')                  // remove remaining "in City" parts
+      .trim() || businessType;
+
     // 🔥 NEW: Use AI to generate hyper-realistic mock data if API fails
     try {
       console.log(`🤖 Generating AI-powered realistic businesses for ${city}, ${country}...`);
-      const prompt = `Generate 8 realistic, distinct business listings for '${businessType}' in '${city}, ${state}, ${country}'. 
+      const prompt = `Generate 8 realistic, distinct business listings for '${cleanedBusinessType}' in '${city}, ${state}, ${country}'. 
       Return as a JSON array of objects: 
       [{"name": "...", "address": "...", "phone": "...", "rating": 4.5, "reviews": 120, "established": "2018", "status": "active"}]. 
       Ensure addresses follow ${country} standards. Phone numbers must use ${country} international code.`;
       
-      const response = await fetch("https://text.pollinations.ai/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: [{ role: "user", content: prompt }] })
-      });
+      const response = await fetch(`https://text.pollinations.ai/${encodeURIComponent(prompt)}?json=true`);
       
       const content = await response.text();
       let businessesJson = [];
-      if (content.includes("[") && content.includes("]")) {
-        const jsonStr = content.substring(content.indexOf("["), content.lastIndexOf("]") + 1);
-        businessesJson = JSON.parse(jsonStr);
+      try {
+        // Try to find JSON in the plain text response using compatible regex
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          businessesJson = JSON.parse(jsonMatch[0]);
+        }
+      } catch (e) {
+        console.warn("JSON parse error for AI businesses:", e);
       }
 
       if (businessesJson.length > 0) {

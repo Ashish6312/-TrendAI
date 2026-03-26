@@ -47,17 +47,18 @@ export default function Error({
         {/* Error Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 mb-10 relative z-10">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-500 text-[10px] font-black uppercase tracking-widest italic">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-500 text-[10px] font-black uppercase tracking-widest italic">
               Runtime Exception
             </div>
             <h1 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tighter italic">
-              Segment <span className="text-amber-500">Fault</span>
+              Segment <span className="text-indigo-500">Fault</span>
             </h1>
           </div>
-          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shadow-xl shadow-amber-500/10">
-            <AlertTriangle size={32} className="text-amber-500" />
+          <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shadow-xl shadow-indigo-500/10">
+            <AlertTriangle size={32} className="text-indigo-500" />
           </div>
         </div>
+
 
         <p className="text-slate-600 dark:text-slate-400 text-lg font-medium leading-relaxed mb-10 relative z-10">
           We encountered a synchronization error while processing the neural data for this section. The system remains stable, but a manual re-initialization is required.

@@ -1,4 +1,4 @@
-// Basic service worker for TrendAI
+// Basic service worker for StarterScope
 self.addEventListener('install', (event) => {
   self.skipWaiting();
 });

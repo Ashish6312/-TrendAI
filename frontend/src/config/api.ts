@@ -2,19 +2,30 @@
 // Version: 1.1 - Fixed subscription theme errors
 export const API_CONFIG = {
   // Always use Render backend in production
-  baseURL: 'https://trendai-api.onrender.com',
+  baseURL: 'https://starterscope-api.onrender.com',
   timeout: 30000,
 };
 
 export const getApiUrl = () => {
-  // For development, check if we're on localhost
-  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  const isLocalhost = typeof window !== 'undefined' && 
+    (window.location.hostname === 'localhost' || 
+     window.location.hostname === '127.0.0.1' || 
+     window.location.hostname.startsWith('192.168.'));
+
+  if (isLocalhost) {
+    // If specifically set to something local in env, use it. 
+    // Otherwise default to local backend port 8000.
+    const envUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (envUrl && (envUrl.includes('localhost') || envUrl.includes('127.0.0.1'))) {
+      return envUrl;
+    }
+    return 'http://localhost:8000';
   }
   
-  // For production, always use Render backend
-  return 'https://trendai-api.onrender.com';
+  // For production, use the environment variable or fallback to Render
+  return process.env.NEXT_PUBLIC_API_URL || 'https://starterscope-api.onrender.com';
 };
+
 
 // Helper function for making API calls
 export const apiCall = async (endpoint: string, options: RequestInit = {}) => {

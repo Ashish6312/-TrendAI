@@ -207,6 +207,31 @@ class LocationAPI {
     try {
       console.log('🔍 Parsing location string:', locationString);
       
+      // 1. TRY BACKEND AI RESOLVER FIRST (Source Research + Gemini)
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        const response = await fetch(`${apiUrl}/api/system/resolve-location?q=${encodeURIComponent(locationString)}`);
+        
+        if (response.ok) {
+          const res = await response.json();
+          if (res.success && res.data) {
+            console.log('✅ Resolved via Backend AI:', res.data);
+            const data = res.data;
+            
+            // Map the flat backend structure to the expected frontend structure
+            return {
+              country: { name: data.country, iso2: data.country_code, emoji: data.country_code === 'IN' ? '🇮🇳' : '' } as any,
+              state: { name: data.state } as any,
+              city: { name: data.city } as any,
+              coordinates: data.coordinates
+            };
+          }
+        }
+      } catch (backendError) {
+        console.warn('⚠️ Backend location resolution failed, trying local logic...', backendError);
+      }
+
+      // 2. DEFAULT LOCAL LOGIC
       // Clean and split the location string
       const parts = locationString.split(',').map(part => part.trim().toLowerCase());
       console.log('📍 Location parts:', parts);
@@ -215,21 +240,23 @@ class LocationAPI {
       const countries = await this.getAllCountries();
       let matchedCountry: Country | undefined;
       
-      // First, try to find explicit country mentions
+      // First, try to find explicit country mentions with higher precision
       for (const country of countries) {
         const countryName = country.name.toLowerCase();
         const iso2 = country.iso2.toLowerCase();
         const iso3 = country.iso3.toLowerCase();
-        const native = country.native?.toLowerCase() || '';
         
-        // Exact matches for ISO codes, includes/match for full names
-        if (parts.some(part => 
-          part === iso2 || 
-          part === iso3 || 
-          part === countryName ||
-          (part.length > 3 && (countryName.includes(part) || part.includes(countryName))) ||
-          (native && (part === native || (part.length > 3 && native.includes(part))))
-        )) {
+        // Use regex for word boundaries to avoid 'India' matching 'British Indian Ocean Territory'
+        const isMatch = parts.some(part => {
+          if (part === iso2 || part === iso3 || part === countryName) return true;
+          if (part.length < 4) return false;
+          
+          // Word boundary check for full country names
+          const regex = new RegExp(`\\b${part}\\b`, 'i');
+          return regex.test(countryName);
+        });
+
+        if (isMatch) {
           matchedCountry = country;
           console.log('🌍 Found country match:', country.name);
           break;
@@ -279,15 +306,10 @@ class LocationAPI {
         const states = await this.getStatesByCountry(matchedCountry.iso2);
         console.log('📍 Found states:', states.length);
         
-        // Look for state match with fuzzy matching
-        matchedState = states.find(state => {
-          const stateName = state.name.toLowerCase();
-          return parts.some(part => 
-            stateName.includes(part) || 
-            part.includes(stateName) ||
-            this.fuzzyMatch(part, stateName)
-          );
-        });
+        // Look for state match with prioritization (Exact > Substring > Fuzzy)
+        matchedState = states.find(s => parts.some(p => s.name.toLowerCase() === p)) || 
+                       states.find(s => parts.some(p => s.name.toLowerCase().includes(p) || p.includes(s.name.toLowerCase()))) ||
+                       states.find(s => parts.some(p => this.fuzzyMatch(p, s.name.toLowerCase(), 0.85)));
         
         if (matchedState) {
           console.log('🏛️ Found state match:', matchedState.name);
@@ -304,49 +326,64 @@ class LocationAPI {
         
         console.log('🏙️ Found cities:', cities.length);
         
-        // Look for city match with fuzzy matching
-        matchedCity = cities.find(city => {
-          const cityName = city.name.toLowerCase();
-          return parts.some(part => 
-            cityName.includes(part) || 
-            part.includes(cityName) ||
-            this.fuzzyMatch(part, cityName)
-          );
-        });
+        // Look for city match with prioritization (Exact > Substring > Fuzzy)
+        matchedCity = cities.find(c => parts.some(p => c.name.toLowerCase() === p)) ||
+                      cities.find(c => parts.some(p => c.name.toLowerCase().includes(p) || p.includes(c.name.toLowerCase()))) ||
+                      cities.find(c => parts.some(p => this.fuzzyMatch(p, c.name.toLowerCase(), 0.85)));
         
+        // ─── OFFLINE CITY FALLBACK ─────────────────────────────────────────
+        // The countrystatecity.in API returns 0 cities for many Indian states.
+        // Use a curated local table so the UI always shows the correct city.
+        if (!matchedCity) {
+          matchedCity = this.getCityFromOfflineTable(parts, matchedCountry.iso2, matchedState?.state_code);
+          if (matchedCity) console.log('🏙️ City resolved from offline table:', matchedCity.name);
+        }
+        // ──────────────────────────────────────────────────────────────────
+
         if (matchedCity) {
           console.log('🏙️ Found city match:', matchedCity.name);
         }
       }
+
       
       // Get coordinates from the most specific location available
       let coordinates: { lat: number; lng: number } | undefined;
-      if (matchedCity && matchedCity.latitude && matchedCity.longitude) {
+      // COORDINATE CASCADE: Known Location > City > State > Country
+      if (locationString) {
+        const knownCoords = this.getKnownLocationCoordinates(locationString);
+        if (knownCoords) {
+          coordinates = knownCoords;
+          console.log('📍 Using premium known location coordinates:', coordinates);
+        }
+      }
+
+      if (!coordinates && matchedCity && matchedCity.latitude && matchedCity.longitude) {
         coordinates = {
           lat: parseFloat(matchedCity.latitude),
           lng: parseFloat(matchedCity.longitude)
         };
-        console.log('📍 Using city coordinates:', coordinates);
-      } else if (matchedState && matchedState.latitude && matchedState.longitude) {
+        console.log('📍 Using city-level coordinates:', coordinates);
+      }
+
+      if (!coordinates && matchedState && matchedState.latitude && matchedState.longitude) {
         coordinates = {
           lat: parseFloat(matchedState.latitude),
           lng: parseFloat(matchedState.longitude)
         };
-        console.log('📍 Using state coordinates:', coordinates);
-      } else if (matchedCountry && matchedCountry.latitude && matchedCountry.longitude) {
+        console.log('📍 Using state-level coordinates:', coordinates);
+      }
+
+      if (!coordinates && matchedCountry && matchedCountry.latitude && matchedCountry.longitude) {
         coordinates = {
           lat: parseFloat(matchedCountry.latitude),
           lng: parseFloat(matchedCountry.longitude)
         };
-        console.log('📍 Using country coordinates:', coordinates);
+        console.log('📍 Using country-level coordinates:', coordinates);
       }
       
-      // If we still don't have coordinates, prioritize provided ones, then known ones
-      if (!coordinates) {
-        coordinates = providedCoordinates || this.getKnownLocationCoordinates(locationString);
-        if (coordinates) {
-          console.log('📍 Using fallback/provided coordinates:', coordinates);
-        }
+      if (!coordinates && providedCoordinates) {
+        coordinates = providedCoordinates;
+        console.log('📍 Using provided coordinates:', coordinates);
       }
       
       const result = {
@@ -410,6 +447,79 @@ class LocationAPI {
     }
     
     return matrix[str2.length][str1.length];
+  }
+
+  /** Offline city table — fallback when countrystatecity.in returns 0 cities */
+  private getCityFromOfflineTable(parts: string[], countryIso2: string, stateCode?: string): City | undefined {
+    type OfflineCity = { name: string; state_code: string; country_code: string; lat: string; lng: string };
+    const CITIES: OfflineCity[] = [
+      // ── Madhya Pradesh, India ──
+      { name: 'Bhopal',       state_code: 'MP', country_code: 'IN', lat: '23.2599', lng: '77.4126' },
+      { name: 'Indore',       state_code: 'MP', country_code: 'IN', lat: '22.7196', lng: '75.8577' },
+      { name: 'Gwalior',      state_code: 'MP', country_code: 'IN', lat: '26.2183', lng: '78.1828' },
+      { name: 'Jabalpur',     state_code: 'MP', country_code: 'IN', lat: '23.1815', lng: '79.9864' },
+      { name: 'Ujjain',       state_code: 'MP', country_code: 'IN', lat: '23.1793', lng: '75.7849' },
+      // ── Rajasthan ──
+      { name: 'Jaipur',       state_code: 'RJ', country_code: 'IN', lat: '26.9124', lng: '75.7873' },
+      { name: 'Jodhpur',      state_code: 'RJ', country_code: 'IN', lat: '26.2389', lng: '73.0243' },
+      { name: 'Udaipur',      state_code: 'RJ', country_code: 'IN', lat: '24.5854', lng: '73.7125' },
+      // ── Maharashtra ──
+      { name: 'Mumbai',       state_code: 'MH', country_code: 'IN', lat: '19.0760', lng: '72.8777' },
+      { name: 'Pune',         state_code: 'MH', country_code: 'IN', lat: '18.5204', lng: '73.8567' },
+      { name: 'Nagpur',       state_code: 'MH', country_code: 'IN', lat: '21.1458', lng: '79.0882' },
+      { name: 'Aurangabad',   state_code: 'MH', country_code: 'IN', lat: '19.8762', lng: '75.3433' },
+      // ── Uttar Pradesh ──
+      { name: 'Lucknow',      state_code: 'UP', country_code: 'IN', lat: '26.8467', lng: '80.9462' },
+      { name: 'Kanpur',       state_code: 'UP', country_code: 'IN', lat: '26.4499', lng: '80.3319' },
+      { name: 'Agra',         state_code: 'UP', country_code: 'IN', lat: '27.1767', lng: '78.0081' },
+      { name: 'Varanasi',     state_code: 'UP', country_code: 'IN', lat: '25.3176', lng: '82.9739' },
+      // ── Karnataka ──
+      { name: 'Bangalore',    state_code: 'KA', country_code: 'IN', lat: '12.9716', lng: '77.5946' },
+      { name: 'Mysore',       state_code: 'KA', country_code: 'IN', lat: '12.2958', lng: '76.6394' },
+      // ── Tamil Nadu ──
+      { name: 'Chennai',      state_code: 'TN', country_code: 'IN', lat: '13.0827', lng: '80.2707' },
+      { name: 'Coimbatore',   state_code: 'TN', country_code: 'IN', lat: '11.0168', lng: '76.9558' },
+      // ── West Bengal ──
+      { name: 'Kolkata',      state_code: 'WB', country_code: 'IN', lat: '22.5726', lng: '88.3639' },
+      // ── Delhi ──
+      { name: 'New Delhi',    state_code: 'DL', country_code: 'IN', lat: '28.6139', lng: '77.2090' },
+      { name: 'Delhi',        state_code: 'DL', country_code: 'IN', lat: '28.7041', lng: '77.1025' },
+      // ── Gujarat ──
+      { name: 'Ahmedabad',    state_code: 'GJ', country_code: 'IN', lat: '23.0225', lng: '72.5714' },
+      { name: 'Surat',        state_code: 'GJ', country_code: 'IN', lat: '21.1702', lng: '72.8311' },
+      // ── Telangana ──
+      { name: 'Hyderabad',    state_code: 'TS', country_code: 'IN', lat: '17.3850', lng: '78.4867' },
+      // ── International ──
+      { name: 'New York',     state_code: 'NY', country_code: 'US', lat: '40.7128', lng: '-74.0060' },
+      { name: 'Los Angeles',  state_code: 'CA', country_code: 'US', lat: '34.0522', lng: '-118.2437' },
+      { name: 'Chicago',      state_code: 'IL', country_code: 'US', lat: '41.8781', lng: '-87.6298' },
+      { name: 'London',       state_code: 'ENG', country_code: 'GB', lat: '51.5074', lng: '-0.1278' },
+      { name: 'Tokyo',        state_code: '13', country_code: 'JP', lat: '35.6762', lng: '139.6503' },
+      { name: 'Sydney',       state_code: 'NSW', country_code: 'AU', lat: '-33.8688', lng: '151.2093' },
+      { name: 'Dubai',        state_code: 'DU', country_code: 'AE', lat: '25.2048', lng: '55.2708' },
+      { name: 'Singapore',    state_code: 'SG', country_code: 'SG', lat: '1.3521', lng: '103.8198' },
+    ];
+
+    const filtered = CITIES.filter(c =>
+      c.country_code === countryIso2 &&
+      (!stateCode || c.state_code === stateCode) &&
+      parts.some(p => c.name.toLowerCase() === p || c.name.toLowerCase().includes(p) || p.includes(c.name.toLowerCase()))
+    );
+
+    if (!filtered.length) return undefined;
+
+    const match = filtered[0];
+    return {
+      id: 0,
+      name: match.name,
+      state_code: match.state_code,
+      state_name: '',
+      country_code: match.country_code,
+      country_name: '',
+      latitude: match.lat,
+      longitude: match.lng,
+      wikiDataId: ''
+    };
   }
 
   // Known location coordinates for manual lookup

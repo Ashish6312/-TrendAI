@@ -251,9 +251,10 @@ export default function BusinessPlanPage() {
       tabs={tabs}
       actions={
         <div className="flex items-center space-x-3">
-          <div className="hidden sm:flex items-center px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-full">
-            <Shield className="w-3 h-3 text-amber-500 mr-2" />
-            <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-tighter">Confidential Report</span>
+          <div className="hidden sm:flex items-center px-3 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-full">
+            <Shield className="w-3 h-3 text-indigo-500 mr-2" />
+            <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-tighter">Confidential Report</span>
+
           </div>
           <button
             onClick={async () => {
@@ -266,7 +267,7 @@ export default function BusinessPlanPage() {
                   priority: 'low'
                 });
                 await generateBusinessPlanPDF(planData, {
-                  name: session?.user?.name || 'TrendAI Entrepreneur',
+                  name: session?.user?.name || 'StarterScope Entrepreneur',
                   email: session?.user?.email || ''
                 });
               } catch (error) {
@@ -381,7 +382,8 @@ export default function BusinessPlanPage() {
                           <div className="text-xs font-black text-white">HIGH</div>
                        </div>
                        <div className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-red-500/30 transition-all">
-                          <AlertTriangle className="w-4 h-4 text-amber-400 mb-2" />
+                          <AlertTriangle className="w-4 h-4 text-indigo-400 mb-2" />
+
                           <div className="text-[8px] font-black text-slate-500 uppercase tracking-tighter mb-1">Risk Factor</div>
                           <div className="text-xs font-black text-white">LOW</div>
                        </div>
@@ -533,7 +535,8 @@ export default function BusinessPlanPage() {
             >
               <div className="bg-slate-900/5 dark:bg-white/5 p-8 rounded-2xl border border-slate-200 dark:border-white/10">
                 <div className="flex items-center gap-3 mb-6">
-                  <Zap className="w-5 h-5 text-amber-500" />
+                  <Zap className="w-5 h-5 text-indigo-500" />
+
                   <h4 className="font-black text-slate-900 dark:text-white uppercase tracking-widest text-sm">Growth Engine Analysis</h4>
                 </div>
                 <div className="prose dark:prose-invert max-w-none">

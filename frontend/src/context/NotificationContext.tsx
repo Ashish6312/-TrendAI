@@ -85,17 +85,53 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   const getUserLocation = async () => {
     try {
+      // 1. PRIORITY 1: User Profile Location (if authenticated)
+      if (session?.user?.email) {
+        try {
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+          const profileRes = await fetch(`${apiUrl}/api/users/${encodeURIComponent(session.user.email)}/location`);
+          if (profileRes.ok) {
+            const profileData = await profileRes.json();
+            if (profileData.location && profileData.location !== 'Unknown') {
+               console.log('👤 Using Profile-Saved Location:', profileData.location);
+               
+               // Resolve the full details for the saved string
+               const { locationAPI } = await import('../utils/locationAPI');
+               const resolved = await locationAPI.parseLocationString(profileData.location);
+               
+               if (resolved.country) {
+                 const loc = {
+                   country: resolved.country.name,
+                   city: resolved.city?.name || 'Unknown',
+                   currency: resolved.country.currency_symbol || 'USD',
+                   coordinates: resolved.coordinates
+                 };
+                 setUserLocation(loc);
+                 localStorage.setItem('user_location_data', JSON.stringify(loc));
+                 localStorage.setItem('user_location_timestamp', Date.now().toString());
+                 return; // Successful resolution from profile
+               }
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to fetch profile location, falling back to cache/GPS');
+        }
+      }
+
+      // 2. PRIORITY 2: Local Cache (Valid for 15 mins)
       const cached = localStorage.getItem('user_location_data');
       const timestamp = localStorage.getItem('user_location_timestamp');
       
       if (cached && timestamp && (Date.now() - parseInt(timestamp) < 15 * 60 * 1000)) {
         const parsed = JSON.parse(cached);
         if (parsed.country && parsed.country !== 'Unknown') {
+          console.log('💾 Using Cached Location:', parsed.city);
           setUserLocation(parsed);
           return;
         }
       }
 
+      // 3. PRIORITY 3: GPS (High Accuracy fallback)
       if (typeof window !== 'undefined' && navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(async (position) => {
           const { latitude, longitude } = position.coords;
@@ -109,35 +145,46 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                 currency: getCurrencyByCountry(data.countryName || 'Unknown'),
                 coordinates: { lat: latitude, lng: longitude }
               };
+              console.log('📡 Using GPS-Detected Location:', loc.city);
               setUserLocation(loc);
               localStorage.setItem('user_location_data', JSON.stringify(loc));
               localStorage.setItem('user_location_timestamp', Date.now().toString());
             }
           } catch (e) { /* Silent */ }
-        }, () => { /* GPS Error fallback to IP */ }, { timeout: 10000 });
-      }
-
-      // IP fallback
-      const services = [
-        { url: 'https://ipapi.co/json/', parser: (d: any) => ({ country: d.country_name, city: d.city, currency: d.currency }) },
-        { url: 'https://ipwho.is/', parser: (d: any) => ({ country: d.country, city: d.city, currency: d.currency?.code }) }
-      ];
-
-      for (const s of services) {
-        try {
-          const res = await fetch(s.url);
-          if (res.ok) {
-            const d = await res.json();
-            const loc = { ...s.parser(d), currency: s.parser(d).currency || getCurrencyByCountry(s.parser(d).country) };
-            if (loc.country && loc.country !== 'Unknown') {
-              setUserLocation(loc);
-              return;
-            }
-          }
-        } catch (e) { continue; }
+        }, () => { 
+           console.log('⚠️ GPS access denied, trying IP fallback...');
+           performIpFallback();
+        }, { timeout: 10000 });
+      } else {
+        performIpFallback();
       }
     } catch (e) {
       setUserLocation({ country: 'Global', city: 'Unknown', currency: 'USD' });
+    }
+  };
+
+  const performIpFallback = async () => {
+    // IP fallback
+    const services = [
+      { url: 'https://ipapi.co/json/', parser: (d: any) => ({ country: d.country_name, city: d.city, currency: d.currency }) },
+      { url: 'https://ipwho.is/', parser: (d: any) => ({ country: d.country, city: d.city, currency: d.currency?.code }) }
+    ];
+
+    for (const s of services) {
+      try {
+        const res = await fetch(s.url);
+        if (res.ok) {
+          const d = await res.json();
+          const loc = { ...s.parser(d), currency: s.parser(d).currency || getCurrencyByCountry(s.parser(d).country) };
+          if (loc.country && loc.country !== 'Unknown') {
+            console.log('🌐 Using IP-Based Location:', loc.city);
+            setUserLocation(loc);
+            localStorage.setItem('user_location_data', JSON.stringify(loc));
+            localStorage.setItem('user_location_timestamp', Date.now().toString());
+            return;
+          }
+        }
+      } catch (e) { continue; }
     }
   };
 

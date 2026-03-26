@@ -223,9 +223,10 @@ export function SystemStatusPulse() {
   return (
     <div className="flex items-center gap-3 px-3 py-1.5 rounded-xl border border-white/5 bg-white/[0.02] transition-all hover:bg-white/5 group">
        <div className="relative flex h-2 w-2">
-          <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${status === 'optimal' ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
-          <span className={`relative inline-flex rounded-full h-2 w-2 ${status === 'optimal' ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
+          <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${status === 'optimal' ? 'bg-emerald-400' : 'bg-indigo-400'}`}></span>
+          <span className={`relative inline-flex rounded-full h-2 w-2 ${status === 'optimal' ? 'bg-emerald-500' : 'bg-indigo-500'}`}></span>
        </div>
+
        <div className="flex flex-col">
           <span className="text-[8px] font-black text-slate-500 group-hover:text-slate-400 transition-colors uppercase tracking-[0.2em] leading-none mb-0.5">Quantum Link</span>
           <span className="text-[10px] font-mono text-slate-400 group-hover:text-white transition-colors leading-none">{latency}ms</span>

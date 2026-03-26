@@ -8,7 +8,8 @@ import {
   Loader2, TrendingUp, MapPin, 
   Target, BarChart3, Globe2, Lightbulb, 
   ArrowRight, FileText, Clock, ChevronRight,
-  Cpu, Download, Share2, Play, CheckCircle2, AlertCircle, Sparkle
+  Cpu, Download, Share2, Play, CheckCircle2, AlertCircle, Sparkle, Bookmark,
+  ShieldCheck, Activity
 } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -22,6 +23,8 @@ import UniformCard from "@/components/UniformCard";
 import AIAnalysisCanvas from "@/components/AIAnalysisCanvas";
 import AIAnalysisWidget from "@/components/AIAnalysisWidget";
 import { useTheme } from "next-themes";
+import { getApiUrl } from "@/config/api";
+
 
 const renderFormattedText = (text: string) => {
   if (!text) return null;
@@ -84,7 +87,7 @@ function Dashboard() {
   const router = useRouter();
   const { language, t } = useLanguage();
   const { addNotification } = useNotifications();
-  const { theme, planFeatures, hasReachedAnalysisLimit } = useSubscription();
+  const { theme, planFeatures, hasReachedAnalysisLimit, actualPlanName, plan } = useSubscription();
   const { resolvedTheme } = useTheme();
   const searchParams = useSearchParams();
   
@@ -97,6 +100,102 @@ function Dashboard() {
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  const [savingBusiness, setSavingBusiness] = useState<string | null>(null);
+  const [vaultCount, setVaultCount] = useState(0);
+
+  const fetchVaultCount = async () => {
+    if (!session?.user?.email) return;
+    try {
+      const response = await fetch(`${apiUrl}/api/saved-businesses?email=${encodeURIComponent(session.user.email)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setVaultCount(data.length);
+      }
+    } catch (e) {
+      console.error("Failed to fetch vault count", e);
+    }
+  };
+
+  useEffect(() => {
+    if (status === 'authenticated') {
+      fetchVaultCount();
+    }
+  }, [status, session?.user?.email]);
+
+  const handleSaveBusiness = async (rec: any) => {
+    if (!session?.user?.email) {
+      addNotification({
+        type: 'alert',
+        title: 'Sign In Required',
+        message: 'Please sign in to save businesses.',
+        priority: 'high'
+      });
+      return;
+    }
+
+    // Check plan from context
+    if (plan === 'free') {
+      addNotification({
+        type: 'alert',
+        title: 'Alpha Vault Restricted',
+        message: 'Business saving is an Alpha Vault feature. Please upgrade to a paid plan to store opportunities.',
+        priority: 'high'
+      });
+      router.push('/acquisition-tiers');
+      return;
+    }
+
+    // Enforce Starter limit (5 saves)
+    if (plan === 'starter' && vaultCount >= 5) {
+      addNotification({
+        type: 'alert',
+        title: 'Vault Capacity Reached',
+        message: 'Starter plan is limited to 5 archived assets. Please upgrade to Professional for unlimited storage.',
+        priority: 'high'
+      });
+      router.push('/acquisition-tiers');
+      return;
+    }
+
+    try {
+      setSavingBusiness(rec.title);
+      const response = await fetch(`${apiUrl}/api/saved-businesses`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_email: session.user.email,
+          business_name: rec.title,
+          category: rec.category || 'General',
+          location: area,
+          details: rec
+        })
+      });
+
+      if (response.ok) {
+        setVaultCount(prev => prev + 1);
+        addNotification({
+          type: 'profile',
+          title: 'Stored in Vault',
+          message: `${rec.title} has been safely archived in your Alpha Vault.`,
+          priority: 'medium'
+        });
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to archive business');
+      }
+    } catch (error: any) {
+      console.error('Archive failed:', error);
+      addNotification({
+        type: 'alert',
+        title: 'Encryption Failed',
+        message: error.message || 'Could not store business in vault.',
+        priority: 'high'
+      });
+    } finally {
+      setSavingBusiness(null);
+    }
+  };
 
   const [area, setArea] = useState("");
   const [profileLocation, setProfileLocation] = useState("");
@@ -150,18 +249,13 @@ function Dashboard() {
     }
   }, [searchParams]);
 
-  // Dynamic API URL based on environment
-  const getApiUrl = () => {
-    // Always use the Render backend URL
-    return 'https://trendai-api.onrender.com';
-  };
-  
   const apiUrl = getApiUrl();
+
   
   // Fetch user's profile location
   useEffect(() => {
     const fetchProfileLocation = async () => {
-      if (session?.user?.email) {
+      if (status === 'authenticated' && session?.user?.email) {
         try {
           const encodedEmail = encodeURIComponent(session.user.email);
           const response = await fetch(`${apiUrl}/api/users/${encodedEmail}/location`);
@@ -183,10 +277,9 @@ function Dashboard() {
       }
     };
 
-    if (session?.user?.email) {
-      fetchProfileLocation();
-    }
-  }, [session, apiUrl]);
+    fetchProfileLocation();
+  }, [status, session?.user?.email, apiUrl]);
+
 
   // Location suggestions
   useEffect(() => {
@@ -215,7 +308,7 @@ function Dashboard() {
   // Sync user with backend when session is available
   useEffect(() => {
     const syncUser = async () => {
-      if (session?.user?.email && session?.user?.name) {
+      if (status === 'authenticated' && session?.user?.email && session?.user?.name) {
         try {
           const response = await fetch(`${apiUrl}/api/users/sync`, {
             method: 'POST',
@@ -229,8 +322,6 @@ function Dashboard() {
           
           if (response.ok) {
             console.log('User synced successfully');
-          } else {
-            console.error('Failed to sync user:', response.status);
           }
         } catch (error) {
           console.error('Error syncing user:', error);
@@ -238,17 +329,17 @@ function Dashboard() {
       }
     };
 
-    if (session?.user?.email) {
-      syncUser();
-    }
-  }, [session]);
+    syncUser();
+  }, [status, session?.user?.email, apiUrl]);
+
   
   // Fetch history function
   useEffect(() => {
-    if (session?.user?.email) {
+    if (status === 'authenticated' && session?.user?.email) {
       fetchHistory();
     }
-  }, [session]);
+  }, [status, session?.user?.email]);
+
 
   const fetchHistory = async () => {
     if (!session?.user?.email) return;
@@ -640,26 +731,41 @@ function Dashboard() {
                     </div>
                   
                   {/* Search Button */}
-                  <button
-                    type="submit"
-                    disabled={loading || (!area && !profileLocation) || hasReachedAnalysisLimit(analysisCount)}
-                    className="w-full h-20 bg-gradient-to-br from-[#8A2BE2] via-[#a855f7] to-[#7c3aed] hover:brightness-110 text-white font-black rounded-3xl flex flex-col items-center justify-center gap-1 transition-all active:scale-[0.98] shadow-[0_20px_60px_-15px_rgba(168,85,247,0.4)] relative overflow-hidden group disabled:opacity-50"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-                    <div className="flex items-center gap-3">
-                      {loading ? (
-                         <Loader2 className="animate-spin" size={24} />
-                      ) : (
-                         <Sparkle size={24} fill="currentColor" className="group-hover:rotate-12 transition-transform" />
-                      )}
-                      <span className="text-xl italic tracking-tighter uppercase">
-                        {loading ? t('dash_analyzing') : hasReachedAnalysisLimit(analysisCount) ? t('dash_limit_reached') : t('dash_analyze_btn')}
-                      </span>
-                    </div>
-                    {area && (
-                      <span className="text-[9px] font-black text-white/60 uppercase tracking-[0.2em]">{area.split(',')[0]} Detected</span>
+                  <div className="space-y-3">
+                    {plan === 'free' && (
+                      <div className="flex items-center justify-between px-2">
+                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-gray-500 italic">User Allocation</span>
+                         <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">{Math.max(0, 1 - analysisCount)} Gifted Analysis Remaining</span>
+                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                         </div>
+                      </div>
                     )}
-                  </button>
+                    
+                    <button
+                      type="submit"
+                      disabled={loading || (!area && !profileLocation) || hasReachedAnalysisLimit(analysisCount)}
+                      className="w-full h-20 bg-gradient-to-br from-[#8A2BE2] via-[#a855f7] to-[#7c3aed] hover:brightness-110 text-white font-black rounded-3xl flex flex-col items-center justify-center gap-1 transition-all active:scale-[0.98] shadow-[0_20px_60px_-15px_rgba(168,85,247,0.4)] relative overflow-hidden group disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                      <div className="flex items-center gap-3">
+                        {loading ? (
+                           <Loader2 className="animate-spin" size={24} />
+                        ) : (
+                           <Sparkle size={24} fill="currentColor" className="group-hover:rotate-12 transition-transform" />
+                        )}
+                        <span className="text-xl italic tracking-tighter uppercase">
+                          {loading ? t('dash_analyzing') : hasReachedAnalysisLimit(analysisCount) ? 'Limit Reached' : t('dash_analyze_btn')}
+                        </span>
+                      </div>
+                      {area && !hasReachedAnalysisLimit(analysisCount) && (
+                        <span className="text-[9px] font-black text-white/60 uppercase tracking-[0.2em]">{area.split(',')[0]} Detected</span>
+                      )}
+                      {hasReachedAnalysisLimit(analysisCount) && (
+                        <span className="text-[9px] font-black text-white/60 uppercase tracking-[0.2em]">Upgrade Required</span>
+                      )}
+                    </button>
+                  </div>
 
                   {/* Upgrade Notice */}
                   {hasReachedAnalysisLimit(analysisCount) && (
@@ -831,6 +937,67 @@ function Dashboard() {
                             {Math.round(loadingProgress)}% Complete
                           </div>
                         </motion.div>
+                      </div>
+                    </UniformCard>
+                  </motion.div>
+                ) : result && result.status === 'service_unavailable' ? (
+                  <motion.div 
+                    key="healing-terminal"
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <UniformCard 
+                      variant="glass" 
+                      size="lg"
+                      className="min-h-[500px] flex flex-col items-center justify-center text-center p-8 sm:p-12 border-2 border-blue-500/20 shadow-[0_0_50px_rgba(59,130,246,0.1)]"
+                    >
+                      <div className="w-24 h-24 mb-10 relative">
+                        <div className="absolute inset-0 bg-blue-500/20 rounded-full animate-ping" />
+                        <div className="absolute inset-2 bg-blue-500/10 rounded-full animate-pulse flex items-center justify-center text-blue-500">
+                          <ShieldCheck size={40} className="animate-pulse" />
+                        </div>
+                      </div>
+                      
+                      <h2 className="text-3xl sm:text-5xl font-black text-slate-800 dark:text-white tracking-tight mb-6">
+                        System Optimization
+                      </h2>
+                      
+                      <div className="max-w-xl mx-auto space-y-6">
+                        <p className="text-lg font-medium text-slate-600 dark:text-gray-400 leading-relaxed">
+                          {result.message || "Our Premium Intelligence Clusters are currently undergoing autonomous optimization to ensure peak fidelity."}
+                        </p>
+                        
+                        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+                          <div className="px-6 py-3 bg-blue-500/10 border border-blue-500/20 rounded-2xl flex items-center gap-3">
+                            <Clock className="text-blue-500" size={18} />
+                            <span className="text-sm font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">
+                              Availability: 30 Minutes
+                            </span>
+                          </div>
+                          <div className="px-6 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center gap-3">
+                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                            <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
+                              Healing Active
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div className="pt-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                          {[
+                            { label: "Restoring Clusters", icon: <Cpu size={14} />, status: "in-progress" },
+                            { label: "Neural Re-syncing", icon: <Activity size={14} />, status: "in-progress" },
+                            { label: "Ground-Truth Link", icon: <Globe2 size={14} />, status: "pending" }
+                          ].map((step, idx) => (
+                            <div key={idx} className="p-4 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 text-center">
+                              <div className="flex justify-center mb-2 text-blue-400">{step.icon}</div>
+                              <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-gray-500">{step.label}</div>
+                            </div>
+                          ))}
+                        </div>
+
+                        <p className="text-xs text-slate-400 dark:text-gray-600 pt-6 italic">
+                          This is a Zero-Fallback system. We prioritize deep factual integrity over immediate generic output.
+                        </p>
                       </div>
                     </UniformCard>
                   </motion.div>
@@ -1041,8 +1208,9 @@ function Dashboard() {
                             {result.analysis.investment_climate && (
                               <>
                                 <div className="space-y-3">
-                                  <div className="p-3 bg-yellow-50 dark:bg-yellow-500/10 rounded-lg border border-yellow-200 dark:border-yellow-500/20">
-                                    <div className="text-xs font-bold text-yellow-700 dark:text-yellow-400 uppercase tracking-wider mb-1">Funding Landscape</div>
+                                  <div className="p-3 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg border border-emerald-200 dark:border-emerald-500/20">
+                                    <div className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mb-1">Funding Landscape</div>
+
                                     <div className="text-sm font-medium text-slate-700 dark:text-gray-300">
                                       {result.analysis.investment_climate.funding_landscape?.angel_investors} • {result.analysis.investment_climate.funding_landscape?.vc_presence} VC Presence
                                     </div>
@@ -1259,7 +1427,8 @@ function Dashboard() {
                                   </div>
                                   <div className="text-center">
                                     <div className="text-xs font-bold text-slate-500 dark:text-gray-500 uppercase tracking-wider mb-1">Profit</div>
-                                    <div className="text-lg font-black text-yellow-600 dark:text-yellow-400">{rec.estimated_profit || '₹15L/year'}</div>
+                                    <div className="text-lg font-black text-emerald-600 dark:text-emerald-400">{rec.estimated_profit || '₹15L/year'}</div>
+
                                   </div>
                                   <div className="text-center">
                                     <div className="text-xs font-bold text-slate-500 dark:text-gray-500 uppercase tracking-wider mb-1">ROI</div>
@@ -1271,6 +1440,16 @@ function Dashboard() {
                                 <div className="flex flex-col sm:flex-row gap-3">
                                   <button
                                     onClick={async () => {
+                                      if (plan !== 'professional') {
+                                        addNotification({
+                                          type: 'alert',
+                                          title: 'Premium Roadmap Feature',
+                                          message: '6-Month Strategic Roadmaps are exclusive to Professional subscribers.',
+                                          priority: 'high'
+                                        });
+                                        router.push('/acquisition-tiers');
+                                        return;
+                                      }
                                       try {
                                         setLoadingPlan(rec.title);
                                         
@@ -1278,10 +1457,10 @@ function Dashboard() {
                                           method: 'POST',
                                           headers: { 'Content-Type': 'application/json' },
                                           body: JSON.stringify({
-                                            business_title: rec.title,
-                                            area: area,
-                                            user_email: session?.user?.email,
-                                            language: language
+                                            business_title: rec.title || 'Unknown Business',
+                                            area: area || 'Unknown Area',
+                                            user_email: session?.user?.email || 'anonymous',
+                                            language: language || 'English'
                                           })
                                         });
                                         
@@ -1355,6 +1534,20 @@ function Dashboard() {
                                     View Details
                                   </button>
                                   
+                                  <button
+                                    onClick={() => handleSaveBusiness(rec)}
+                                    disabled={savingBusiness === rec.title}
+                                    className={`px-4 py-3 ${plan === 'free' ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'} rounded-xl font-bold text-sm transition-all border border-slate-200 dark:border-white/10 hover:shadow-md flex items-center gap-2`}
+                                    title={plan === 'free' ? "Vault access requires Professional plan" : "Save to Alpha Vault"}
+                                  >
+                                    {savingBusiness === rec.title ? (
+                                      <Loader2 className="animate-spin" size={16} />
+                                    ) : (
+                                      <Bookmark size={16} fill={plan === 'free' ? "none" : "currentColor"} />
+                                    )}
+                                    <span className="hidden sm:inline">Save to Vault</span>
+                                  </button>
+
                                   <button
                                     onClick={async () => {
                                       const businessInfo = `Business: ${rec.title}\nLocation: ${area}\nInvestment: ${rec.funding_required}\nRevenue: ${rec.estimated_revenue}\nProfit: ${rec.estimated_profit}\nROI: ${rec.roi_percentage}%`;

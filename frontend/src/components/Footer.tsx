@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Zap, Shield, ChevronRight } from "lucide-react";
+import { motion } from "framer-motion";
 import { useLanguage } from "@/context/LanguageContext";
 import { useSubscription } from "@/context/SubscriptionContext";
 
@@ -16,16 +17,20 @@ export default function Footer() {
           <div className="lg:col-span-2 space-y-6">
             <Link href="/" className="flex items-center gap-3 group">
               <div 
-                className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300"
+                className="w-10 h-10 rounded-xl flex items-center justify-center shadow-2xl group-hover:scale-110 transition-transform duration-300 overflow-hidden border border-slate-300/20 dark:border-white/10"
                 style={{ 
-                  background: `linear-gradient(135deg, ${theme.primary}, ${theme.secondary})`,
-                  boxShadow: `0 8px 16px -4px ${theme.primary}40`
+                  boxShadow: `0 8px 30px -4px ${theme.primary}40`
                 }}
               >
-                 <Zap className="text-white fill-current" size={20} />
+                <img 
+                  src="/brand-logo-v3.png" 
+                  className="w-full h-full object-contain" 
+                  alt="StarterScope" 
+                />
               </div>
-              <span className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter italic">
-                Trend<span style={{ color: theme.primary }}>AI</span>
+              <span className="text-2xl font-extrabold tracking-tight leading-none">
+                <span className="text-slate-900 dark:text-white">Starter</span>
+                <span className="text-teal-500 dark:text-teal-400">Scope</span>
               </span>
             </Link>
             <p className="text-slate-500 dark:text-gray-400 max-w-md text-base font-medium leading-relaxed">
@@ -97,10 +102,20 @@ export default function Footer() {
         {/* Bottom Section */}
         <div className="mt-16 pt-8 border-t border-slate-200 dark:border-white/5">
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-            <div className="flex flex-col md:flex-row items-center gap-2 md:gap-4">
+            <div className="flex flex-col md:flex-row items-center gap-4">
               <span className="text-sm font-bold text-slate-400 dark:text-gray-600 uppercase tracking-wider">
-                © 2024 TrendAI Pro. {t('foot_all_rights')}.
+                © 2026 StarterScope. {t('foot_all_rights')}.
               </span>
+              <div className="h-4 w-px bg-slate-300 dark:bg-gray-800 hidden md:block"></div>
+              <a 
+                href="https://upvote.entrext.com/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 group hover:opacity-100 opacity-60 transition-all"
+              >
+                <img src="/upvote-logo.webp" alt="Upvote" className="w-5 h-5 rounded-md shadow-lg group-hover:scale-110 transition-transform" />
+                <span className="text-xs font-black text-slate-500 dark:text-gray-400 uppercase tracking-widest italic group-hover:text-blue-500 transition-colors">Featured on Upvote</span>
+              </a>
             </div>
             
             <div className="flex items-center gap-6">

@@ -4,6 +4,7 @@ interface AnalysisResult {
   analysis: any;
   recommendations: any[];
   location_data?: any;
+  competitive_reconnaissance?: any[];
 }
 
 interface UserInfo {
@@ -29,17 +30,15 @@ export const generateProfessionalPDF = async (area: string, result: AnalysisResu
   doc.setFillColor(15, 23, 42);
   doc.rect(0, 0, pageWidth, pageHeight, 'F');
   
-  doc.setFillColor(16, 185, 129);
+  doc.setFillColor(6, 182, 212);
   doc.setGState(new (doc as any).GState({ opacity: 0.15 }));
   doc.circle(pageWidth, 0, 100, 'F');
   doc.setGState(new (doc as any).GState({ opacity: 1 }));
 
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(24);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Trend', margin, 40);
-  doc.setTextColor(16, 185, 129);
-  doc.text('AI', margin + 25, 40);
+  doc.setTextColor(15, 23, 42); // Slate-900
+  doc.text('Starter', margin, 40);
+  doc.setTextColor(45, 212, 191); // Teal-400
+  doc.text('Scope', margin + 30, 40);
 
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(44);
@@ -57,7 +56,7 @@ export const generateProfessionalPDF = async (area: string, result: AnalysisResu
     doc.setFontSize(14);
     doc.text(user.name.toUpperCase(), margin + 10, 215);
     doc.setFontSize(10);
-    doc.setTextColor(16, 185, 129);
+    doc.setTextColor(6, 182, 212);
     doc.text(user.email || '', margin + 10, 222);
   }
 
@@ -109,7 +108,7 @@ export const generateProfessionalPDF = async (area: string, result: AnalysisResu
     doc.setTextColor(100, 116, 139);
     doc.setFontSize(9);
     doc.text(m.l.toUpperCase(), x + 8, y + 10);
-    doc.setTextColor(16, 185, 129);
+    doc.setTextColor(6, 182, 212);
     doc.setFontSize(14);
     doc.text(m.v.toString(), x + 8, y + 19);
   });
@@ -137,7 +136,7 @@ export const generateProfessionalPDF = async (area: string, result: AnalysisResu
     doc.setFillColor(255, 255, 255);
     doc.setDrawColor(241, 245, 249);
     doc.roundedRect(margin, currentY, contentWidth, boxHeight, 5, 5, 'FD');
-    doc.setFillColor(16, 185, 129);
+    doc.setFillColor(6, 182, 212);
     doc.rect(margin, currentY, 3, boxHeight, 'F');
 
     doc.setTextColor(100, 116, 139);
@@ -161,13 +160,71 @@ export const generateProfessionalPDF = async (area: string, result: AnalysisResu
     doc.setFontSize(9);
     doc.text(`INV: ${rec.funding_required || '-'}`, margin + 15, rowY + 8);
     doc.text(`REV: ${rec.estimated_revenue || '-'}`, margin + 60, rowY + 8);
-    doc.setTextColor(16, 185, 129);
+    doc.setTextColor(6, 182, 212);
     doc.text(`PROFIT: ${rec.estimated_profit || '-'}`, margin + 110, rowY + 8);
 
     currentY += boxHeight + 10;
   });
 
-  doc.save(`TrendAI_Report_${area.replace(/\s+/g, '_')}.pdf`);
+  // --- NEW PAGE: COMPETITIVE RECONNAISSANCE ---
+  if (result.competitive_reconnaissance && result.competitive_reconnaissance.length > 0) {
+    doc.addPage();
+    doc.setFillColor(15, 23, 42);
+    doc.rect(0, 0, pageWidth, 35, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(18);
+    doc.text('LOCAL MARKET RECONNAISSANCE', margin, 22);
+
+    currentY = 50;
+    doc.setTextColor(15, 23, 42);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Real-World Entities Detected (Google Maps)', margin, currentY);
+    currentY += 10;
+
+    // Entity Table
+    doc.setFillColor(241, 245, 249);
+    doc.rect(margin, currentY, contentWidth, 10, 'F');
+    doc.setTextColor(100, 116, 139);
+    doc.setFontSize(9);
+    doc.text('ESTABLISHMENT NAME', margin + 5, currentY + 7);
+    doc.text('RATING', margin + 100, currentY + 7);
+    doc.text('TYPE', margin + 130, currentY + 7);
+    currentY += 10;
+
+    result.competitive_reconnaissance.forEach((entity: any) => {
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(entity.name?.substring(0, 45) || 'Local Business', margin + 5, currentY + 7);
+      
+      doc.setTextColor(6, 182, 212);
+      doc.text(`${entity.rating || 'N/A'} (⭐)`, margin + 100, currentY + 7);
+      
+      doc.setTextColor(100, 116, 139);
+      doc.text(entity.type || 'Business', margin + 130, currentY + 7);
+      
+      doc.setDrawColor(241, 245, 249);
+      doc.line(margin, currentY + 10, margin + contentWidth, currentY + 10);
+      currentY += 10;
+
+      if (currentY > pageHeight - 20) {
+        doc.addPage();
+        currentY = 20;
+      }
+    });
+
+    currentY += 10;
+    doc.setFillColor(236, 254, 255);
+    doc.roundedRect(margin, currentY, contentWidth, 20, 3, 3, 'F');
+    doc.setTextColor(8, 145, 178);
+    doc.setFontSize(9);
+    const intelNote = "INTELLIGENCE NOTE: These entities represent the 'Ground-Truth' competitors for your proposed ventures. Strategy recommendations have been autonomously adjusted based on their presence and dominance.";
+    const wrappedNote = doc.splitTextToSize(intelNote, contentWidth - 10);
+    doc.text(wrappedNote, margin + 5, currentY + 8);
+  }
+
+  doc.save(`StarterScope_Report_${area.replace(/\s+/g, '_')}.pdf`);
 };
 
 export const generateBusinessPlanPDF = async (planData: any, user?: UserInfo) => {
@@ -221,7 +278,7 @@ export const generateBusinessPlanPDF = async (planData: any, user?: UserInfo) =>
     }
   });
 
-  doc.save(`TrendAI_Plan_${planData.business?.title?.replace(/\s+/g, '_')}.pdf`);
+  doc.save(`StarterScope_Plan_${planData.business?.title?.replace(/\s+/g, '_')}.pdf`);
 };
 
 export const generateRoadmapPDF = async (area: string, title: string, steps: any[], user?: UserInfo) => {
@@ -275,14 +332,14 @@ export const generateRoadmapPDF = async (area: string, title: string, steps: any
 
     // Draw card
     doc.setFillColor(255, 255, 255);
-    doc.setDrawColor(16, 185, 129);
+    doc.setDrawColor(6, 182, 212);
     doc.setGState(new (doc as any).GState({ opacity: 0.1 }));
     doc.roundedRect(margin, currentY, contentWidth, boxHeight, 4, 4, 'F');
     doc.setGState(new (doc as any).GState({ opacity: 1 }));
     doc.roundedRect(margin, currentY, contentWidth, boxHeight, 4, 4, 'D');
 
     // Circle Number
-    doc.setFillColor(16, 185, 129);
+    doc.setFillColor(6, 182, 212);
     doc.circle(margin + 12, currentY + 12, 6, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(12);
@@ -303,5 +360,5 @@ export const generateRoadmapPDF = async (area: string, title: string, steps: any
     currentY += boxHeight + 10;
   });
 
-  doc.save(`TrendAI_Roadmap_${title.replace(/\s+/g, '_')}.pdf`);
+  doc.save(`StarterScope_Roadmap_${title.replace(/\s+/g, '_')}.pdf`);
 };

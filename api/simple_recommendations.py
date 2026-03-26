@@ -35,13 +35,34 @@ def generate_detailed_roadmap_step_guide(step_title: str, step_description: str,
 def parse_real_location_data(area: str) -> Dict[str, Any]:
     area_lower = area.lower()
     
-    if area_lower in _LOCATION_CACHE:
-        return _LOCATION_CACHE[area_lower]
+    # 0. Check for hardcoded high-fidelity research data first
+    common_towns = {
+        'berasia': {
+            'country': 'India',
+            'state': 'Madhya Pradesh',
+            'city': 'Berasia',
+            'country_code': 'IN',
+            'currency_symbol': '₹',
+            'coordinates': {'lat': 23.6345, 'lng': 77.4365}
+        },
+        'bhopal': {
+            'country': 'India',
+            'state': 'Madhya Pradesh',
+            'city': 'Bhopal',
+            'country_code': 'IN',
+            'currency_symbol': '₹',
+            'coordinates': {'lat': 23.2599, 'lng': 77.4126}
+        }
+    }
+    
+    for town_key, town_data in common_towns.items():
+        if town_key in area_lower:
+            _LOCATION_CACHE[area_lower] = town_data
+            return town_data
 
     def fetch_api_location(query: str):
         """Fetch location details from CountryStateCity API using AI-resolved ISO codes and coordinates"""
         api_key = os.getenv("CSCAPI_KEY")
-        if not api_key: return None
         
         try:
             # 1. Ask AI to resolve the location string (Gemini Primary, Fallback to Pollinations)
@@ -84,20 +105,27 @@ def parse_real_location_data(area: str) -> Dict[str, Any]:
             lng = iso_data.get('longitude', 0)
             
             # 2. VALIDATE with CountryStateCity for 'Official' status
-            # If we have a key, we'll try to get the 'Official' state/country
-            headers = {"X-CSCAPI-KEY": api_key}
-            api_res = requests.get(f"https://api.countrystatecity.in/v1/countries/{country_iso}", headers=headers, timeout=5)
-            official_country = api_res.json().get('name') if api_res.status_code == 200 else iso_data.get('country')
+            official_country = iso_data.get('country')
+            if api_key:
+                try:
+                    headers = {"X-CSCAPI-KEY": api_key}
+                    api_res = requests.get(f"https://api.countrystatecity.in/v1/countries/{country_iso}", headers=headers, timeout=5)
+                    if api_res.status_code == 200:
+                        official_country = api_res.json().get('name')
+                except:
+                    pass
             
             return {
                 'country': official_country,
                 'state': iso_data.get('state') or 'N/A',
+                'city': city_name,
                 'country_code': country_iso,
                 'currency_symbol': '₹' if country_iso == 'IN' else '$',
                 'coordinates': {'lat': float(lat), 'lng': float(lng)}
             }
         except Exception as e:
             print(f"⚠️ API location fetch failed for {query}: {e}")
+            return None
         return None
 
     # Try API first for global coverage!
@@ -244,7 +272,7 @@ def get_reddit_market_data(area: str) -> str:
             client_id=os.getenv("REDDIT_CLIENT_ID"),
             client_secret=os.getenv("REDDIT_CLIENT_SECRET"),
             password=os.getenv("REDDIT_PASSWORD"),
-            user_agent="TrendAI Market Analysis 1.0",
+            user_agent="StarterScope Market Analysis 1.0",
             username=os.getenv("REDDIT_USERNAME"),
         )
         
@@ -353,6 +381,8 @@ def generate_ai_recommendations(area: str, location_info: Dict[str, Any], langua
                 "business_model": "Revenue details",
                 "initial_team_size": "E.g. 2-4",
                 "six_month_plan": ["Phase 1...", "Phase 2..."],
+                "required_services": ["Service 1 (e.g., Cloud Hosting)", "Service 2 (e.g., Local Logistics)"],
+                "unique_selling_proposition": "Specific high-value differentiator for this business",
                 "investment_breakdown": {{
                     "startup_costs": "USE L/Cr for India",
                     "monthly_expenses": "USE L/Cr for India",
@@ -553,7 +583,14 @@ def generate_dynamic_recommendations(area: str, user_email: str, language: str =
     
     # Determine currency and location characteristics
     area_lower = area.lower()
-    is_indian = 'india' in area_lower or location_info.get('country_code') == 'IN'
+    indian_keywords = [
+        "india", "bhopal", "mumbai", "delhi", "bangalore", "chennai", "hyderabad", 
+        "pune", "ahmedabad", "surat", "jaipur", "lucknow", "kanpur", "nagpur", 
+        "indore", "thane", "berasia", "mp", "maharashtra", "karnataka", "tamil nadu", 
+        "gujarat", "rajasthan", "up", "uttar pradesh", "haryana", "punjab", 
+        "telangana", "andhra", "bengal", "kerala", "assam", "bihar", "odisha"
+    ]
+    is_indian = any(keyword in area_lower for keyword in indian_keywords) or location_info.get('country_code') == 'IN'
     currency = location_info.get('currency_symbol', '₹' if is_indian else '$')
     
     # 🎯 NEW: Prioritize Integrated Intelligence for real-time grounded data

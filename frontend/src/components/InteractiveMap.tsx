@@ -14,13 +14,15 @@ interface InteractiveMapProps {
     distance?: string;
   }>;
   onOpenInMaps?: () => void;
+  isFullscreen?: boolean;
 }
 
 export default function InteractiveMap({ 
   coordinates, 
   locationName, 
   businesses = [], 
-  onOpenInMaps 
+  onOpenInMaps,
+  isFullscreen = false
 }: InteractiveMapProps) {
   const { theme } = useTheme();
   const mapRef = useRef<HTMLDivElement>(null);
@@ -255,6 +257,15 @@ export default function InteractiveMap({
       }
     };
   }, [coordinates, locationName, businesses, isDark]);
+  
+  // Handle map resizing when entering/exiting fullscreen
+  useEffect(() => {
+    if (mapInstanceRef.current) {
+      setTimeout(() => {
+        mapInstanceRef.current.invalidateSize();
+      }, 100); // Small delay to ensure container has resized
+    }
+  }, [isFullscreen]);
 
   if (!coordinates) {
     return (
@@ -317,7 +328,7 @@ export default function InteractiveMap({
                 <span>Main Location</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-blue-500 border border-white" />
+                <div className="w-3 h-3 rounded-full bg-emerald-500 border border-white" />
                 <span>Active Businesses</span>
               </div>
               <div className="flex items-center gap-2">

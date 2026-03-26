@@ -70,7 +70,7 @@ export default function ProtectedRoute({ children, fallback }: ProtectedRoutePro
             </div>
             <h2 className="text-3xl font-bold text-white mb-4">Access Restricted</h2>
             <p className="text-gray-400 mb-8">
-              You need to sign in to access this page. Join thousands of entrepreneurs using TrendAI for market intelligence.
+              You need to sign in to access this page. Join thousands of entrepreneurs using StarterScope for market intelligence.
             </p>
             <Link 
               href={`/auth?callbackUrl=${encodeURIComponent(pathname)}`}

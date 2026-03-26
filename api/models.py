@@ -59,6 +59,9 @@ class UserSubscription(Base):
     subscription_end = Column(DateTime(timezone=True), nullable=True)
     razorpay_subscription_id = Column(String, nullable=True)
     razorpay_customer_id = Column(String, nullable=True)
+    dodo_subscription_id = Column(String, nullable=True)
+    dodo_customer_id = Column(String, nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -69,8 +72,10 @@ class PaymentHistory(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     user_email = Column(String, ForeignKey("users.email"), index=True)
     subscription_id = Column(Integer, ForeignKey("user_subscriptions.id"), nullable=True)
-    razorpay_payment_id = Column(String, unique=True, index=True)
-    razorpay_order_id = Column(String, index=True)
+    razorpay_payment_id = Column(String, unique=True, index=True, nullable=True)
+    razorpay_order_id = Column(String, index=True, nullable=True)
+    dodo_payment_id = Column(String, unique=True, index=True, nullable=True)
+
     amount = Column(Float)
     currency = Column(String, default="INR")
     status = Column(String)  # success, failed, pending, refunded
@@ -158,3 +163,14 @@ class Notification(Base):
     notification_metadata = Column(JSON, nullable=True)  # Changed from metadata to notification_metadata
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+class SavedBusiness(Base):
+    __tablename__ = "saved_businesses"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_email = Column(String, index=True) # or ForeignKey("users.email")
+    business_name = Column(String, index=True)
+    category = Column(String, nullable=True)
+    location = Column(String, nullable=True)
+    details = Column(JSON)  # Store the full recommendation object
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

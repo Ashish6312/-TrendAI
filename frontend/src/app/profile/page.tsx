@@ -8,7 +8,7 @@ import {
   ShieldCheck, Crown, Zap, Star, Settings, Calendar, 
   MapPin, Globe, Award, BarChart3, Activity, Clock, Building2, 
   Target, Sparkles, ChevronRight, ChevronDown, Edit3, Camera,
-  CreditCard, X, RefreshCw, ChevronUp
+  CreditCard, X, RefreshCw, ChevronUp, Bookmark, Trash2, Key, Archive, Cpu
 } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
 import { useSubscription } from "@/context/SubscriptionContext";
@@ -65,7 +65,9 @@ function ProfilePageContent() {
   const [message, setMessage] = useState("");
   const [analysisCount, setAnalysisCount] = useState(0);
   const [joinDate, setJoinDate] = useState<Date | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'profile' | 'billing'>('profile');
+  const searchParams = useSearchParams();
+  const initialTab = searchParams.get('tab') as 'overview' | 'profile' | 'billing' | 'vault' || 'profile';
+  const [activeTab, setActiveTab] = useState<'overview' | 'profile' | 'billing' | 'vault'>(initialTab);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   // currentTime removed - use Date() inline to avoid 1s re-render interval
   const [isOnline, setIsOnline] = useState(true);
@@ -79,7 +81,8 @@ function ProfilePageContent() {
   const [subscriptionDetails, setSubscriptionDetails] = useState<any>(null);
   const [detectedLocation, setDetectedLocation] = useState<any>(null);
   const [loadingPayments, setLoadingPayments] = useState(false);
-  const searchParams = useSearchParams();
+  const [savedBusinesses, setSavedBusinesses] = useState<any[]>([]);
+  const [loadingVault, setLoadingVault] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fallback timeout to ensure form is always accessible
@@ -136,14 +139,46 @@ function ProfilePageContent() {
     };
     reader.readAsDataURL(file);
   };
+
+  const formatCurrency = (value: string | number, area?: string) => {
+    if (!value) return '';
+    const str = String(value);
+    const areaLower = (area || "").toLowerCase();
+    
+    const indianKeywords = [
+        "india", "bhopal", "mumbai", "delhi", "bangalore", "chennai", "hyderabad", 
+        "pune", "ahmedabad", "surat", "jaipur", "lucknow", "kanpur", "nagpur", 
+        "indore", "thane", "berasia", "mp", "maharashtra", "karnataka", "tamil nadu", 
+        "gujarat", "rajasthan", "up", "uttar pradesh", "haryana", "punjab", 
+        "telangana", "andhra", "bengal", "kerala", "assam", "bihar", "odisha"
+    ];
+    
+    // Check if definitely Indian (has L or Cr, or in an Indian area)
+    const isIndian = str.includes('L') || str.includes('Cr') || indianKeywords.some(k => areaLower.includes(k));
+    
+    if (isIndian) {
+      if (str.includes('$')) return str.replace(/\$/g, '₹');
+      if (!str.includes('₹')) return `₹${str}`;
+    }
+    
+    return str;
+  };
   
   // Tab handling from URL
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab === 'billing' || tab === 'profile' || tab === 'overview') {
+    if (tab === 'billing' || tab === 'profile' || tab === 'overview' || tab === 'vault') {
       setActiveTab(tab as any);
     }
   }, [searchParams]);
+
+  // Fetch vault data when tab becomes active
+  useEffect(() => {
+    if (activeTab === 'vault') {
+      // If we already have data (from cache), fetch silently in background
+      fetchSavedBusinesses(savedBusinesses.length > 0);
+    }
+  }, [activeTab]);
 
   const fetchPayments = async () => {
     if (!session?.user?.email) return;
@@ -167,6 +202,72 @@ function ProfilePageContent() {
       console.error('Failed to refresh transactions:', error);
     } finally {
       setLoadingPayments(false);
+    }
+  };
+
+  const fetchSavedBusinesses = async (silent = false) => {
+    if (!session?.user?.email) return;
+    
+    // Only show loader if we don't have cached data or if requested
+    if (!silent && savedBusinesses.length === 0) {
+      setLoadingVault(true);
+    }
+    
+    try {
+      const apiUrl = getApiUrl();
+      const response = await fetch(`${apiUrl}/api/saved-businesses?email=${encodeURIComponent(session.user.email)}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        setSavedBusinesses(data || []);
+        
+        // Cache result
+        if (typeof window !== 'undefined' && data) {
+          localStorage.setItem(`vault_cache_${session.user.email}`, JSON.stringify(data));
+        }
+      } else {
+        setSavedBusinesses([]);
+      }
+    } catch (error) {
+      console.error('Failed to fetch vault:', error);
+    } finally {
+      setLoadingVault(false);
+    }
+  };
+
+  // Immediate cache restoration for ultra-fast load
+  useEffect(() => {
+    if (session?.user?.email && typeof window !== 'undefined') {
+      const cached = localStorage.getItem(`vault_cache_${session.user.email}`);
+      if (cached) {
+        try {
+          const data = JSON.parse(cached);
+          if (Array.isArray(data)) {
+            setSavedBusinesses(data);
+            if (activeTab === 'vault') fetchSavedBusinesses(true);
+          }
+        } catch (e) {}
+      }
+    }
+  }, [session?.user?.email]);
+
+  const deleteSavedBusiness = async (id: number) => {
+    try {
+      const apiUrl = getApiUrl();
+      const response = await fetch(`${apiUrl}/api/saved-businesses/${id}?user_email=${session?.user?.email}`, {
+        method: 'DELETE'
+      });
+      if (response.ok) {
+        setSavedBusinesses(prev => prev.filter(b => b.id !== id));
+        addNotification({
+          type: 'system',
+          title: 'Removed from Vault',
+          message: 'The business opportunity has been permanently deleted.',
+          priority: 'low'
+        });
+      }
+    } catch (error) {
+      console.error('Delete failed:', error);
     }
   };
   
@@ -222,18 +323,16 @@ function ProfilePageContent() {
               const rawDisplay = (data.subscription.plan_display_name || '').toLowerCase();
               
               let mappedPlan: any = 'free';
-              if (rawPlan.includes('enterprise') || rawDisplay.includes('enterprise') || rawDisplay.includes('dominance')) {
-                mappedPlan = 'enterprise';
-              } else if (rawPlan.includes('growth') || rawDisplay.includes('growth') || rawDisplay.includes('accelerator')) {
-                mappedPlan = 'growth';
-              } else if (rawPlan.includes('professional') || rawPlan.includes('pro') || rawDisplay.includes('professional')) {
+              if (rawPlan.includes('enterprise') || rawDisplay.includes('enterprise') || rawDisplay.includes('dominance') ||
+                  rawPlan.includes('growth') || rawDisplay.includes('growth') || rawDisplay.includes('accelerator') ||
+                  rawPlan.includes('professional') || rawPlan.includes('pro') || rawDisplay.includes('professional')) {
                 mappedPlan = 'professional';
               } else if (rawPlan.includes('starter') || rawDisplay.includes('starter') || rawDisplay.includes('venture')) {
                 mappedPlan = 'starter';
               }
               
               // Only upgrade — never silently downgrade from a paid plan to free
-              const planHierarchy: Record<string, number> = { free: 0, starter: 1, professional: 2, growth: 3, enterprise: 4 };
+              const planHierarchy: Record<string, number> = { free: 0, starter: 1, professional: 2 };
               if (mappedPlan !== 'free' && (planHierarchy[mappedPlan] ?? 0) > (planHierarchy[plan] ?? 0)) {
                 setPlan(mappedPlan);
               } else if (plan === 'free' && mappedPlan !== 'free') {
@@ -264,9 +363,7 @@ function ProfilePageContent() {
   const planIcons: Record<string, any> = {
     free: Star,
     starter: Zap,
-    professional: Zap,
-    growth: Activity,
-    enterprise: Crown
+    professional: Zap
   };
 
   const PlanIcon = planIcons[plan];
@@ -535,11 +632,11 @@ function ProfilePageContent() {
   const downloadTransactions = () => {
     if (!payments.length) return;
     
-    const headers = ["Invoice ID", "Date", "Plan", "Billing Cycle", "Amount", "Currency", "Status"];
+    const headers = ["Invoice ID", "Date", "Plan", "Billing Cycle", "Amount", "Currency", "Status", "Payment Gateway"];
     const csvRows = [
       headers.join(","),
       ...payments.map(p => [
-        p.razorpay_payment_id || p.id,
+        p.dodo_payment_id || p.razorpay_payment_id || p.id,
         new Date(p.payment_date).toLocaleDateString(),
         p.plan_name,
         p.billing_cycle,
@@ -554,7 +651,7 @@ function ProfilePageContent() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `TrendAI_Transactions_${session?.user?.email}.csv`);
+    link.setAttribute("download", `StarterScope_Transactions_${session?.user?.email}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -973,6 +1070,7 @@ function ProfilePageContent() {
               {[
                 { id: 'overview', label: 'NETWORK', icon: BarChart3 },
                 { id: 'profile', label: 'PROFILE', icon: User },
+                { id: 'vault', label: 'VAULT', icon: Bookmark },
                 { id: 'billing', label: 'BILLING', icon: Crown }
               ].map((tab) => (
                 <button
@@ -1212,37 +1310,50 @@ function ProfilePageContent() {
                         </h3>
                         <div className="space-y-3">
                           {[
-                            { key: 'advancedFeatures', label: 'Neural Profit Engine', icon: BarChart3 },
-                            { key: 'prioritySupport', label: 'Elite Support Concierge', icon: ShieldCheck },
-                            { key: 'exportToPdf', label: 'Executive Strategic Reports', icon: FileText },
-                            { key: 'apiAccess', label: 'Full API Infrastructure', icon: Globe },
-                            { key: 'realTimeAlerts', label: 'Live Alpha Notifications', icon: Activity },
-                            { key: 'customReports', label: 'Bespoke Tactical Analysis', icon: Award }
-                          ].map((feature, index) => (
-                            <motion.div 
-                              key={feature.key}
-                              initial={{ opacity: 0, x: 20 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: index * 0.1 }}
-                              className="flex items-center justify-between p-3 bg-slate-100 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-200 dark:hover:bg-white/10 transition-all font-black italic"
-                            >
-                              <div className="flex items-center gap-3">
-                                <feature.icon size={16} className="text-slate-400 dark:text-gray-500" />
-                                <span className="text-[10px] uppercase tracking-widest text-slate-600 dark:text-gray-300">{feature.label}</span>
-                              </div>
-                              <motion.span 
-                                 className={`text-[8px] font-black px-3 py-1 rounded-full uppercase tracking-tighter border shadow-sm`}
-                                 style={{ 
-                                   backgroundColor: planFeatures[feature.key as keyof typeof planFeatures] ? `${theme.primary}20` : 'transparent',
-                                   borderColor: planFeatures[feature.key as keyof typeof planFeatures] ? `${theme.primary}30` : 'inherit',
-                                   color: planFeatures[feature.key as keyof typeof planFeatures] ? theme.primary : 'inherit'
-                                 }}
-                                 whileHover={{ scale: 1.05 }}
-                               >
-                                 {planFeatures[feature.key as keyof typeof planFeatures] ? '✓ Included' : 'Upgrade'}
-                               </motion.span>
-                            </motion.div>
-                          ))}
+                            { key: 'maxAnalyses', label: 'AI Business Recommendations', icon: BarChart3, value: planFeatures.maxAnalyses === -1 ? 'Unlimited' : `${planFeatures.maxAnalyses} / month` },
+                            { key: 'advancedFeatures', label: 'Neural Profit Engine (AI)', icon: Cpu },
+                            { key: 'competitorInsights', label: 'Competitor Neural Heatmaps', icon: MapPin },
+                            { key: 'maxVaultSaves', label: 'Alpha Vault Archival', icon: Archive, value: planFeatures.maxVaultSaves === -1 ? 'Unlimited' : `${planFeatures.maxVaultSaves} Assets` },
+                            { key: 'roadmapAccess', label: '6-Month Strategic Roadmaps', icon: Target },
+                            { key: 'realTimeAlerts', label: 'Real-time Demand Scoring', icon: Activity },
+                            { key: 'prioritySupport', label: 'Priority Support Concierge', icon: ShieldCheck }
+                          ].map((feature, index) => {
+                            const isIncluded = feature.value || !!planFeatures[feature.key as keyof typeof planFeatures];
+                            return (
+                              <motion.div 
+                                key={feature.key}
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: index * 0.1 }}
+                                className="flex items-center justify-between p-3 bg-slate-100 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-200 dark:hover:bg-white/10 transition-all font-black italic relative group"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <feature.icon size={16} className={isIncluded && !feature.value ? "text-blue-500" : "text-slate-400 dark:text-gray-500"} />
+                                  <span className="text-[10px] uppercase tracking-widest text-slate-600 dark:text-gray-300">{feature.label}</span>
+                                </div>
+                                
+                                {isIncluded ? (
+                                  <span 
+                                    className="text-[8px] font-black px-3 py-1 rounded-full uppercase tracking-tighter border shadow-sm"
+                                    style={{ 
+                                      backgroundColor: `${theme.primary}20`,
+                                      borderColor: `${theme.primary}30`,
+                                      color: theme.primary
+                                    }}
+                                  >
+                                    {feature.value || '✓ Included'}
+                                  </span>
+                                ) : (
+                                  <Link 
+                                    href="/acquisition-tiers"
+                                    className="text-[8px] font-black px-3 py-1 rounded-full uppercase tracking-tighter border border-slate-300 dark:border-white/10 text-slate-400 dark:text-gray-500 hover:bg-slate-900 hover:text-white dark:hover:bg-white dark:hover:text-slate-900 transition-all"
+                                  >
+                                    Upgrade
+                                  </Link>
+                                )}
+                              </motion.div>
+                            );
+                          })}
                         </div>
                       </div>
                     </div>
@@ -1296,6 +1407,179 @@ function ProfilePageContent() {
                       <h3 className="font-black text-slate-900 dark:text-white mb-2 italic tracking-tighter">Upgrade Plan</h3>
                       <p className="text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-widest">Unlock more features</p>
                     </motion.div>
+                  </div>
+                </motion.div>
+              )}
+
+              {activeTab === 'vault' && (
+                <motion.div
+                  key="vault"
+                  variants={tabVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                  className="space-y-6"
+                >
+                  <div 
+                    className="glass-card p-10 relative overflow-hidden shadow-2xl"
+                    style={{ borderColor: `${theme.primary}20` }}
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-10">
+                      <div className="flex items-center gap-5">
+                        <div 
+                          className="w-16 h-16 rounded-[1.5rem] bg-slate-900 dark:bg-white flex items-center justify-center shadow-2xl relative group overflow-hidden"
+                        >
+                          <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                          <Bookmark size={32} className="text-white dark:text-slate-900 relative z-10 group-hover:scale-110 transition-transform" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-3 mb-1">
+                            <h2 className="text-4xl font-black text-slate-900 dark:text-white italic tracking-[-0.05em] uppercase leading-none">VAULT</h2>
+                            <div className="px-2 py-0.5 rounded-md bg-emerald-500 text-white text-[8px] font-black uppercase tracking-widest italic">Encrypted</div>
+                          </div>
+                          <p className="text-slate-500 dark:text-gray-400 text-xs font-bold opacity-80 uppercase tracking-[0.2em] italic">Elite Intelligence Archive · Unlimited</p>
+                        </div>
+                      </div>
+                      
+                      <button 
+                        onClick={() => fetchSavedBusinesses()}
+                        className="flex items-center gap-3 px-6 py-3 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl hover:bg-slate-50 dark:hover:bg-white/10 transition-all group lg:self-end"
+                      >
+                        <RefreshCw size={14} className={`text-slate-400 group-hover:text-emerald-500 transition-colors ${loadingVault ? 'animate-spin' : ''}`} />
+                        <span className="text-[10px] font-black text-slate-500 dark:text-gray-400 uppercase tracking-widest italic">Sync Core Nodes</span>
+                      </button>
+                    </div>
+
+                    {plan === 'free' ? (
+                      <div className="py-20 text-center space-y-8 bg-slate-50/50 dark:bg-white/5 rounded-[2.5rem] border-2 border-dashed border-slate-200 dark:border-white/10">
+                        <div className="relative inline-block">
+                          <div className="absolute inset-0 bg-blue-500 blur-2xl opacity-20 animate-pulse" />
+                          <div className="w-20 h-20 mx-auto rounded-3xl bg-slate-100 dark:bg-white/10 flex items-center justify-center relative z-10">
+                            <Key size={32} className="text-slate-400 dark:text-slate-600" />
+                          </div>
+                        </div>
+                        <div className="max-w-md mx-auto px-6">
+                          <h3 className="text-2xl font-black text-slate-900 dark:text-white italic tracking-tighter mb-3 uppercase tracking-widest">Vault Access Restricted</h3>
+                          <p className="text-slate-500 dark:text-gray-400 font-bold mb-8 italic">
+                            The Alpha Vault allows you to store and protect your most valuable business opportunities. Archive access requires an active Professional membership.
+                          </p>
+                          <Link 
+                            href="/acquisition-tiers"
+                            className="inline-flex items-center gap-3 px-8 py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:scale-105 active:scale-95 transition-all shadow-xl"
+                          >
+                            UPGRADE TO PROFESSIONAL <ChevronRight size={16} />
+                          </Link>
+                        </div>
+                      </div>
+                    ) : loadingVault ? (
+                      <div className="py-20 text-center">
+                        <Loader2 className="w-12 h-12 text-slate-300 animate-spin mx-auto mb-4" />
+                        <p className="text-sm font-black text-slate-500 uppercase tracking-widest italic">Synchronizing with Node...</p>
+                      </div>
+                    ) : savedBusinesses.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+                        {savedBusinesses.map((item, idx) => (
+                          <motion.div 
+                            key={item.id}
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            whileHover={{ y: -5 }}
+                            className="p-8 rounded-[2rem] bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 hover:border-emerald-500/30 hover:shadow-2xl transition-all relative group"
+                          >
+                            <div className="flex items-start justify-between mb-4">
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">{item.category || 'General Strategy'}</span>
+                              </div>
+                              <button 
+                                onClick={() => deleteSavedBusiness(item.id)}
+                                className="p-2.5 rounded-xl bg-red-500/10 text-red-500 opacity-0 group-hover:opacity-100 transition-all hover:bg-red-500 hover:text-white"
+                                title="Purge from Archive"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                            
+                            <h4 className="text-xl font-black text-slate-900 dark:text-white italic tracking-tighter mb-2 italic tracking-tighter">{item.business_name}</h4>
+                            <p className="text-xs font-bold text-slate-500 mb-6 uppercase tracking-widest italic flex items-center gap-2">
+                              <MapPin size={10} /> {item.location || 'Global Search'}
+                            </p>
+                            
+                            <div className="grid grid-cols-2 gap-3 mb-6">
+                              <div className="p-3 bg-white dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10 text-center flex flex-col justify-center">
+                                <div className="text-[8px] font-black text-slate-400 uppercase tracking-tighter mb-1">ROI Potential</div>
+                                <div className="text-sm font-black text-emerald-500 line-clamp-1">{item.details?.roi_percentage || '85'}%</div>
+                              </div>
+                              <div className="p-3 bg-white dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10 text-center flex flex-col justify-center">
+                                <div className="text-[8px] font-black text-slate-400 uppercase tracking-tighter mb-1">Startup Capital</div>
+                                <div className="text-sm font-black text-blue-500 line-clamp-1">{formatCurrency(item.details?.funding_required || '₹10L', item.location)}</div>
+                              </div>
+                            </div>
+
+                            {/* New Intelligence Fields */}
+                            {(item.details?.required_services || item.details?.unique_selling_proposition) && (
+                              <div className="mb-6 space-y-3">
+                                {item.details?.required_services && (
+                                  <div className="p-3 rounded-xl bg-slate-900/[0.02] dark:bg-white/[0.02] border border-slate-200/50 dark:border-white/5">
+                                    <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5 grayscale opacity-70">
+                                      <div className="w-1 h-1 rounded-full bg-slate-400" /> Infrastructure Needs
+                                    </div>
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {Array.isArray(item.details.required_services) ? (
+                                        item.details.required_services.slice(0, 3).map((svc: string, idx: number) => (
+                                          <span key={idx} className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400">
+                                            {svc}
+                                          </span>
+                                        ))
+                                      ) : (
+                                        <span className="text-[9px] font-bold text-slate-600 dark:text-slate-400 italic">Analysis optimized...</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                                {item.details?.unique_selling_proposition && (
+                                  <div className="p-3 rounded-xl bg-emerald-500/[0.03] dark:bg-emerald-500/[0.05] border border-emerald-500/10 dark:border-emerald-500/20">
+                                    <div className="text-[8px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                                      <Zap size={8} /> Core Advantage
+                                    </div>
+                                    <p className="text-[10px] font-bold text-slate-700 dark:text-gray-300 leading-relaxed italic">
+                                      "{item.details.unique_selling_proposition}"
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            
+                            <div className="flex gap-3">
+                              <button 
+                                onClick={() => {
+                                  // If the item itself has the full structure, use it directly
+                                  const storageData = item.details?.is_snapshot 
+                                    ? item.details 
+                                    : { business: item.details, area: item.location };
+                                    
+                                  sessionStorage.setItem('selected_business', JSON.stringify(storageData));
+                                  router.push('/business-details');
+                                }}
+                                className="flex-1 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-[1.03] active:scale-95 shadow-md flex items-center justify-center gap-2"
+                              >
+                                Open Intelligence <ChevronRight size={14} />
+                              </button>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="py-24 text-center">
+                        <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-slate-100 dark:bg-white/5 flex items-center justify-center opacity-30 grayscale ring-1 ring-slate-200 dark:ring-white/10">
+                          <Archive size={32} />
+                        </div>
+                        <h3 className="text-xl font-black text-slate-900 dark:text-white italic tracking-tighter mb-2 uppercase tracking-widest">Vault is Vacuum</h3>
+                        <p className="text-slate-500 dark:text-gray-400 max-w-sm mx-auto font-bold italic">
+                          You haven't archived any business opportunities yet. Start searching and save your first asset to the Alpha Vault.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               )}
@@ -1367,9 +1651,10 @@ function ProfilePageContent() {
                           message.includes('successfully') 
                             ? 'bg-green-500/20 border-green-500/30 text-green-400'
                             : message.includes('offline') || message.includes('locally')
-                            ? 'bg-yellow-500/20 border-yellow-500/30 text-yellow-400'
+                            ? 'bg-indigo-500/20 border-indigo-500/30 text-indigo-400'
                             : 'bg-red-500/20 border-red-500/30 text-red-400'
                         }`}
+
                       >
                         {message.includes('successfully') ? (
                           <CheckCircle2 size={16} />
@@ -1580,9 +1865,10 @@ function ProfilePageContent() {
                           <label className="block text-xs font-black uppercase tracking-[0.2em] text-slate-500 dark:text-gray-400">
                             {t('prof_bio')}
                           </label>
-                          <span className={`text-[10px] font-black italic tracking-tighter ${formData.bio.length > 450 ? 'text-amber-500' : 'text-slate-500'}`}>
+                          <span className={`text-[10px] font-black italic tracking-tighter ${formData.bio.length > 450 ? 'text-indigo-500' : 'text-slate-500'}`}>
                             {formData.bio.length} <span className="opacity-30">/</span> 500
                           </span>
+
                         </div>
                         <div className="relative group">
                           <div 
@@ -1629,7 +1915,7 @@ function ProfilePageContent() {
                             background: `linear-gradient(135deg, ${theme.primary}, ${theme.secondary})`,
                           }}
                         >
-                          <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          <div className="absolute inset-0 bg-noise opacity-[0.03] dark:opacity-10" />
                           <div className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/30 to-transparent" />
                           
                           <span className="relative z-10 flex items-center justify-center gap-3">
@@ -1837,36 +2123,52 @@ function ProfilePageContent() {
                                 
                                 const isDark = document.documentElement.classList.contains('dark');
                                 
+                                // html2canvas crashes on Tailwind v4 oklab/oklch colors
+                                // This is an aggressive fix: we strip all oklab/oklch declarations from the DOM
                                 const canvas = await html2canvas(element, {
                                   scale: 2,
                                   useCORS: true,
                                   backgroundColor: isDark ? "#020617" : "#ffffff",
                                   onclone: (clonedDoc) => {
-                                    // EXHAUSTIVE SANITIZATION: Prevents 'oklab' crash globally
+                                    // 1. STRIP ALL OKLCH/OKLAB FROM STYLE TAGS (The most direct fix for the crash)
+                                    const styleBlocks = clonedDoc.querySelectorAll('style');
+                                    styleBlocks.forEach(style => {
+                                      // Replace oklch/oklab with a safe fallback hex (blue-500)
+                                      // This prevents html2canvas parser from seeing tokens it doesn't recognize
+                                      let css = style.innerHTML;
+                                      if (css.includes('oklch') || css.includes('oklab')) {
+                                        css = css.replace(/oklch\([^)]+\)/g, '#3b82f6');
+                                        css = css.replace(/oklab\([^)]+\)/g, '#3b82f6');
+                                        style.innerHTML = css;
+                                      }
+                                    });
+
+                                    // 2. SANITIZE INLINE STYLES AND COMPUTED STYLES
                                     const allElements = clonedDoc.querySelectorAll('*');
                                     allElements.forEach(el => {
                                       const htmlEl = el as HTMLElement;
-                                      const style = window.getComputedStyle(htmlEl);
                                       
+                                      // Clear any inline styles that might use oklch
+                                      if (htmlEl.style.color?.includes('okl')) htmlEl.style.color = '#3b82f6';
+                                      if (htmlEl.style.backgroundColor?.includes('okl')) htmlEl.style.backgroundColor = '#1e293b';
+                                      if (htmlEl.style.borderColor?.includes('okl')) htmlEl.style.borderColor = '#334155';
+                                      if (htmlEl.style.fill?.includes('okl')) htmlEl.style.fill = '#3b82f6';
+                                      if (htmlEl.style.stroke?.includes('okl')) htmlEl.style.stroke = '#3b82f6';
+
+                                      const style = window.getComputedStyle(htmlEl);
                                       const sanitize = (val: string) => {
                                         if (!val || val === 'none') return val;
-                                        if (val.includes('oklch(') || val.includes('oklab(') || val.includes('lab(') || val.includes('hwb(')) {
-                                          if (val.includes('0.5') || val.includes('50%')) return 'rgba(37, 99, 235, 0.5)';
-                                          if (val.includes('0.1') || val.includes('10%')) return 'rgba(255, 255, 255, 0.05)';
-                                          return isDark ? '#020617' : '#ffffff';
+                                        if (val.includes('oklch') || val.includes('oklab') || val.includes('lab(') || val.includes('hwb(')) {
+                                          return '#3b82f6'; 
                                         }
                                         return val;
                                       };
 
+                                      // Force apply sanitized computed styles as inline overrides
                                       htmlEl.style.color = sanitize(style.color);
                                       htmlEl.style.backgroundColor = sanitize(style.backgroundColor);
                                       htmlEl.style.borderColor = sanitize(style.borderColor);
                                       htmlEl.style.boxShadow = sanitize(style.boxShadow);
-                                      
-                                      if (el.tagName.toLowerCase() === 'svg' || el.parentElement?.tagName.toLowerCase() === 'svg') {
-                                        htmlEl.style.fill = sanitize(style.fill);
-                                        htmlEl.style.stroke = sanitize(style.stroke);
-                                      }
                                     });
 
                                     const el = clonedDoc.getElementById('billing-report');
@@ -1890,12 +2192,14 @@ function ProfilePageContent() {
                                 
                               } catch (err) {
                                 console.error('Failed to generate billing PDF', err);
+                                alert('PDF Generation failed due to a styling engine incompatibility. Please try taking a screenshot or use Print (Ctrl+P).');
                               }
                             }}
                             className="px-5 py-2.5 rounded-xl text-white text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 group italic shadow-xl hover:scale-105 active:scale-95"
                             style={{ 
                               background: `linear-gradient(135deg, ${theme.primary}, ${theme.secondary})`,
                               boxShadow: `0 10px 20px -5px ${theme.primary}40`
+
                             }}
                           >
                             <FileText size={14} className="group-hover:scale-110 transition-transform" />
@@ -1994,8 +2298,9 @@ function ProfilePageContent() {
                                   <div className={`px-2 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${
                                     payment.status?.toLowerCase() === 'captured' || payment.status?.toLowerCase() === 'success'
                                       ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
-                                      : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+                                      : 'bg-indigo-500/10 text-indigo-500 border border-indigo-500/20'
                                   }`}>
+
                                     {payment.status}
                                   </div>
                                 </div>
@@ -2111,7 +2416,7 @@ function ProfilePageContent() {
         payment={selectedPayment}
         userData={{
           name: formData.name || session?.user?.name || "Premium User",
-          email: session?.user?.email || "billing@trendai.com",
+          email: session?.user?.email || "billing@starterscope.ai",
           company: formData.company,
           location: formData.location
         }}

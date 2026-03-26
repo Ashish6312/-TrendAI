@@ -71,7 +71,7 @@ export const useRazorpay = () => {
         key: orderData.key,
         amount: orderData.amount,
         currency: orderData.currency,
-        name: 'TrendAI',
+      name: 'StarterScope',
         description: `${options.planName} - ${options.billingCycle} subscription`,
         order_id: orderData.orderId,
         prefill: {

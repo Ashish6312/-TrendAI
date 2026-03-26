@@ -25,13 +25,39 @@ export default function Home() {
 
   useEffect(() => {
     const detect = async () => {
+      // 1. Try to get saved location from profile if logged in
+      if (session?.user?.email) {
+        try {
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+          const profileRes = await fetch(`${apiUrl}/api/users/${session.user.email}/profile`);
+          if (profileRes.ok) {
+            const profileData = await profileRes.json();
+            if (profileData.user?.location) {
+              const savedLocation = profileData.user.location;
+              console.log('👤 Using saved profile location:', savedLocation);
+              
+              // We can split the string for display or use it as is
+              const parts = savedLocation.split(',').map((p: string) => p.trim());
+              setDetectedLocation({ 
+                city: parts[0] || savedLocation, 
+                country: parts[parts.length - 1] || 'Saved' 
+              });
+              return; // EXIT EARLY - Found saved location
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to fetch profile location, falling back to auto-detect:', e);
+        }
+      }
+
+      // 2. Fallback to GPS/IP detection
       const loc = await locationAPI.detectUserLocation();
       if (loc) {
         setDetectedLocation({ city: loc.city, country: loc.country });
       }
     };
     detect();
-  }, []);
+  }, [session]);
 
   const handleStartScan = () => {
     if (session) {
@@ -221,7 +247,7 @@ export default function Home() {
                   transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
                   className="absolute -top-6 -right-6 p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl"
                 >
-                  <Star className="text-yellow-500 fill-yellow-500" size={20} />
+                  <Star className="text-emerald-500 fill-emerald-500" size={20} />
                 </motion.div>
 
                 <motion.div
@@ -286,15 +312,15 @@ export default function Home() {
                 whileHover={{
                   scale: 1.03,
                   y: -8,
-                  boxShadow: "0 25px 50px rgba(245, 158, 11, 0.15)"
+                  boxShadow: "0 25px 50px rgba(16, 185, 129, 0.15)"
                 }}
                 transition={{ duration: 0.3 }}
-                className="compact-card bg-white/80 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/50 compact-space-y-3 cursor-pointer transition-all duration-300 hover:bg-amber-50/80 dark:hover:bg-amber-950/30 shadow-lg hover:shadow-xl backdrop-blur-sm"
+                className="compact-card bg-white/80 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/50 compact-space-y-3 cursor-pointer transition-all duration-300 hover:bg-emerald-50/80 dark:hover:bg-emerald-950/30 shadow-lg hover:shadow-xl backdrop-blur-sm"
               >
                 <motion.div
                   whileHover={{ rotate: 360 }}
                   transition={{ duration: 0.5 }}
-                  className="w-10 h-10 rounded-xl bg-amber-600/15 dark:bg-amber-600/10 flex items-center justify-center text-amber-600 dark:text-amber-400 shadow-lg"
+                  className="w-10 h-10 rounded-xl bg-emerald-600/15 dark:bg-emerald-600/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shadow-lg"
                 >
                   <Layers size={16} />
                 </motion.div>
@@ -382,7 +408,7 @@ export default function Home() {
           </motion.div>
 
           <div className="order-1 md:order-2 compact-space-y-4">
-            <div className="inline-flex items-center compact-gap-2 compact-p-3 rounded-full bg-amber-500/15 dark:bg-amber-500/10 border border-amber-500/30 dark:border-amber-500/20 compact-text-xs font-black text-amber-600 dark:text-amber-400 tracking-[0.3em] uppercase shadow-lg">
+            <div className="inline-flex items-center compact-gap-2 compact-p-3 rounded-full bg-indigo-500/15 dark:bg-indigo-500/10 border border-indigo-500/30 dark:border-indigo-500/20 compact-text-xs font-black text-indigo-600 dark:text-indigo-400 tracking-[0.3em] uppercase shadow-lg">
               <Cpu size={12} /> EASY PLANNER
             </div>
             <h2 className="compact-text-3xl sm:compact-text-4xl font-black text-slate-900 dark:text-white tracking-tighter leading-[0.85] drop-shadow-sm">
@@ -407,9 +433,9 @@ export default function Home() {
                   <motion.div
                     whileHover={{ scale: 1.1, rotate: 180 }}
                     transition={{ duration: 0.3 }}
-                    className="w-10 h-10 bg-white/80 dark:bg-slate-800/50 group-hover:bg-amber-600/20 dark:group-hover:bg-amber-600/15 rounded-xl flex items-center justify-center shrink-0 border border-slate-200/80 dark:border-slate-700/50 transition-all shadow-lg backdrop-blur-sm"
+                    className="w-10 h-10 bg-white/80 dark:bg-slate-800/50 group-hover:bg-indigo-600/20 dark:group-hover:bg-indigo-600/15 rounded-xl flex items-center justify-center shrink-0 border border-slate-200/80 dark:border-slate-700/50 transition-all shadow-lg backdrop-blur-sm"
                   >
-                    <Zap size={16} className="text-amber-600 dark:text-amber-400" />
+                    <Zap size={16} className="text-indigo-600 dark:text-indigo-400" />
                   </motion.div>
                   <div className="group-hover:translate-x-2 transition-transform duration-300">
                     <h4 className="compact-text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight mb-1">{item.title}</h4>
@@ -422,7 +448,7 @@ export default function Home() {
                       initial={{ scaleY: 0 }}
                       whileInView={{ scaleY: 1 }}
                       transition={{ delay: item.delay + 0.3, duration: 0.5 }}
-                      className="absolute left-5 mt-10 w-0.5 h-6 bg-gradient-to-b from-amber-600/50 dark:from-amber-400/50 to-transparent origin-top"
+                      className="absolute left-5 mt-10 w-0.5 h-6 bg-gradient-to-b from-indigo-600/50 dark:from-indigo-400/50 to-transparent origin-top"
                     />
                   )}
                 </motion.li>
@@ -484,7 +510,7 @@ export default function Home() {
               icon: <Network size={20} />,
               title: t('home_feat_4_title'),
               description: t('home_feat_4_desc'),
-              color: "amber",
+              color: "indigo",
               delay: 0.4
             },
             {
@@ -862,7 +888,7 @@ export default function Home() {
                 className="flex items-center gap-2"
               >
                 <motion.div
-                  animate={{ scale: [1, 1.2, 1] }}
+                  animate={{ scale: [1, 1.5, 1] }}
                   transition={{ duration: 2, repeat: Infinity }}
                   className="w-1.5 h-1.5 bg-green-600 dark:bg-green-500 rounded-full"
                 />
@@ -894,7 +920,7 @@ export default function Home() {
                   animate={{ rotate: [0, 15, -15, 0] }}
                   transition={{ duration: 2, repeat: Infinity }}
                 >
-                  <Zap size={12} className="text-yellow-600 dark:text-yellow-400" />
+                  <Zap size={12} className="text-blue-600 dark:text-blue-400" />
                 </motion.div>
                 <span className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
                   Instant Results

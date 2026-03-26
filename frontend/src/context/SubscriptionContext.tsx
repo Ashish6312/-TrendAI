@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { getApiUrl } from "@/config/api";
 
-export type SubscriptionPlan = 'free' | 'starter' | 'professional' | 'growth' | 'enterprise';
+export type SubscriptionPlan = 'free' | 'starter' | 'professional';
 
 export interface SubscriptionTheme {
   primary: string;
@@ -17,11 +17,13 @@ export interface SubscriptionTheme {
 
 interface SubscriptionContextType {
   plan: SubscriptionPlan;
+  actualPlanName: string;
   theme: SubscriptionTheme;
   setPlan: (plan: SubscriptionPlan) => void;
   isSubscribed: boolean;
   planFeatures: {
     maxAnalyses: number;
+    maxVaultSaves: number;
     advancedFeatures: boolean;
     prioritySupport: boolean;
     customReports: boolean;
@@ -29,12 +31,7 @@ interface SubscriptionContextType {
     competitorInsights: boolean;
     realTimeAlerts: boolean;
     exportToPdf: boolean;
-    customBranding: boolean;
-    dedicatedManager: boolean;
-    whiteLabel: boolean;
-    phoneSupport: boolean;
-    advancedDashboard: boolean;
-    customDataSources: boolean;
+    roadmapAccess: boolean;
     planName: string;
     planDescription: string;
   };
@@ -56,139 +53,76 @@ const themes: Record<SubscriptionPlan, SubscriptionTheme> = {
     glow: 'shadow-[0_0_30px_-5px_rgba(100,116,139,0.3)]'
   },
   starter: {
-    primary: '#0ea5e9', // Sky Blue
-    secondary: '#38bdf8',
-    accent: '#0284c7',
-    gradient: 'from-sky-600 to-sky-500',
-    badge: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20',
-    glow: 'shadow-[0_0_30px_-5px_rgba(14,165,233,0.4)]'
+    primary: '#0891b2', // Cyan (Branding)
+    secondary: '#06b6d4',
+    accent: '#0e7490',
+    gradient: 'from-cyan-600 to-cyan-500',
+    badge: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20',
+    glow: 'shadow-[0_0_30px_-5px_rgba(6,182,212,0.4)]'
   },
   professional: {
-    primary: '#10b981', // Emerald
-    secondary: '#34d399',
-    accent: '#059669',
-    gradient: 'from-emerald-600 to-emerald-500',
-    badge: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
-    glow: 'shadow-[0_0_30px_-5px_rgba(16,185,129,0.4)]'
-  },
-  growth: {
-    primary: '#f59e0b', // Amber
-    secondary: '#fbbf24',
-    accent: '#d97706',
-    gradient: 'from-amber-600 to-amber-500',
-    badge: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
-    glow: 'shadow-[0_0_30px_-5px_rgba(245,158,11,0.4)]'
-  },
-  enterprise: {
-    primary: '#8b5cf6', // Violet/Purple
-    secondary: '#a78bfa',
-    accent: '#7c3aed',
-    gradient: 'from-violet-600 to-violet-500',
-    badge: 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20',
-    glow: 'shadow-[0_0_30px_-5px_rgba(139,92,246,0.5)]'
+    primary: '#2563eb', // Royal Blue
+    secondary: '#3b82f6',
+    accent: '#1d4ed8',
+    gradient: 'from-blue-600 to-blue-500',
+    badge: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+    glow: 'shadow-[0_0_30px_-5px_rgba(37,99,235,0.4)]'
   }
 };
 
 const planFeatures = {
   free: {
-    maxAnalyses: 10,
+    maxAnalyses: 1, // Registration gift: 1 high-precision business scan
+    maxVaultSaves: 0,
+    advancedFeatures: false, // Neural Profit Engine
+    prioritySupport: false,
+    customReports: false,
+    apiAccess: false,
+    competitorInsights: false, // Heatmaps
+    realTimeAlerts: false,
+    exportToPdf: false,
+    roadmapAccess: false,
+    planName: 'Explorer',
+    planDescription: 'Registration gift: 1 high-precision business scan.'
+  },
+  starter: {
+    maxAnalyses: 100, // 100 recommendations/month
+    maxVaultSaves: 5, // Alpha Vault (5 Saves)
     advancedFeatures: false,
     prioritySupport: false,
     customReports: false,
     apiAccess: false,
     competitorInsights: false,
-    realTimeAlerts: false,
+    realTimeAlerts: false, 
     exportToPdf: false,
-    customBranding: false,
-    dedicatedManager: false,
-    whiteLabel: false,
-    phoneSupport: false,
-    advancedDashboard: false,
-    customDataSources: false,
-    planName: 'Explorer',
-    planDescription: 'Essential AI tools to help you find and explore new business ideas.'
-  },
-  starter: {
-    maxAnalyses: 100,
-    advancedFeatures: true,
-    prioritySupport: false,
-    customReports: false,
-    apiAccess: false,
-    competitorInsights: false,
-    realTimeAlerts: true,
-    exportToPdf: false,
-    customBranding: false,
-    dedicatedManager: false,
-    whiteLabel: false,
-    phoneSupport: false,
-    advancedDashboard: false,
-    customDataSources: false,
+    roadmapAccess: false,
     planName: 'Starter',
-    planDescription: 'Enhanced tools for serious beginners and project validation.'
+    planDescription: '100 Monthly Insights & Alpha Vault archival (5 assets).'
   },
   professional: {
     maxAnalyses: -1, // Unlimited
-    advancedFeatures: true,
+    maxVaultSaves: -1, // Unlimited
+    advancedFeatures: true, // Neural Profit Engine
     prioritySupport: true,
     customReports: true,
-    apiAccess: false,
-    competitorInsights: true,
+    apiAccess: true,
+    competitorInsights: true, // Heatmaps
     realTimeAlerts: true,
     exportToPdf: true,
-    customBranding: true,
-    dedicatedManager: false,
-    whiteLabel: false,
-    phoneSupport: false,
-    advancedDashboard: true,
-    customDataSources: false,
+    roadmapAccess: true, // 6-Month Strategic Roadmaps
     planName: 'Professional',
-    planDescription: 'Unlimited business scans and advanced insights for growing entrepreneurs.'
-  },
-  growth: {
-    maxAnalyses: -1, // Unlimited
-    advancedFeatures: true,
-    prioritySupport: true,
-    customReports: true,
-    apiAccess: true,
-    competitorInsights: true,
-    realTimeAlerts: true,
-    exportToPdf: true,
-    customBranding: true,
-    dedicatedManager: false,
-    whiteLabel: false,
-    phoneSupport: true,
-    advancedDashboard: true,
-    customDataSources: true,
-    planName: 'Growth Business',
-    planDescription: 'Multi-location analysis and revenue forecasting for established businesses.'
-  },
-  enterprise: {
-    maxAnalyses: -1, // Unlimited
-    advancedFeatures: true,
-    prioritySupport: true,
-    customReports: true,
-    apiAccess: true,
-    competitorInsights: true,
-    realTimeAlerts: true,
-    exportToPdf: true,
-    customBranding: true,
-    dedicatedManager: true,
-    whiteLabel: true,
-    phoneSupport: true,
-    advancedDashboard: true,
-    customDataSources: true,
-    planName: 'Enterprise Dominance',
-    planDescription: 'Complete business solutions with API access and dedicated support for large organizations.'
+    planDescription: 'Unlimited business insights, Neural Profit Engine, and Elite Alpha Vault access for professional growth.'
   }
 };
 
 export function SubscriptionProvider({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
   const [plan, setPlanState] = useState<SubscriptionPlan>('free');
+  const [actualPlanName, setActualPlanName] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
 
   // Ensure plan is always valid
-  const validPlan = plan && ['free', 'starter', 'professional', 'growth', 'enterprise'].includes(plan) ? plan : 'free';
+  const validPlan = plan && ['free', 'starter', 'professional'].includes(plan) ? plan : 'free';
 
   // Fetch subscription plan from the authoritative profile endpoint
   const fetchSubscriptionPlan = async (): Promise<SubscriptionPlan | null> => {
@@ -210,33 +144,33 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         
         let planToSet: SubscriptionPlan = 'free';
         
-        if (rawPlanName.includes('enterprise') || 
-            rawDisplayName.includes('enterprise') ||
-            rawDisplayName.includes('territorial') ||
-            rawDisplayName.includes('dominance') ||
-            rawDisplayName.includes('dominator')) {
-          planToSet = 'enterprise';
-        } else if (rawPlanName.includes('growth') || 
-                   rawDisplayName.includes('growth') ||
-                   rawDisplayName.includes('accelerator')) {
-          planToSet = 'growth';
+        if (rawPlanName.includes('starter') || 
+            rawDisplayName.includes('starter') ||
+            rawDisplayName.includes('venture') ||
+            rawDisplayName.includes('strategist')) {
+          planToSet = 'starter';
         } else if (rawPlanName.includes('professional') || 
                    rawPlanName.includes('pro') || 
                    rawDisplayName.includes('professional') ||
-                   rawDisplayName.includes('architect') ||
+                   rawPlanName.includes('enterprise') || 
+                   rawPlanName.includes('growth') ||
+                   rawDisplayName.includes('enterprise') ||
+                   rawDisplayName.includes('dominance') ||
+                   rawDisplayName.includes('accelerator') ||
                    rawDisplayName.includes('pro')) {
           planToSet = 'professional';
-        } else if (rawPlanName.includes('starter') || 
-                   rawDisplayName.includes('starter') ||
-                   rawDisplayName.includes('venture') ||
-                   rawDisplayName.includes('strategist')) {
-          planToSet = 'starter';
         } else {
           planToSet = 'free';
         }
 
+        // We use the normalized new display names instead of old messy DB data if they are legacy
+        const actualName = planToSet === 'professional' ? 'Professional' : 
+                           planToSet === 'starter' ? 'Starter' : '';
+                           
         setPlanState(planToSet);
+        setActualPlanName(actualName);
         localStorage.setItem(`subscription_${email}`, planToSet);
+        localStorage.setItem(`subscription_name_${email}`, actualName);
         return planToSet;
       }
     } catch (error) {
@@ -254,8 +188,10 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         
         // Show cached plan immediately (instant UI, no flicker)
         const cachedPlan = localStorage.getItem(`subscription_${email}`);
-        if (cachedPlan && ['free', 'starter', 'professional', 'growth', 'enterprise'].includes(cachedPlan)) {
+        const cachedPlanName = localStorage.getItem(`subscription_name_${email}`);
+        if (cachedPlan && ['free', 'starter', 'professional'].includes(cachedPlan)) {
           setPlanState(cachedPlan as SubscriptionPlan);
+          if (cachedPlanName) setActualPlanName(cachedPlanName);
         }
         // Always re-fetch from backend (always overrides with truth)
         try {
@@ -275,7 +211,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
   const setPlan = (newPlan: SubscriptionPlan) => {
     // Validate the new plan before proceeding
-    if (!newPlan || !['free', 'starter', 'professional', 'growth', 'enterprise'].includes(newPlan)) {
+    if (!newPlan || !['free', 'starter', 'professional'].includes(newPlan)) {
       console.warn('Invalid plan provided to setPlan:', newPlan);
       return;
     }
@@ -368,7 +304,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-500"></div>
       </div>
     );
   }
@@ -376,6 +312,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   return (
     <SubscriptionContext.Provider value={{
       plan: validPlan,
+      actualPlanName: actualPlanName || planFeatures[validPlan]?.planName || '',
       theme: themes[validPlan] || themes.free, // Double fallback safety
       setPlan,
       isSubscribed: validPlan !== 'free',

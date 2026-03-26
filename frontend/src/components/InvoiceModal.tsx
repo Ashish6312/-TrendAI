@@ -111,7 +111,7 @@ export default function InvoiceModal({ isOpen, onClose, payment, userData }: Inv
       const imgHeight = (canvas.height * pdfWidth) / canvas.width;
       
       pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, imgHeight, undefined, 'FAST');
-      pdf.save(`TrendAI-Receipt-${payment.razorpay_payment_id || 'DEMO'}.pdf`);
+      pdf.save(`StarterScope-Receipt-${payment.razorpay_payment_id || 'DEMO'}.pdf`);
     } catch (error) {
       console.error("PDF generation failed:", error);
       window.print();
@@ -127,7 +127,8 @@ export default function InvoiceModal({ isOpen, onClose, payment, userData }: Inv
     if (name.includes('enterprise') || name.includes('dominance') || name.includes('territorial')) 
       return { primary: '#8b5cf6', secondary: '#a78bfa', text: 'text-purple-500', bg: 'bg-purple-600', shadow: 'shadow-purple-600/20' };
     if (name.includes('growth') || name.includes('accelerator')) 
-      return { primary: '#f59e0b', secondary: '#fbbf24', text: 'text-amber-500', bg: 'bg-amber-600', shadow: 'shadow-amber-600/20' };
+      return { primary: '#6366f1', secondary: '#818cf8', text: 'text-indigo-500', bg: 'bg-indigo-600', shadow: 'shadow-indigo-600/20' };
+
     if (name.includes('professional') || name.includes('architect')) 
       return { primary: '#10b981', secondary: '#34d399', text: 'text-emerald-500', bg: 'bg-emerald-600', shadow: 'shadow-emerald-600/20' };
     if (name.includes('starter') || name.includes('venture') || name.includes('strategist')) 
@@ -210,11 +211,11 @@ export default function InvoiceModal({ isOpen, onClose, payment, userData }: Inv
                 <div className="flex flex-col sm:flex-row justify-between items-start gap-8 border-b border-white/5 pb-10">
                   <div className="space-y-6">
                     <div className="flex items-center gap-4">
-                      <div className={`w-14 h-14 ${planTheme.bg} rounded-2xl flex items-center justify-center text-white font-black text-2xl shadow-xl ${planTheme.shadow}`}>
-                        T
+                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-2xl overflow-hidden border border-white/10 group">
+                        <img src="/brand-logo-v3.png" className="w-full h-full object-contain" alt="StarterScope" />
                       </div>
                       <div>
-                        <h1 className="text-2xl font-black tracking-tighter text-white italic">TrendAI</h1>
+                        <h1 className="text-2xl font-black tracking-tighter text-white italic">StarterScope</h1>
                         <p className={`text-[9px] font-black uppercase tracking-[0.4em] ${planTheme.text}`}>Global Intelligence Hub</p>
                       </div>
                     </div>
@@ -222,7 +223,7 @@ export default function InvoiceModal({ isOpen, onClose, payment, userData }: Inv
                     <div className="space-y-1 opacity-60">
                       <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Billed From</p>
                       <div className="text-[11px] font-medium leading-relaxed">
-                        <p>TrendAI Intelligence Corp.</p>
+                        <p>StarterScope Intelligence Corp.</p>
                         <p>123 High-Alpha Way, Palo Alto</p>
                         <p>CA 94301, USA</p>
                       </div>
@@ -327,7 +328,7 @@ export default function InvoiceModal({ isOpen, onClose, payment, userData }: Inv
                 <div className="pt-10 border-t border-white/5 flex flex-col sm:flex-row justify-between items-center gap-6 opacity-40">
                   <p className="text-[9px] font-black uppercase tracking-[0.3em]">Authorized Digital Receipt</p>
                   <div className="flex gap-8 text-[9px] font-black uppercase tracking-[0.2em]">
-                    <span>TrendAI.HQ/ALPHA</span>
+                    <span>StarterScope.HQ/ALPHA</span>
                     <span>Ref: {String(payment.id || '').slice(0,8).toUpperCase()}</span>
                     <span>© 2026 Intelligence Corp</span>
                   </div>
