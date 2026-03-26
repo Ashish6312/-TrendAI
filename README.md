@@ -1,16 +1,17 @@
-# TrendAI - Business Intelligence Platform
+# StarterScope | Strategic Business Intelligence Platform
 
-A comprehensive business intelligence platform that provides AI-powered market analysis, business recommendations, and strategic planning tools.
+A high-fidelity business intelligence engine that provides AI-powered market analysis, hyper-local business recommendations, and neural strategic planning tools.
 
 ## 🚀 Live Demo
 
-- **Frontend**: [https://trend-ai-main.vercel.app](https://trend-ai-main.vercel.app)
-- **Backend API**: [Your Render URL]
+- **Official Domain**: [https://starterscope.entrext.com](https://starterscope.entrext.com)
+- **Vercel Mirror**: [https://trend-ai-main.vercel.app](https://trend-ai-main.vercel.app)
+- **Neural API**: [https://starterscope-api.onrender.com](https://starterscope-api.onrender.com)
 
 ## 📁 Project Structure
 
 ```
-TrendAI-main/
+StarterScope/
 ├── frontend/          # Next.js frontend application
 │   ├── src/
 │   │   ├── app/       # Next.js 13+ app directory
