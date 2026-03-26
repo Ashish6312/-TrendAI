@@ -61,6 +61,7 @@ if os.getenv("VERCEL_URL"):
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex="https://.*\.vercel\.app",  # Allow all Vercel preview/production domains
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

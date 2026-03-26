@@ -22,8 +22,12 @@ export const getApiUrl = () => {
     return 'http://localhost:8000';
   }
   
-  // For production, use the environment variable or fallback to Render
-  return process.env.NEXT_PUBLIC_API_URL || 'https://starterscope-api.onrender.com';
+  // For production (Vercel), prioritize explicitly set production URL or fall back to Render
+  if (process.env.NEXT_PUBLIC_API_URL && !process.env.NEXT_PUBLIC_API_URL.includes('localhost')) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  
+  return 'https://starterscope-api.onrender.com';
 };
 
 
