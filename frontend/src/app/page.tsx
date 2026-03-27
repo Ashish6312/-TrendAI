@@ -131,7 +131,7 @@ export default function Home() {
                   className="text-5xl sm:text-6xl lg:text-7xl font-black tracking-tighter text-slate-900 dark:text-white leading-[0.9] drop-shadow-sm"
                 >
                   {t('hero_title_1')} <br />
-                  <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-500 via-cyan-500 to-blue-600 italic">{t('hero_title_2')}</span>
+                  <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-500 via-cyan-500 to-blue-600 italic pr-2 py-1">{t('hero_title_2')}</span>
                 </motion.h1>
                 <motion.p
                   initial={{ opacity: 0, y: 20 }}
