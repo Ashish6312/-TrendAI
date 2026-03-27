@@ -197,7 +197,7 @@ export default function Navbar() {
             whileTap={{ scale: 0.95 }}
             onClick={toggleTheme}
             className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-white dark:bg-white/5 hover:bg-slate-50 dark:hover:bg-white/10 text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white transition-all border border-slate-200 dark:border-white/10 shadow-sm relative group overflow-hidden"
-            title={theme === 'dark' ? t('nav_theme_light') : t('nav_theme_dark')}
+            title={mounted && theme === 'dark' ? t('nav_theme_light') : t('nav_theme_dark')}
           >
             <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/0 via-blue-500/0 to-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
             {mounted && theme === 'dark' ? (
