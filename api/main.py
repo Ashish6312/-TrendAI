@@ -1,5 +1,4 @@
-print("--- StarterScope Backend Booting (v2.2.3) ---")
-from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi import FastAPI, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
@@ -25,6 +24,30 @@ import json
 from typing import Dict, List, Any, Optional
 import httpx
 
+# ═══════════════════════════════════════════════════
+# WEBSOCKET MANAGER (Real-Time Insight Streaming)
+# ═══════════════════════════════════════════════════
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: dict):
+        for connection in self.active_connections:
+            try:
+                await connection.send_json(message)
+            except:
+                pass
+
+manager = ConnectionManager()
+
 class OverpassQuery(BaseModel):
     query: str
 
@@ -47,6 +70,8 @@ ALLOWED_ORIGINS = [
     "http://localhost:3000", "http://127.0.0.1:3000",
     "http://localhost:3001", "http://127.0.0.1:3001",
     "http://localhost:3002", "http://127.0.0.1:3002",
+    "http://localhost:3003", "http://127.0.0.1:3003",
+    "http://localhost:3004", "http://127.0.0.1:3004",
     "http://localhost:8000", "http://127.0.0.1:8000",
     "https://starterscope.entrext.com",
     "https://trend-ai-main.vercel.app",
@@ -62,12 +87,24 @@ if os.getenv("VERCEL_URL"):
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_origin_regex="https://.*\.(vercel\.app|entrext\.com)",  # Allow all Vercel subdomains and Entrext subdomains
+    allow_origin_regex=r"^(https?://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+)(:\d+)?|https://.*\.(vercel\.app|entrext\.com))$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["x-rtb-fingerprint-id", "x-razorpay-signature", "x-razorpay-order-id", "Content-Type", "Authorization"],
 )
+
+@app.websocket("/ws/analysis")
+async def websocket_analysis_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            # Keep connection alive
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+    except Exception as e:
+        manager.disconnect(websocket)
 
 # Simple Origin Logger for CORS Debugging
 @app.middleware("http")
@@ -295,9 +332,11 @@ def get_intelligence():
     global _cached_intelligence
     if _cached_intelligence is None:
         try:
-            from integrated_business_intelligence import IntegratedBusinessIntelligence
+            from integrated_business_intelligence import IntegratedBusinessIntelligence, register_ws_pusher
+            # Register the global WebSocket broadcaster
+            register_ws_pusher(manager.broadcast)
             _cached_intelligence = IntegratedBusinessIntelligence()
-            logger.info("✅ Integrated business intelligence initialized lazily")
+            logger.info("✅ Integrated business intelligence initialized with WebSocket push support")
         except Exception as e:
             logger.error(f"⚠️ Lazy intelligence initialization failed: {e}")
             logger.error(f"Full error: {str(e)}")
@@ -355,9 +394,9 @@ async def scrape_businesses(payload: ScrapeRequest, db: Session = Depends(get_db
     logger.info(f"🔍 Deep Scrape Requested: '{payload.query}' in {payload.location} (Limit: {payload.max_results})")
     
     # ENFORCED Tier Gate: Only Professional, Growth, and Enterprise can access deep extraction
-    if payload.email:
+    if payload.email and isinstance(payload.email, str):
         try:
-            sub = get_cached_subscription(payload.email, db)
+            sub = get_cached_subscription(str(payload.email), db)
             if not sub or sub.plan_name not in ['professional', 'growth', 'enterprise']:
                 logger.warning(f"🚫 GATED: Non-PRO user {payload.email} blocked from deep scrape.")
                 return {
@@ -958,7 +997,7 @@ def sync_user(user_data: UserSync, db: Session = Depends(get_db)):
 
 
 @app.post("/api/recommendations")
-def get_recommendations(request: RecommendationRequest, db: Session = Depends(get_db)):
+async def get_recommendations(request: RecommendationRequest, db: Session = Depends(get_db)):
     print(f"--- API CALLED - Starting recommendations for: {request.area}")
     print(f"--- User email: {request.user_email}")
     
@@ -993,20 +1032,25 @@ def get_recommendations(request: RecommendationRequest, db: Session = Depends(ge
             models.SearchHistory.area == analysis_area
         ).order_by(models.SearchHistory.created_at.desc()).first()
         
-        # Helper to safely parse JSON from DB
-        def safe_json_load(data):
-            if not data: return {}
-            if not isinstance(data, str): return data
-            try:
-                return json.loads(data)
-            except:
-                return data # Return as raw string if not JSON
+        # Helper to safely parse JSON from DB (Defensive Layer)
+        def ensure_json_obj(val):
+            if isinstance(val, (dict, list)): return val
+            if isinstance(val, str) and val.strip():
+                try: 
+                    loaded = json.loads(val)
+                    if isinstance(loaded, str): # Handle double-encoded strings
+                        return ensure_json_obj(loaded)
+                    return loaded
+                except: return {"raw_string": val}
+            return []
 
         if existing_record:
-            cached_recs = safe_json_load(existing_record.recommendations)
-            # 🎯 CACHE QUALITY GUARD: If cached data is a lean fallback or malformed (empty properties), 
-            # we force a refresh to provide full, high-quality items now that the system is upgraded.
-            is_valid_cache = isinstance(cached_recs, list) and len(cached_recs) >= 3
+            cached_recs = ensure_json_obj(existing_record.recommendations)
+            # 🎯 CACHE QUALITY GUARD: If cached data contains generic placeholders, force a high-fidelity refresh
+            cache_str = str(cached_recs)
+            is_generic = "Strategic Market Opportunity" in cache_str or "₹5L-₹15L" in cache_str
+            is_valid_cache = isinstance(cached_recs, list) and len(cached_recs) >= 3 and not is_generic
+            
             if is_valid_cache:
                 # Deep validation: ensuring the structure has actual business titles, not empty shells
                 sample = cached_recs[0] if len(cached_recs) > 0 else {}
@@ -1015,11 +1059,20 @@ def get_recommendations(request: RecommendationRequest, db: Session = Depends(ge
 
             if is_valid_cache:
                 print(f"♻️  Returning high-quality cached intelligence from database (ID: {existing_record.id}, {len(cached_recs)} items)")
+                # Recursively unpack if double-encoded
+                final_recs = cached_recs
+                if isinstance(final_recs, str) and final_recs.strip():
+                    try: 
+                        loaded = json.loads(final_recs)
+                        if isinstance(loaded, (list, dict)):
+                            final_recs = loaded
+                    except: pass
+                
                 return {
                     "id": existing_record.id,
                     "area": existing_record.area,
-                    "analysis": safe_json_load(existing_record.analysis),
-                    "recommendations": cached_recs,
+                    "analysis": ensure_json_obj(existing_record.analysis),
+                    "recommendations": ensure_json_obj(final_recs),
                     "logs": {"reddit": [], "web": []},
                     "cached": True,
                     "using_profile_location": bool(user_location and not request.area),
@@ -1037,13 +1090,13 @@ def get_recommendations(request: RecommendationRequest, db: Session = Depends(ge
         
         if intelligence:
             try:
-                result = intelligence.generate_data_driven_recommendations(analysis_area, request.user_email, request.language, request.phase)
+                result = await intelligence.generate_data_driven_recommendations(analysis_area, request.user_email, request.language, request.phase)
                 # Validate the result has actual AI-generated recommendations
                 recs = result.get("recommendations", []) if isinstance(result, dict) else []
                 if isinstance(recs, list) and len(recs) > 0:
                     print(f"[SUCCESS] Generated {len(recs)} real-time recommendations")
                 else:
-                    print("⚠️ Engine returned empty recommendations. Treating as failure.")
+                    print(f"⚠️ Engine returned empty recommendations. Message: {result.get('message', 'None')}")
                     result = None
             except Exception as e:
                 logger.error(f"Integrated intelligence failed: {e}")
@@ -1057,65 +1110,61 @@ def get_recommendations(request: RecommendationRequest, db: Session = Depends(ge
         if not result:
             logger.warning("Intelligence engine unavailable. Launching background self-fix...")
             
-            # 🔧 BACKGROUND SELF-FIXING THREAD
-            # Retries the AI engine with exponential backoff until it succeeds,
-            # then saves the result to DB so the user's next request hits the cache.
-            import threading
+            # 🔧 BACKGROUND SELF-FIXING TASK
             _area = analysis_area
             _email = request.user_email
             _lang = request.language
             _phase = request.phase
             
-            def background_self_fix():
-                import time
-                max_retries = 6  # Will retry over ~30 minutes (30+60+120+240+480+960 = ~31 min)
-                wait_seconds = 30  # Start with 30s backoff
+            async def background_self_fix():
+                max_retries = 6  
+                wait_seconds = 30  
                 
                 for attempt in range(1, max_retries + 1):
                     print(f"🔧 [BACKGROUND FIX] Attempt {attempt}/{max_retries} for '{_area}' (waiting {wait_seconds}s)...")
-                    time.sleep(wait_seconds)
+                    await asyncio.sleep(wait_seconds)
                     
                     try:
                         fix_intelligence = get_intelligence()
                         if not fix_intelligence:
-                            print(f"🔧 [BACKGROUND FIX] Intelligence engine not available. Retrying...")
                             wait_seconds = min(wait_seconds * 2, 960)
                             continue
                         
-                        fix_result = fix_intelligence.generate_data_driven_recommendations(_area, _email, _lang, _phase)
+                        fix_result = await fix_intelligence.generate_data_driven_recommendations(_area, _email, _lang, _phase)
                         fix_recs = fix_result.get("recommendations", []) if isinstance(fix_result, dict) else []
                         
                         if isinstance(fix_recs, list) and len(fix_recs) > 0:
-                            # SUCCESS — Save to DB for the user
-                            print(f"✅ [BACKGROUND FIX] Successfully generated {len(fix_recs)} recommendations on attempt {attempt}!")
+                            print(f"✅ [BACKGROUND FIX] Successfully generated recommendations for {_area}!")
                             try:
                                 from database import SessionLocal
                                 fix_db = SessionLocal()
+                                final_analysis = fix_result.get("analysis", {})
+                                if isinstance(final_analysis, (dict, list)):
+                                    final_analysis_str = json.dumps(final_analysis)
+                                else:
+                                    final_analysis_str = str(final_analysis)
+
                                 fix_record = models.SearchHistory(
                                     user_email=_email,
                                     area=_area,
-                                    analysis=json.dumps(fix_result.get("analysis", {})) if isinstance(fix_result.get("analysis"), (dict, list)) else str(fix_result.get("analysis", "")),
+                                    analysis=final_analysis_str,
                                     recommendations=json.dumps(fix_recs)
                                 )
                                 fix_db.add(fix_record)
                                 fix_db.commit()
-                                print(f"💾 [BACKGROUND FIX] Saved to DB (ID: {fix_record.id}). User will see results on next visit.")
                                 fix_db.close()
+                                return
                             except Exception as db_err:
-                                print(f"⚠️ [BACKGROUND FIX] DB save failed: {db_err}")
-                            return  # Mission accomplished
-                        else:
-                            print(f"⚠️ [BACKGROUND FIX] Attempt {attempt} returned empty results. Retrying...")
+                                print(f"❌ [BACKGROUND FIX] DB Save failed: {db_err}")
                     except Exception as e:
-                        print(f"❌ [BACKGROUND FIX] Attempt {attempt} failed: {str(e)[:150]}")
+                        print(f"⚠️ [BACKGROUND FIX] Attempt {attempt} failed: {e}")
                     
-                    wait_seconds = min(wait_seconds * 2, 960)  # Exponential backoff, max ~16 min
+                    wait_seconds = min(wait_seconds * 2, 960)
                 
-                print("❌ [BACKGROUND FIX] All retry attempts exhausted. System will recover on next startup.")
+                print("❌ [BACKGROUND FIX] All retry attempts exhausted.")
             
-            fix_thread = threading.Thread(target=background_self_fix, daemon=True)
-            fix_thread.start()
-            print("🚀 Background self-fix thread launched.")
+            asyncio.create_task(background_self_fix())
+            print("🚀 Background self-fix task launched.")
             
             return {
                 "area": analysis_area,
@@ -1128,12 +1177,16 @@ def get_recommendations(request: RecommendationRequest, db: Session = Depends(ge
                 "self_healing": True
             }
         
+        # Standardize keys to prevent KeyError in DB save
+        recs = result.get("recommendations", [])
+        ana = result.get("analysis", result.get("analysis_report", result.get("summary", "Analysis Pending")))
+        
         # Save to database
         db_record = models.SearchHistory(
             user_email=request.user_email,
             area=analysis_area,
-            analysis=json.dumps(result["analysis"]) if isinstance(result["analysis"], (dict, list)) else str(result["analysis"]),
-            recommendations=json.dumps(result["recommendations"]) if isinstance(result["recommendations"], (dict, list)) else str(result["recommendations"])
+            analysis=ana,
+            recommendations=recs
         )
         db.add(db_record)
         db.commit()
@@ -1144,8 +1197,8 @@ def get_recommendations(request: RecommendationRequest, db: Session = Depends(ge
         return {
             "id": db_record.id,
             "area": db_record.area,
-            "analysis": json.loads(db_record.analysis) if isinstance(db_record.analysis, str) else db_record.analysis,
-            "recommendations": json.loads(db_record.recommendations) if isinstance(db_record.recommendations, str) else db_record.recommendations,
+            "analysis": ensure_json_obj(db_record.analysis),
+            "recommendations": ensure_json_obj(db_record.recommendations),
             "logs": {"reddit": [], "web": []},
             "cached": False,
             "system_status": result.get("system_status", "Live Data Processing Active (2026)"),
@@ -1272,7 +1325,7 @@ def get_business_plan(request: BusinessPlanRequest, db: Session = Depends(get_db
     """Generate a high-fidelity business plan using the best available intelligence engine"""
     title = request.business_title
     area = request.area
-    email = request.user_email.lower().strip()
+    email = (request.user_email or "anonymous").lower().strip()
     lang = request.language
     
     print(f"--- 🚀 Dispatching Business Plan Request: {title} in {area}")
@@ -2080,14 +2133,15 @@ async def payment_webhook(request: Request):
 async def create_dodo_checkout_session(request: DodoCheckoutRequest):
     """Create a Dodo Payments checkout session"""
     api_key = os.getenv("DODO_PAYMENTS_API_KEY")
-    if not api_key or not (api_key.startswith("dp_test") or api_key.startswith("dp_live")):
-        logger.error(f"❌ Invalid Dodo API Key format: {api_key[:10]}...")
+    api_key_str = str(api_key or "")
+    if not api_key_str or not (api_key_str.startswith("dp_test") or api_key_str.startswith("dp_live")):
+        logger.error(f"❌ Invalid Dodo API Key format: {api_key_str[:10]}...")
         raise HTTPException(
             status_code=401, 
             detail="Invalid Dodo API Key format. Key must start with 'dp_test_' or 'dp_live_'. Please check your .env file."
         )
     
-    url = "https://live.dodopayments.com/checkouts" if api_key.startswith("dp_live") else "https://test.dodopayments.com/checkouts"
+    url = "https://live.dodopayments.com/checkouts" if api_key_str.startswith("dp_live") else "https://test.dodopayments.com/checkouts"
     
     payload = {
         "product_cart": [{ "product_id": request.product_id, "quantity": request.quantity }],
@@ -2430,6 +2484,7 @@ async def sync_razorpay_payments(email: str):
             items = data.get('items', [])
             logger.info(f"📡 Razorpay returned {len(items)} payments to check for {email_normalized}")
             
+            synced_count = 0
             for item in items:
                 notes = item.get('notes', {})
                 if isinstance(notes, list):
@@ -2609,21 +2664,21 @@ def update_user_profile(email: str, user_update: UserUpdate, db: Session = Depen
     
     # Update user fields if provided
     if user_update.name is not None:
-        user.name = user_update.name.strip()
+        user.name = str(user_update.name).strip()
     if user_update.image_url is not None:
-        user.image_url = user_update.image_url
+        user.image_url = str(user_update.image_url)
     if user_update.bio is not None:
-        user.bio = user_update.bio.strip()
+        user.bio = str(user_update.bio).strip()
     if user_update.phone is not None:
-        user.phone = user_update.phone.strip()
+        user.phone = str(user_update.phone).strip()
     if user_update.company is not None:
-        user.company = user_update.company.strip()
+        user.company = str(user_update.company).strip()
     if user_update.location is not None:
-        user.location = user_update.location.strip()
+        user.location = str(user_update.location).strip()
     if user_update.website is not None:
-        user.website = user_update.website.strip()
+        user.website = str(user_update.website).strip()
     if user_update.industry is not None:
-        user.industry = user_update.industry.strip()
+        user.industry = str(user_update.industry).strip()
     
     try:
         db.commit()
@@ -2834,5 +2889,13 @@ handler = app
 
 if __name__ == "__main__":
     import uvicorn
-    # Enable reload=True for better development experience (v2.1)
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    # Set console to UTF-8 for Windows (prevents charmap crashes)
+    import sys
+    import io
+    if sys.platform == "win32":
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+        
+    print("--- [STARTUP] Engine V3 Standardized on UTF-8 (All Interfaces) ---")
+    # Disable reload for production-like stability during final testing
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)

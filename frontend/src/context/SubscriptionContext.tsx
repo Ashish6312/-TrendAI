@@ -130,7 +130,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     if (!session?.user?.email) return null;
     
     const email = session.user.email.toLowerCase().trim();
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
     
     try {
       // Use the profile endpoint which reconciles payment history (source of truth)

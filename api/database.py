@@ -52,7 +52,7 @@ elif DATABASE_URL:
 else:
     DATABASE_URL = "sqlite:///./sql_app.db"
     connect_args = {"check_same_thread": False}
-    logger.warning("No DATABASE_URL found — using local SQLite fallback")
+    logger.warning("FORCED SQLITE FOR STABILITY TEST")
 
 # Engine settings
 if "sqlite" in DATABASE_URL:
@@ -65,8 +65,8 @@ else:
         "connect_args": connect_args,
         "pool_pre_ping": True,
         "pool_recycle": 300,
-        "pool_size": 5,
-        "max_overflow": 10,
+        "pool_size": 20,
+        "max_overflow": 40,
         "echo": False,
     }
 

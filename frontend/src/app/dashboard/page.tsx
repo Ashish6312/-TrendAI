@@ -90,6 +90,7 @@ function Dashboard() {
   const { theme, planFeatures, hasReachedAnalysisLimit, actualPlanName, plan } = useSubscription();
   const { resolvedTheme } = useTheme();
   const searchParams = useSearchParams();
+  const apiUrl = getApiUrl();
   
   const [currentTime, setCurrentTime] = useState(new Date());
   
@@ -113,7 +114,8 @@ function Dashboard() {
         setVaultCount(data.length);
       }
     } catch (e) {
-      console.error("Failed to fetch vault count", e);
+      console.error("Failed to fetch vault count, retrying in 5s...", e);
+      setTimeout(fetchVaultCount, 5000); // Retry once after 5s (handles Neon cold start)
     }
   };
 
@@ -203,6 +205,7 @@ function Dashboard() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [loadingMessage, setLoadingMessage] = useState("Initializing Analysis Engine...");
   const [result, setResult] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [analysisCount, setAnalysisCount] = useState(0);
@@ -248,8 +251,6 @@ function Dashboard() {
       setArea(decodeURIComponent(areaParam));
     }
   }, [searchParams]);
-
-  const apiUrl = getApiUrl();
 
   
   // Fetch user's profile location
@@ -356,7 +357,8 @@ function Dashboard() {
       setHistory(data);
       setAnalysisCount(data.length);
     } catch (e) {
-      console.error("Failed to fetch history", e);
+      console.error("Failed to fetch history, retrying in 5s...", e);
+      setTimeout(fetchHistory, 5000); // Retry once after 5s (handles Neon cold start)
       setHistory([]);
       setAnalysisCount(0);
     }
@@ -392,15 +394,48 @@ function Dashboard() {
     
     setLoading(true);
     setLoadingProgress(0);
+    setLoadingMessage("Waking up Intelligence Cluster...");
     setResult(null);
+
+    // Initialize WebSocket for real-time progress updates
+    let socket: WebSocket | null = null;
+    try {
+      const wsUrl = apiUrl.startsWith('http') ? apiUrl.replace(/^http/, 'ws') : `ws://${window.location.host}`;
+      socket = new WebSocket(`${wsUrl}/ws/analysis`);
+      
+      socket.onopen = () => {
+        console.log("📡 Analysis WebSocket Connected");
+        socket?.send("ping"); // Keep-alive
+      };
+      
+      socket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'analysis_progress') {
+            setLoadingMessage(data.message);
+            // Gradually bump progress as we get specific milestones
+            setLoadingProgress(prev => {
+              if (data.message.includes('Searching')) return Math.max(prev, 25);
+              if (data.message.includes('Sentiment')) return Math.max(prev, 50);
+              if (data.message.includes('Claude')) return Math.max(prev, 75);
+              return prev;
+            });
+          }
+        } catch (e) { /* ignore malformed ws msgs */ }
+      };
+
+      socket.onerror = (e) => console.warn("WebSocket analysis feed unavailable:", e);
+    } catch (e) {
+      console.warn("Could not initiate WebSocket feed:", e);
+    }
 
     const progressInterval = setInterval(() => {
       setLoadingProgress(prev => {
-        if (prev >= 95) return prev;
-        const increment = Math.random() * (prev < 50 ? 8 : prev < 80 ? 3 : 1);
-        return Math.min(prev + increment, 95);
+        if (prev >= 98) return prev;
+        const increment = Math.random() * (prev < 50 ? 5 : prev < 80 ? 1 : 0.2);
+        return Math.min(prev + increment, 98);
       });
-    }, 800);
+    }, 1000);
 
     try {
       const response = await fetch(`${apiUrl}/api/recommendations`, {
@@ -421,6 +456,7 @@ function Dashboard() {
       const data = await response.json();
       
       setLoadingProgress(100);
+      if (socket) socket.close();
       setTimeout(() => {
         setResult(data);
         clearInterval(progressInterval);
@@ -439,6 +475,7 @@ function Dashboard() {
       }, 500);
     } catch (error) {
       console.error("Failed to fetch recommendations", error);
+      if (socket) socket.close();
       clearInterval(progressInterval);
       setLoading(false);
       
@@ -918,11 +955,7 @@ function Dashboard() {
                           </div>
                           
                           <h2 className="text-3xl sm:text-4xl font-black text-slate-800 tracking-tight mb-4 drop-shadow-lg transition-all duration-700">
-                            {loadingProgress < 20 ? "Targeting Market Clusters..." :
-                             loadingProgress < 50 ? "Fetching Live Signals..." :
-                             loadingProgress < 75 ? "Synthesizing Strategic Memo..." :
-                             loadingProgress < 90 ? "Mapping Competitor Gaps..." :
-                             "Finalizing Intelligence Report..."}
+                            {loadingMessage}
                           </h2>
                           
                           <p className="text-slate-600 text-base font-medium uppercase tracking-wider mb-8 max-w-md drop-shadow-sm min-h-[1.5em] transition-all duration-700">
