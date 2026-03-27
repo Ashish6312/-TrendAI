@@ -1004,9 +1004,16 @@ def get_recommendations(request: RecommendationRequest, db: Session = Depends(ge
 
         if existing_record:
             cached_recs = safe_json_load(existing_record.recommendations)
-            # 🎯 CACHE QUALITY GUARD: If cached data is a lean fallback (e.g. only 1-5 items), 
-            # we force a refresh to provide full 15 items now that the system is upgraded.
-            if isinstance(cached_recs, list) and len(cached_recs) >= 3:
+            # 🎯 CACHE QUALITY GUARD: If cached data is a lean fallback or malformed (empty properties), 
+            # we force a refresh to provide full, high-quality items now that the system is upgraded.
+            is_valid_cache = isinstance(cached_recs, list) and len(cached_recs) >= 3
+            if is_valid_cache:
+                # Deep validation: ensuring the structure has actual business titles, not empty shells
+                sample = cached_recs[0] if len(cached_recs) > 0 else {}
+                if isinstance(sample, dict) and not any(sample.get(k) for k in ['title', 'name', 'business_title', 'business_name', 'idea']):
+                    is_valid_cache = False
+
+            if is_valid_cache:
                 print(f"♻️  Returning high-quality cached intelligence from database (ID: {existing_record.id}, {len(cached_recs)} items)")
                 return {
                     "id": existing_record.id,
