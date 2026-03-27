@@ -36,9 +36,11 @@ class IntegratedBusinessIntelligence:
         self.serpapi_base = "https://serpapi.com/search"
         self.gemini_base = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
         
-        # Performance Cache for market context (Avoid redundant heavy searches)
+        # Intelligence Throttling & Liquidity Caches
         self._market_context_cache = {}
-        self._cache_expiry = 300 # 5 minutes (reduced from 30 for faster iterations)
+        self._final_recommendations_cache = {} # Caches deep reasoning outputs
+        self._cache_expiry = 900  # 15 min for context
+        self._final_cache_expiry = 1800 # 30 min for final reasoning (Optimize API Usage)
 
         # Autonomous Self-Healing State
         self._health_registry: Dict[str, Any] = {
@@ -125,12 +127,13 @@ class IntegratedBusinessIntelligence:
         if (clean_count / len(text)) < 0.95: 
             return False
             
-        # Hard-block lists for specific foreign language/technical noise
+        # Aggressive Noise Filter for Professional Content
         noise = [
             'baidu', 'windows', 'win10', 'boot', 'startup', 'click here', 'login', 
             'redirect', 'esc', ' Radeon ', '百度', '请问', '不到', '自启', '知道',
             'on this day', 'in history', 'born on', 'died on', 'anniversary', 
-            'weather forecast', 'horoscope', 'prayer times', 'namaz'
+            'weather forecast', 'horoscope', 'prayer times', 'namaz', 'today in history',
+            'what happened today', 'famous birthdays', 'calendar', 'panchang'
         ]
         text_lower = text.lower()
         if any(x.lower() in text_lower for x in noise): 
@@ -171,6 +174,17 @@ class IntegratedBusinessIntelligence:
         
     def generate_data_driven_recommendations(self, area: str, email: str, language: str = "English", phase: str = "discovery") -> Dict:
         """Ultimate Strategic Engine: Synthesizes live market data through multi-stage reasoning to generate high-fidelity business suggestions."""
+        import time
+        area_key = area.lower().strip()
+        now = time.time()
+        
+        # 0. Check Rapid-Response Cache (Final Recommendations)
+        if area_key in self._final_recommendations_cache:
+            data, expiry = self._final_recommendations_cache[area_key]
+            if now < expiry:
+                print(f"💎 Intelligence Cache Hit: {area}. Serving immediate strategic response.")
+                return data
+        
         key_preview = str(self.gemini_key)[:8] if self.gemini_key else "None"
         print(f"--- 🧠 [ELITE AI ENGINE] Masked Cluster Key: {key_preview}... Active ---")
         print(f"🚀 [ELITE AI ENGINE] Starting deep market reasoning for {area} ({phase} phase)...")
@@ -213,6 +227,9 @@ class IntegratedBusinessIntelligence:
             "timestamp": datetime.now().isoformat(),
             "competitive_reconnaissance": competitor_map # Structured local business entities
         }
+        
+        # Persist to Rapid-Response Cache
+        self._final_recommendations_cache[area_key] = (final_result, now + self._final_cache_expiry)
         
         return final_result
 
@@ -315,14 +332,21 @@ class IntegratedBusinessIntelligence:
                     category_data = []
                     
                     # 🎯 NOISE FILTER: Strictly skip history/generic facts like "On This Day" or "Born in"
-                    noise_indicators = ['on this day', 'in history', 'born on', 'died on', 'anniversary', 'weather forecast', 'horoscope', 'prayer times', 'namaz']
+                    noise_indicators = [
+                        'on this day', 'in history', 'born on', 'died on', 'anniversary', 
+                        'weather forecast', 'horoscope', 'prayer times', 'namaz', 
+                        'today in history', 'events today', 'historical events', 'this week in history'
+                    ]
                     
                     for r in results:
                         body = r.get('body', '').lower()
                         title = r.get('title', '').lower()
                         
-                        # Skip snippets that look like history/noise
-                        if any(noise in body for noise in noise_indicators) or any(noise in title for noise in noise_indicators):
+                        # Aggressive multi-field noise detection
+                        is_noise = any(noise in body for noise in noise_indicators) or \
+                                  any(noise in title for noise in noise_indicators)
+                                  
+                        if is_noise:
                             continue
                             
                         if r.get('body') and len(r['body']) > 30:
@@ -332,17 +356,14 @@ class IntegratedBusinessIntelligence:
                                 "url": r.get('href', ''),
                                 "timestamp": datetime.now().isoformat()
                             })
-                    
-                    # Map back to structured categories
+                            search_results.append(r['body'])
+                            
+                    # Map back to structured categories to ensure UI components have data
                     if idx == 0: live_data["market_trends"] = category_data
                     elif idx == 1: live_data["economic_indicators"] = category_data
                     elif idx == 2: live_data["business_opportunities"] = category_data
                     elif idx == 3: live_data["consumer_behavior"] = category_data
                     elif idx == 4: live_data["competition_analysis"] = category_data
-                    
-                    # Add non-noisy snippets to search_results
-                    cleaned_snippets = [r['body'] for r in results if r.get('body') and not any(noise in r['body'].lower() for noise in noise_indicators)]
-                    search_results.extend(cleaned_snippets)
                 except Exception as ex:
                     print(f"⚠️ Future processing failed: {ex}")
 
@@ -726,11 +747,14 @@ class IntegratedBusinessIntelligence:
         SYNTHESIZED MARKET INTELLIGENCE MEMO (2026):
         {context}
         
-        COMMUNITY SENTIMENT (REDDIT):
-        {reddit_context}
-        
         REAL-WORLD COMPETITIVE ENTITIES DETECTED:
         {competitor_map}
+        
+        CRITICAL NEGATIVE CONSTRAINTS:
+        - NEVER suggest "On This Day", "History", "Trivia", "Birthdays", or "Historical Facts" as a business.
+        - If the provided context contains "Today in History" noise, IGNORE it and focus on 2026 economic sectors.
+        - DO NOT suggest events, sports scores, or news aggregators unless they are high-revenue B2B/B2C platforms.
+        - NO generic search engine placeholders. I want REAL businesses like: Logistics, EV, AI-SaaS, EdTech, Healthcare, Green Tech.
         
         STRATEGIC FRAMEWORK:
         - Apply 'Blue Ocean Strategy' to identify gaps where competition is irrelevant.
@@ -1551,7 +1575,10 @@ class IntegratedBusinessIntelligence:
             3. Specific Infrastructure or Regulatory catalysts for 2026.
             4. Potential 'Market Gaps' or underserved niches.
             
-            Only include factual business signals. If data is sparse, use your expert knowledge of {area} for 2026.
+            UNCOMPROMISING RULE: 
+            - NO HISTORY, NO BIRTHDAYS, NO 'ON THIS DAY' TRIVIA.
+            - Focus exclusively on REAL BUSINESS VENTURES (Logistics, Manufacturing, Tech, Services).
+            - If search signals are poor, rely on your internal knowledge of 2026 economic trends for {area}.
             """
             
             # Call Gemini v2.0-flash for high-speed synthesis
