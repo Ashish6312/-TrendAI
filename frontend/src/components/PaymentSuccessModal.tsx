@@ -174,7 +174,7 @@ export default function PaymentSuccessModal({ isOpen, onClose, paymentData, isPa
   const PlanIcon = planIcons[currentPlan] || Target;
 
   const content = (
-    <div className={`relative ${isPage ? 'min-h-screen flex items-center justify-center p-4' : 'w-full max-w-md max-h-[90vh] overflow-y-auto scrollbar-hide'}`}>
+    <div className={`relative ${isPage ? 'min-h-screen flex items-center justify-center p-4' : 'w-full max-w-sm max-h-[90vh] overflow-y-auto scrollbar-hide'}`}>
       
       {/* Premium Confetti Animation */}
       <AnimatePresence>
@@ -215,7 +215,7 @@ export default function PaymentSuccessModal({ isOpen, onClose, paymentData, isPa
         initial={isPage ? { opacity: 0, scale: 0.9 } : { opacity: 0, y: 50 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 50 }}
-        className={`relative bg-white dark:bg-slate-950 border border-slate-200 dark:border-white/10 rounded-[2.5rem] shadow-2xl overflow-hidden ${isPage ? 'w-full max-w-md' : ''}`}
+        className={`relative bg-white dark:bg-slate-950 border border-slate-200 dark:border-white/10 rounded-[2rem] shadow-2xl overflow-hidden ${isPage ? 'w-full max-w-sm' : ''}`}
       >
         {/* Background Accents */}
         <div className="absolute inset-0 pointer-events-none">
@@ -232,7 +232,7 @@ export default function PaymentSuccessModal({ isOpen, onClose, paymentData, isPa
           </button>
         )}
 
-        <div className="relative z-10 p-6 sm:p-8 space-y-6">
+        <div className="relative z-10 p-5 sm:p-6 space-y-4">
           {/* Header */}
           <div className="text-center space-y-6">
             <motion.div
@@ -245,7 +245,7 @@ export default function PaymentSuccessModal({ isOpen, onClose, paymentData, isPa
             </motion.div>
 
             <div className="space-y-2">
-              <h1 className="text-4xl sm:text-5xl font-black text-slate-900 dark:text-white italic tracking-tighter">Payment Successful!</h1>
+              <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white italic tracking-tighter">Payment Successful!</h1>
               <p className="text-slate-500 dark:text-slate-400 font-medium tracking-tight">Your strategic upgrade has been authorized.</p>
             </div>
 
@@ -312,16 +312,16 @@ export default function PaymentSuccessModal({ isOpen, onClose, paymentData, isPa
                 key={i}
                 whileHover={{ y: -5, scale: 1.02 }}
                 onClick={() => handleAction(action.url)}
-                className={`p-6 rounded-2xl border text-left space-y-3 transition-all ${
+                className={`p-5 rounded-2xl border text-left space-y-3 transition-all ${
                   action.primary 
-                    ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xl' 
+                    ? 'bg-gradient-to-br from-indigo-600 to-emerald-500 text-white border-transparent shadow-xl ring-2 ring-emerald-500/20' 
                     : 'bg-slate-900/5 dark:bg-white/5 text-slate-900 dark:text-white border-slate-900/10 dark:border-white/10 hover:bg-slate-900/10 dark:hover:bg-white/10'
                 }`}
               >
-                <action.icon size={20} className={action.primary ? 'text-white dark:text-slate-950' : ''} style={!action.primary ? { color: theme.primary } : {}} />
+                <action.icon size={20} className={action.primary ? 'text-white' : ''} style={!action.primary ? { color: theme.primary } : {}} />
                 <div>
-                  <p className={`font-black uppercase tracking-widest text-[10px] ${action.primary ? 'text-slate-500' : 'text-slate-500'}`}>{action.title}</p>
-                  <p className="font-bold text-sm">{action.desc}</p>
+                  <p className={`font-black uppercase tracking-widest text-[9px] ${action.primary ? 'text-white/60' : 'text-slate-500'}`}>{action.title}</p>
+                  <p className="font-bold text-xs">{action.desc}</p>
                 </div>
               </motion.button>
             ))}

@@ -39,6 +39,7 @@ interface SubscriptionContextType {
   getRemainingAnalyses: (currentCount: number) => number;
   hasReachedAnalysisLimit: (currentCount: number) => boolean;
   isLoading: boolean;
+  refreshSubscription: () => Promise<void>;
 }
 
 const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
@@ -223,8 +224,15 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     }
 
     setPlanState(newPlan);
+    
+    // Set actual plan name based on the new plan
+    const newActualName = newPlan === 'professional' ? 'Professional' : 
+                          newPlan === 'starter' ? 'Starter' : 'Free';
+    setActualPlanName(newActualName);
+
     if (session?.user?.email) {
       localStorage.setItem(`subscription_${session.user.email}`, newPlan);
+      localStorage.setItem(`subscription_name_${session.user.email}`, newActualName);
     }
     
     // Update CSS custom properties for theme with extra safety
@@ -246,12 +254,21 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     // Add plan-specific body class for global styling
     try {
       if (document?.body) {
-        document.body.className = document.body.className.replace(/plan-\w+/g, '');
+        const classList = Array.from(document.body.classList);
+        classList.forEach(cls => {
+          if (cls.startsWith('plan-')) document.body.classList.remove(cls);
+        });
         document.body.classList.add(`plan-${newPlan}`);
       }
     } catch (error) {
       console.error('Error updating body class:', error);
     }
+  };
+
+  const refreshSubscription = async () => {
+    setIsLoading(true);
+    await fetchSubscriptionPlan();
+    setIsLoading(false);
   };
 
   // Apply theme on mount and plan change
@@ -320,7 +337,8 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       canAccessFeature,
       getRemainingAnalyses,
       hasReachedAnalysisLimit,
-      isLoading
+      isLoading,
+      refreshSubscription
     }}>
       {children}
     </SubscriptionContext.Provider>
