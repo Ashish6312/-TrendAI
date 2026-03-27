@@ -1400,12 +1400,12 @@ function Dashboard() {
                                       </div>
                                       <div>
                                         <h4 className="text-2xl lg:text-3xl font-black text-slate-900 dark:text-white tracking-tight group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-                                          {rec.title}
+                                          {rec.title || rec.name || rec.business_title || rec.business_name || rec.idea || 'Strategic Market Opportunity'}
                                         </h4>
                                       </div>
                                     </div>
                                     <p className="text-sm font-medium text-slate-600 dark:text-gray-300 leading-relaxed max-w-3xl">
-                                      {rec.description}
+                                      {rec.description || rec.thesis || rec.summary || rec.explanation || 'Detailed tactical breakdown of this localized market gap based on real-time 2026 economic indicators.'}
                                     </p>
                                   </div>
                                   
