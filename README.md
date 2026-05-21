@@ -4,14 +4,6 @@ A high-fidelity business intelligence engine that provides AI-powered market ana
 
 ---
 
-## 🚀 Live Demo & Infrastructure
-
-*   **Official Domain**: [https://starterscope.entrext.com](https://starterscope.entrext.com)
-*   **Vercel Mirror**: [https://trend-ai-main.vercel.app](https://trend-ai-main.vercel.app)
-*   **Neural API Gateway**: [https://starterscope-api.onrender.com](https://starterscope-api.onrender.com)
-
----
-
 ## 🧠 System Architecture & Workflow
 
 Startup Scope uses a decoupled frontend/backend structure to race real-time local intelligence pipelines and stream progress directly to the user dashboard.
