@@ -272,7 +272,9 @@ Updates basic bio and business context metadata for the profile.
 ### 2. Market Analysis & Intelligence Swarm
 
 #### `POST /api/recommendations`
-Triggers the multi-source RAG scouting swarm, runs the reasoning cluster, and generates 12-15 localized business proposals.
+Triggers the multi-source RAG scouting swarm, runs the reasoning cluster, and generates business recommendations. It supports two modes of operation:
+- **Generic Location Search** (if `business_type` is omitted or empty): Returns 12-15 diverse high-fidelity business ideas tailored to the target area.
+- **Specific Business Concept Search** (if `business_type` is provided): Restricts results to exactly ONE recommendation for the requested business under the category `Target Niche`. The entire analysis block (emerging sectors, competitive landscape, consumer insights, spending patterns, market gaps, and go/no-go reasoning) is dynamically focused to evaluate the viability and localized demand of that specific business in the target area.
 *   **Request Body**:
     ```json
     {
